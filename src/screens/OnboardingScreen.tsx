@@ -1,7 +1,14 @@
 import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
+import { useWalletStore } from "../store/walletStore";
 
 export default function OnboardingScreen() {
+  const connect = useWalletStore((s) => s.connect);
+
+  const handleConnect = () => {
+    connect("GABCDEF1234567890MOCKPUBLICKEY");
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: "#0F172A", justifyContent: "center", alignItems: "center", padding: 24 }}>
       <Text style={{ fontSize: 48 }}>🌱</Text>
@@ -10,6 +17,7 @@ export default function OnboardingScreen() {
         Earn rewards for climate action
       </Text>
       <TouchableOpacity
+        onPress={handleConnect}
         style={{
           marginTop: 32,
           padding: 16,

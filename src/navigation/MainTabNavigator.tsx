@@ -24,10 +24,10 @@ export default function MainTabNavigator() {
         tabBarStyle: { backgroundColor: "#0F172A", borderTopColor: "#1E293B" },
       }}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Tasks" component={TaskListScreen} />
-      <Tab.Screen name="Submit" component={SubmitProofScreen} />
-      <Tab.Screen name="Wallet" component={WalletScreen} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarIcon: () => null }} />
+      <Tab.Screen name="Tasks" component={TaskListScreen} options={{ tabBarIcon: () => null }} />
+      <Tab.Screen name="Submit" component={SubmitProofScreen} options={{ tabBarIcon: () => null }} />
+      <Tab.Screen name="Wallet" component={WalletScreen} options={{ tabBarIcon: () => null }} />
     </Tab.Navigator>
   );
 }
