@@ -1,41 +1,50 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { useWalletStore } from "../store/walletStore";
+import { useStellarWallet } from "../hooks/useStellarWallet";
+import { colors, spacing } from "../utils/theme";
+import OnboardingScreen from "./OnboardingScreen";
 
 export default function WalletScreen() {
-  const publicKey = useWalletStore((s) => s.publicKey);
-  const balance = useWalletStore((s) => s.balance);
-  const disconnect = useWalletStore((s) => s.disconnect);
+  const { balance, publicKey, isConnected } = useWalletStore();
+  const { disconnectWallet, refreshBalance } = useStellarWallet();
+
+  useEffect(() => {
+    refreshBalance();
+  }, []);
+
+  if (!isConnected) {
+    return <OnboardingScreen />;
+  }
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#0F172A", padding: 24 }}>
-      <Text style={{ color: "#F8FAFC", fontSize: 28, fontWeight: "bold", marginTop: 60 }}>Wallet</Text>
+    <View style={{ flex: 1, backgroundColor: colors.background, padding: spacing.lg }}>
+      <Text style={{ color: colors.text, fontSize: 24, fontWeight: "bold" }}>Wallet</Text>
 
-      <View style={{ backgroundColor: "#1E293B", borderRadius: 12, padding: 24, marginTop: 24, alignItems: "center" }}>
-        <Text style={{ color: "#94A3B8", fontSize: 14 }}>Balance</Text>
-        <Text style={{ color: "#22C55E", fontSize: 48, fontWeight: "bold", marginTop: 8 }}>
-          {balance ?? "0"} ECO
+      <View style={{ marginTop: spacing.xl, padding: spacing.lg, backgroundColor: colors.surface, borderRadius: 16 }}>
+        <Text style={{ color: colors.textSecondary, fontSize: 14 }}>Balance</Text>
+        <Text style={{ color: colors.text, fontSize: 36, fontWeight: "bold", marginTop: spacing.xs }}>
+          {balance ?? "0"} <Text style={{ fontSize: 18, color: colors.primary }}>XLM</Text>
         </Text>
-      </View>
 
-      <View style={{ backgroundColor: "#1E293B", borderRadius: 12, padding: 16, marginTop: 16 }}>
-        <Text style={{ color: "#94A3B8", fontSize: 12 }}>PUBLIC KEY</Text>
-        <Text style={{ color: "#F8FAFC", marginTop: 4, fontSize: 12 }} numberOfLines={1}>
-          {publicKey ?? "Not connected"}
-        </Text>
+        {publicKey && (
+          <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: spacing.md }} numberOfLines={1}>
+            {publicKey}
+          </Text>
+        )}
       </View>
 
       <TouchableOpacity
-        onPress={disconnect}
+        onPress={disconnectWallet}
         style={{
-          marginTop: 32,
-          padding: 16,
-          backgroundColor: "#EF4444",
+          marginTop: spacing.xl,
+          padding: spacing.md,
+          backgroundColor: colors.error,
           borderRadius: 12,
           alignItems: "center",
         }}
       >
-        <Text style={{ color: "#FFF", fontWeight: "600", fontSize: 16 }}>Disconnect Wallet</Text>
+        <Text style={{ color: "#FFF", fontWeight: "600" }}>Disconnect</Text>
       </TouchableOpacity>
     </View>
   );
