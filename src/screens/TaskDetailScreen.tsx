@@ -1,62 +1,119 @@
-import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
-import { useRoute, useNavigation } from "@react-navigation/native";
-import type { RouteProp } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { TaskStackParamList } from "../navigation/TaskStackNavigator";
+import React, { useEffect, useState } from "react";
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
+import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
+import { colors, spacing } from "../utils/theme";
+import { fetchTaskById } from "../services/api";
 
-type TaskDetailRoute = RouteProp<TaskStackParamList, "TaskDetail">;
-type TaskDetailNav = NativeStackNavigationProp<TaskStackParamList, "TaskDetail">;
+type TaskDetailRoute = RouteProp<{ TaskDetail: { taskId: string } }, "TaskDetail">;
 
-const MOCK_TASK = {
-  id: "1",
-  title: "Plant 10 trees in your area",
-  description: "Find a suitable location and plant 10 native trees. Take photos before and after. GPS coordinates must match the task zone.",
-  type: "Reforestation",
-  rewardAmount: 50,
-  lat: 40.7128,
-  lng: -74.006,
-  status: "open",
+const TYPE_ICONS: Record<string, string> = {
+  TREE_PLANTING: "🌳",
+  TRASH_COLLECTION: "♻️",
+  OCEAN_CLEANUP: "🌊",
+  GARDENING: "🌱",
+  EDUCATION: "📚",
+  OTHER: "📍",
 };
 
 export default function TaskDetailScreen() {
   const route = useRoute<TaskDetailRoute>();
-  const navigation = useNavigation<TaskDetailNav>();
+  const navigation = useNavigation<any>();
+  const { taskId } = route.params;
+
+  const [task, setTask] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadTask();
+  }, [taskId]);
+
+  async function loadTask() {
+    setLoading(true);
+    try {
+      const data = await fetchTaskById(taskId);
+      setTask(data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: "center" }}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (error || !task) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: "center", alignItems: "center" }}>
+        <Text style={{ color: colors.error }}>{error || "Task not found"}</Text>
+      </View>
+    );
+  }
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#0F172A", padding: 24 }}>
-      <View style={{ marginTop: 60 }}>
-        <Text style={{ color: "#F8FAFC", fontSize: 24, fontWeight: "bold" }}>{MOCK_TASK.title}</Text>
-        <View style={{ flexDirection: "row", marginTop: 12 }}>
-          <Text style={{ color: "#22C55E", fontSize: 14, fontWeight: "600" }}>{MOCK_TASK.rewardAmount} ECO</Text>
-          <Text style={{ color: "#94A3B8", marginLeft: 12 }}>{MOCK_TASK.type}</Text>
-        </View>
-      </View>
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ padding: spacing.lg }}>
+        {/* Back button */}
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginBottom: spacing.md, marginTop: spacing.xl }}>
+          <Text style={{ color: colors.primary, fontSize: 16 }}>← Back</Text>
+        </TouchableOpacity>
 
-      <Text style={{ color: "#94A3B8", marginTop: 24, lineHeight: 22 }}>{MOCK_TASK.description}</Text>
+        {/* Type icon + title */}
+        <Text style={{ fontSize: 48, marginBottom: spacing.sm }}>
+          {TYPE_ICONS[task.type] || "📍"}
+        </Text>
+        <Text style={{ color: colors.text, fontSize: 24, fontWeight: "bold" }}>{task.title}</Text>
 
-      <View style={{ backgroundColor: "#1E293B", borderRadius: 12, padding: 16, marginTop: 24 }}>
-        <Text style={{ color: "#94A3B8", fontSize: 12 }}>LOCATION</Text>
-        <Text style={{ color: "#F8FAFC", marginTop: 4 }}>{MOCK_TASK.lat.toFixed(4)}, {MOCK_TASK.lng.toFixed(4)}</Text>
-      </View>
-
-      <View style={{ backgroundColor: "#1E293B", borderRadius: 12, padding: 16, marginTop: 12 }}>
-        <Text style={{ color: "#94A3B8", fontSize: 12 }}>STATUS</Text>
-        <Text style={{ color: "#22C55E", marginTop: 4, textTransform: "capitalize" }}>{MOCK_TASK.status}</Text>
-      </View>
-
-      <TouchableOpacity
-        onPress={() => navigation.navigate("SubmitProof", { taskId: route.params.taskId })}
-        style={{
-          marginTop: 32,
-          padding: 16,
-          backgroundColor: "#22C55E",
-          borderRadius: 12,
+        {/* Reward */}
+        <View style={{
+          flexDirection: "row",
           alignItems: "center",
-        }}
-      >
-        <Text style={{ color: "#FFF", fontWeight: "600", fontSize: 16 }}>Start Task</Text>
-      </TouchableOpacity>
-    </View>
+          marginTop: spacing.md,
+          padding: spacing.md,
+          backgroundColor: colors.surface,
+          borderRadius: 12,
+        }}>
+          <Text style={{ color: colors.primary, fontSize: 20, fontWeight: "bold" }}>
+            {task.rewardAmount} {task.rewardToken || "ECO"}
+          </Text>
+          <Text style={{ color: colors.textSecondary, marginLeft: spacing.sm }}>reward</Text>
+        </View>
+
+        {/* Description */}
+        <Text style={{ color: colors.textSecondary, marginTop: spacing.lg, lineHeight: 22 }}>
+          {task.description}
+        </Text>
+
+        {/* Instructions */}
+        {task.instructions && (
+          <View style={{ marginTop: spacing.lg }}>
+            <Text style={{ color: colors.text, fontSize: 18, fontWeight: "600", marginBottom: spacing.sm }}>
+              Instructions
+            </Text>
+            <Text style={{ color: colors.textSecondary, lineHeight: 22 }}>{task.instructions}</Text>
+          </View>
+        )}
+
+        {/* Start Task button */}
+        <TouchableOpacity
+          onPress={() => navigation.navigate("SubmitProof", { taskId })}
+          style={{
+            marginTop: spacing.xl,
+            padding: spacing.md,
+            backgroundColor: colors.primary,
+            borderRadius: 12,
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ color: "#FFF", fontSize: 18, fontWeight: "600" }}>Start Task</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }
