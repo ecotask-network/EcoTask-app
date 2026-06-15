@@ -226,6 +226,19 @@ MIT — see [LICENSE](./LICENSE) for details.
 
 ---
 
+## Ecosystem
+
+This is part of the [EcoTask Network](https://github.com/ecotask-network):
+
+| Repo | Description |
+|------|-------------|
+| [EcoTask-app](https://github.com/ecotask-network/EcoTask-app) | Mobile dApp |
+| [EcoTask-backend](https://github.com/ecotask-network/EcoTask-backend) | Node.js API & verification engine |
+| [EcoTask-contracts](https://github.com/ecotask-network/EcoTask-contract) | Stellar Soroban smart contracts |
+| [EcoTask-docs](https://github.com/ecotask-network/EcoTask-docs) | Documentation hub |
+
+---
+
 <div align="center">
 
 *Part of the [EcoTask Network](https://github.com/ecotask-network) — Because the environment deserves an economy.*
