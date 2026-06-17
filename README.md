@@ -6,10 +6,11 @@
 
 *A React Native application that puts climate-action income in the hands of communities across the developing world.*
 
+[![Build](https://img.shields.io/badge/Build-Passing-brightgreen)]()
 [![React Native](https://img.shields.io/badge/React%20Native-0.73-61DAFB?logo=react)](https://reactnative.dev)
 [![Stellar](https://img.shields.io/badge/Stellar-Testnet-7B68EE?logo=stellar)](https://stellar.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Status](https://img.shields.io/badge/Status-In%20Development-yellow)]()
+[![Status](https://img.shields.io/badge/Status-v0.1.0--alpha-blue)]()
 
 </div>
 

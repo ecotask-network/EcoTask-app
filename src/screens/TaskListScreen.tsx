@@ -4,6 +4,8 @@ import { useNavigation } from "@react-navigation/native";
 import { colors, spacing } from "../utils/theme";
 import { useTaskFeed } from "../hooks/useTaskFeed";
 import TaskCard from "../components/TaskCard";
+import { TaskCardSkeleton } from "../components/LoadingSkeleton";
+import EmptyState from "../components/EmptyState";
 
 export default function TaskListScreen() {
   const navigation = useNavigation<any>();
@@ -12,6 +14,18 @@ export default function TaskListScreen() {
   const handleTaskPress = useCallback((taskId: string) => {
     navigation.navigate("TaskDetail", { taskId });
   }, [navigation]);
+
+  if (isLoading && tasks.length === 0) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.md }}>
+          <Text style={{ color: colors.text, fontSize: 24, fontWeight: "bold" }}>Tasks</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 14 }}>Find climate actions near you</Text>
+        </View>
+        {Array.from({ length: 5 }).map((_, i) => <TaskCardSkeleton key={i} />)}
+      </View>
+    );
+  }
 
   if (error && tasks.length === 0) {
     return (
@@ -26,7 +40,6 @@ export default function TaskListScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* Header */}
       <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.md }}>
         <Text style={{ color: colors.text, fontSize: 24, fontWeight: "bold" }}>Tasks</Text>
         <Text style={{ color: colors.textSecondary, fontSize: 14 }}>Find climate actions near you</Text>
@@ -54,9 +67,11 @@ export default function TaskListScreen() {
         onRefresh={refresh}
         ListEmptyComponent={
           !isLoading ? (
-            <View style={{ alignItems: "center", marginTop: spacing.xl * 2 }}>
-              <Text style={{ color: colors.textSecondary }}>No tasks found</Text>
-            </View>
+            <EmptyState
+              icon="🔍"
+              title="No tasks found"
+              description="Check back later for new climate actions"
+            />
           ) : null
         }
         ListFooterComponent={

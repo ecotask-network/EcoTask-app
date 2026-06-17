@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from "rea
 import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
 import { colors, spacing } from "../utils/theme";
 import { fetchTaskById } from "../services/api";
+import { TaskDetailSkeleton } from "../components/LoadingSkeleton";
 
 type TaskDetailRoute = RouteProp<{ TaskDetail: { taskId: string } }, "TaskDetail">;
 
@@ -42,8 +43,8 @@ export default function TaskDetailScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: "center" }}>
-        <ActivityIndicator color={colors.primary} />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <TaskDetailSkeleton />
       </View>
     );
   }
@@ -52,6 +53,9 @@ export default function TaskDetailScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: "center", alignItems: "center" }}>
         <Text style={{ color: colors.error }}>{error || "Task not found"}</Text>
+        <TouchableOpacity onPress={loadTask} style={{ marginTop: spacing.md }}>
+          <Text style={{ color: colors.primary }}>Try Again</Text>
+        </TouchableOpacity>
       </View>
     );
   }

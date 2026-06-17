@@ -6,6 +6,7 @@ import { colors, spacing } from "../utils/theme";
 import { useLocation } from "../hooks/useLocation";
 import { useProofSubmit } from "../hooks/useProofSubmit";
 import WalletBalance from "../components/WalletBalance";
+import EmptyState from "../components/EmptyState";
 
 type SubmitProofRoute = RouteProp<{ SubmitProof: { taskId: string } }, "SubmitProof">;
 
@@ -45,6 +46,16 @@ export default function SubmitProofScreen() {
     confirmed: "Reward confirmed!",
     failed: "Upload failed",
   };
+
+  if (!taskId) {
+    return (
+      <EmptyState
+        icon="📋"
+        title="Select a task first"
+        description="Browse available tasks"
+      />
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>

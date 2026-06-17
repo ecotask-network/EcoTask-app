@@ -1,7 +1,9 @@
 import React, { useEffect } from "react";
-import { StatusBar, AppState, AppStateStatus } from "react-native";
+import { StatusBar, AppState, AppStateStatus, View } from "react-native";
 import RootNavigator from "./src/navigation/RootNavigator";
 import { useProofSubmit } from "./src/hooks/useProofSubmit";
+import ErrorBoundary from "./src/components/ErrorBoundary";
+import OfflineBanner from "./src/components/OfflineBanner";
 
 function AppSync() {
   const { syncPendingProofs } = useProofSubmit();
@@ -20,10 +22,13 @@ function AppSync() {
 
 export default function App() {
   return (
-    <>
+    <ErrorBoundary>
       <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
       <AppSync />
-      <RootNavigator />
-    </>
+      <View style={{ flex: 1 }}>
+        <OfflineBanner />
+        <RootNavigator />
+      </View>
+    </ErrorBoundary>
   );
 }
