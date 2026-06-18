@@ -1,6 +1,6 @@
-import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import { MMKV } from "react-native-mmkv";
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { MMKV } from 'react-native-mmkv';
 
 const storage = new MMKV();
 const zustandMMKVStorage = {
@@ -20,17 +20,18 @@ interface WalletState {
 
 export const useWalletStore = create<WalletState>()(
   persist(
-    (set) => ({
+    set => ({
       isConnected: false,
       publicKey: null,
       balance: null,
-      connect: (publicKey) => set({ isConnected: true, publicKey }),
-      disconnect: () => set({ isConnected: false, publicKey: null, balance: null }),
-      setBalance: (balance) => set({ balance }),
+      connect: publicKey => set({ isConnected: true, publicKey }),
+      disconnect: () =>
+        set({ isConnected: false, publicKey: null, balance: null }),
+      setBalance: balance => set({ balance }),
     }),
     {
-      name: "wallet-storage",
+      name: 'wallet-storage',
       storage: createJSONStorage(() => zustandMMKVStorage),
-    }
-  )
+    },
+  ),
 );

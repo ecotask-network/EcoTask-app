@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
-import { Platform, Alert } from "react-native";
-import { useWalletStore } from "../store/walletStore";
-import { useUserStore } from "../store/userStore";
-import * as stellar from "../services/stellar";
+import { useState, useEffect, useCallback } from 'react';
+import { Platform } from 'react-native';
+import { useWalletStore } from '../store/walletStore';
+import * as stellar from '../services/stellar';
 
 interface FreighterWindow {
   freighter?: {
@@ -13,8 +12,8 @@ interface FreighterWindow {
 }
 
 export function useStellarWallet() {
-  const { connect, disconnect, setBalance, publicKey, isConnected } = useWalletStore();
-  const { setToken } = useUserStore();
+  const { connect, disconnect, setBalance, publicKey, isConnected } =
+    useWalletStore();
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,13 +21,15 @@ export function useStellarWallet() {
     setIsConnecting(true);
     setError(null);
     try {
-      const freighter = (Platform.OS === "web" ? window : ({} as FreighterWindow)).freighter;
+      const freighter = (
+        Platform.OS === 'web' ? window : ({} as FreighterWindow)
+      ).freighter;
       if (!freighter) {
-        throw new Error("Freighter extension not detected");
+        throw new Error('Freighter extension not detected');
       }
       const isConnected = await freighter.isConnected();
       if (!isConnected) {
-        throw new Error("Please unlock Freighter first");
+        throw new Error('Please unlock Freighter first');
       }
       const key = await freighter.getPublicKey();
       connect(key);
@@ -42,7 +43,7 @@ export function useStellarWallet() {
   }, [connect, setBalance]);
 
   const connectLobstr = useCallback(async () => {
-    setError("Lobstr integration coming soon");
+    setError('Lobstr integration coming soon');
   }, []);
 
   const createInAppWallet = useCallback(async () => {

@@ -1,9 +1,9 @@
-import React from "react";
-import { NavigationContainer } from "@react-navigation/native";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { useWalletStore } from "../store/walletStore";
-import MainTabNavigator from "./MainTabNavigator";
-import OnboardingScreen from "../screens/OnboardingScreen";
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useWalletStore } from '../store/walletStore';
+import MainTabNavigator from './MainTabNavigator';
+import OnboardingScreen from '../screens/OnboardingScreen';
 
 export type RootStackParamList = {
   Onboarding: undefined;
@@ -13,7 +13,7 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootNavigator() {
-  const isConnected = useWalletStore((s) => s.isConnected);
+  const isConnected = useWalletStore(s => s.isConnected);
 
   return (
     <NavigationContainer>

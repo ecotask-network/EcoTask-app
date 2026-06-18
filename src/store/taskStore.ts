@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { create } from 'zustand';
 
 interface Task {
   id: string;
@@ -29,19 +29,19 @@ interface TaskState {
   reset: () => void;
 }
 
-export const useTaskStore = create<TaskState>((set) => ({
+export const useTaskStore = create<TaskState>(set => ({
   tasks: [],
   selectedTask: null,
   isLoading: false,
   error: null,
   page: 1,
   hasMore: true,
-  setTasks: (tasks) => set({ tasks }),
-  appendTasks: (tasks) => set((s) => ({ tasks: [...s.tasks, ...tasks] })),
-  selectTask: (task) => set({ selectedTask: task }),
-  setLoading: (isLoading) => set({ isLoading }),
-  setError: (error) => set({ error }),
-  setPage: (page) => set({ page }),
-  setHasMore: (hasMore) => set({ hasMore }),
+  setTasks: tasks => set({ tasks }),
+  appendTasks: tasks => set(s => ({ tasks: [...s.tasks, ...tasks] })),
+  selectTask: task => set({ selectedTask: task }),
+  setLoading: isLoading => set({ isLoading }),
+  setError: error => set({ error }),
+  setPage: page => set({ page }),
+  setHasMore: hasMore => set({ hasMore }),
   reset: () => set({ tasks: [], page: 1, hasMore: true, error: null }),
 }));

@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import { Platform, PermissionsAndroid } from "react-native";
-import Geolocation from "@react-native-community/geolocation";
+import { useState, useEffect } from 'react';
+import { Platform, PermissionsAndroid } from 'react-native';
+import Geolocation from '@react-native-community/geolocation';
 
 interface Location {
   lat: number;
@@ -14,16 +14,16 @@ export function useLocation() {
 
   useEffect(() => {
     requestPermission();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function requestPermission() {
     try {
-      if (Platform.OS === "android") {
+      if (Platform.OS === 'android') {
         const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
         );
         if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          setError("Location permission denied");
+          setError('Location permission denied');
           return;
         }
       }
@@ -36,12 +36,12 @@ export function useLocation() {
 
   function getCurrentLocation() {
     Geolocation.getCurrentPosition(
-      (pos) => {
+      pos => {
         setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setError(null);
       },
-      (err) => setError(err.message),
-      { enableHighAccuracy: true, timeout: 15000 }
+      err => setError(err.message),
+      { enableHighAccuracy: true, timeout: 15000 },
     );
   }
 

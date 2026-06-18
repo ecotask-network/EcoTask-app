@@ -1,8 +1,8 @@
-import React from "react";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import TaskListScreen from "../screens/TaskListScreen";
-import TaskDetailScreen from "../screens/TaskDetailScreen";
-import SubmitProofScreen from "../screens/SubmitProofScreen";
+import React from 'react';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import TaskListScreen from '../screens/TaskListScreen';
+import TaskDetailScreen from '../screens/TaskDetailScreen';
+import SubmitProofScreen from '../screens/SubmitProofScreen';
 
 export type TaskStackParamList = {
   TaskList: undefined;

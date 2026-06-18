@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { create } from 'zustand';
 
 interface UserProfile {
   id: string;
@@ -16,10 +16,10 @@ interface UserState {
   logout: () => void;
 }
 
-export const useUserStore = create<UserState>((set) => ({
+export const useUserStore = create<UserState>(set => ({
   profile: null,
   token: null,
-  setProfile: (profile) => set({ profile }),
-  setToken: (token) => set({ token }),
+  setProfile: profile => set({ profile }),
+  setToken: token => set({ token }),
   logout: () => set({ profile: null, token: null }),
 }));
