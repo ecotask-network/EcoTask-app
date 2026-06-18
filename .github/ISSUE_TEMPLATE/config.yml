@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: EcoTask Discussions
+    url: https://github.com/ecotask-network/EcoTask-app/discussions
+    about: Please ask and answer questions here.
+  - name: Security Issues
+    url: https://github.com/ecotask-network/EcoTask-app/SECURITY.md
+    about: Please report security vulnerabilities here.

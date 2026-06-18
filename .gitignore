@@ -1,7 +1,37 @@
+# Dependencies
 node_modules/
+
+# Build outputs
 dist/
-.env
-*.log
-.DS_Store
-ios/Pods/
+android/app/build/
 android/.gradle/
+ios/Pods/
+ios/build/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.production
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# React Native
+*.hbc
+*.jsbundle
+
+# Metro
+metro-cache/

@@ -11,6 +11,8 @@
 [![Stellar](https://img.shields.io/badge/Stellar-Testnet-7B68EE?logo=stellar)](https://stellar.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Status](https://img.shields.io/badge/Status-v0.1.0--alpha-blue)]()
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.0-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
 </div>
 
@@ -215,7 +217,13 @@ Launch
 
 ## 🤝 Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+We welcome contributions from everyone!
+
+- 📖 Read our [Contributing Guidelines](CONTRIBUTING.md)
+- ⚖️ Review our [Code of Conduct](CODE_OF_CONDUCT.md)
+- 🐛 Report bugs via [Bug Report](.github/ISSUE_TEMPLATE/bug_report.md)
+- 💡 Suggest features via [Feature Request](.github/ISSUE_TEMPLATE/feature_request.md)
+- 🔒 Report vulnerabilities in [SECURITY.md](SECURITY.md)
 
 Good first issues are tagged [`good first issue`](https://github.com/ecotask-network/ecotask-app/issues?q=label%3A%22good+first+issue%22) in the issue tracker.
 
