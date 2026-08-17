@@ -1,5 +1,8 @@
 import { useTaskStore } from '../store/taskStore';
-import { isSelectionFresh, buildSubmitProofParams } from '../utils/taskSelection';
+import {
+  isSelectionFresh,
+  buildSubmitProofParams,
+} from '../utils/taskSelection';
 
 /**
  * The tab bar can't pass route params, so this listener intercepts the

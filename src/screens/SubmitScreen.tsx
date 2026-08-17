@@ -3,7 +3,10 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { colors, spacing } from '../utils/theme';
 import { useTaskStore } from '../store/taskStore';
-import { isSelectionFresh, buildSubmitProofParams } from '../utils/taskSelection';
+import {
+  isSelectionFresh,
+  buildSubmitProofParams,
+} from '../utils/taskSelection';
 
 /**
  * Fallback shown on the Submit tab when there's no active task.
@@ -20,7 +23,10 @@ export default function SubmitScreen() {
   useFocusEffect(
     useCallback(() => {
       if (selectedTask && isSelectionFresh(selectedAt)) {
-        navigation.navigate('SubmitProof', buildSubmitProofParams(selectedTask));
+        navigation.navigate(
+          'SubmitProof',
+          buildSubmitProofParams(selectedTask),
+        );
       }
     }, [selectedTask, selectedAt, navigation]),
   );
@@ -57,8 +63,8 @@ export default function SubmitScreen() {
             lineHeight: 22,
           }}
         >
-          Pick an active task and we'll bring you straight back here to
-          capture your proof.
+          Pick an active task and we'll bring you straight back here to capture
+          your proof.
         </Text>
         <TouchableOpacity
           onPress={() => navigation.navigate('Tasks')}

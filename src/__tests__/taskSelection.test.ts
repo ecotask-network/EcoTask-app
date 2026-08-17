@@ -29,7 +29,9 @@ describe('isSelectionFresh', () => {
   });
 
   it('is true just under the 24h boundary', () => {
-    const selectedAt = new Date(now - SELECTION_FRESHNESS_MS + 1000).toISOString();
+    const selectedAt = new Date(
+      now - SELECTION_FRESHNESS_MS + 1000,
+    ).toISOString();
     expect(isSelectionFresh(selectedAt, now)).toBe(true);
   });
 
@@ -39,7 +41,9 @@ describe('isSelectionFresh', () => {
   });
 
   it('is false once older than 24h', () => {
-    const selectedAt = new Date(now - SELECTION_FRESHNESS_MS - 1000).toISOString();
+    const selectedAt = new Date(
+      now - SELECTION_FRESHNESS_MS - 1000,
+    ).toISOString();
     expect(isSelectionFresh(selectedAt, now)).toBe(false);
   });
 
@@ -60,7 +64,7 @@ describe('buildSubmitProofParams', () => {
   });
 
   it('defaults rewardToken to ECO when missing', () => {
-    const { rewardToken, ...rest } = task;
-    expect(buildSubmitProofParams(rest as Task).rewardToken).toBe('ECO');
+    const taskWithoutReward: Task = { ...task, rewardToken: undefined };
+    expect(buildSubmitProofParams(taskWithoutReward).rewardToken).toBe('ECO');
   });
 });
