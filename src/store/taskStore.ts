@@ -13,6 +13,8 @@ const zustandMMKVStorage = {
 interface TaskState {
   tasks: Task[];
   selectedTask: Task | null;
+  /** ISO timestamp of when selectedTask was set, used to gate the Submit tab shortcut. */
+  selectedAt: string | null;
   isLoading: boolean;
   error: string | null;
   page: number;
@@ -32,6 +34,7 @@ export const useTaskStore = create<TaskState>()(
     set => ({
       tasks: [],
       selectedTask: null,
+      selectedAt: null,
       isLoading: false,
       error: null,
       page: 1,
@@ -46,7 +49,11 @@ export const useTaskStore = create<TaskState>()(
             ),
           ],
         })),
-      selectTask: task => set({ selectedTask: task }),
+      selectTask: task =>
+        set({
+          selectedTask: task,
+          selectedAt: task ? new Date().toISOString() : null,
+        }),
       setLoading: isLoading => set({ isLoading }),
       setError: error => set({ error }),
       setPage: page => set({ page }),

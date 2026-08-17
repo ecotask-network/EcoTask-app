@@ -3,8 +3,9 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import HomeScreen from '../screens/HomeScreen';
 import TaskStackNavigator from './TaskStackNavigator';
 import WalletScreen from '../screens/WalletScreen';
-import SubmitPlaceholderScreen from '../screens/SubmitPlaceholderScreen';
+import SubmitScreen from '../screens/SubmitScreen';
 import TabBarIcon from '../components/TabBarIcon';
+import { createSubmitTabPressHandler } from './submitTabPress';
 
 export type MainTabParamList = {
   Home: undefined;
@@ -45,12 +46,15 @@ export default function MainTabNavigator() {
       />
       <Tab.Screen
         name="Submit"
-        component={SubmitPlaceholderScreen}
+        component={SubmitScreen}
         options={{
           tabBarIcon: ({ focused, color }) => (
             <TabBarIcon emoji="📸" focused={focused} color={color} />
           ),
         }}
+        listeners={({ navigation }) => ({
+          tabPress: createSubmitTabPressHandler(navigation),
+        })}
       />
       <Tab.Screen
         name="Wallet"

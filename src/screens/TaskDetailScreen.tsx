@@ -4,6 +4,7 @@ import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { colors, spacing } from '../utils/theme';
 import { fetchTaskById } from '../services/api';
 import { TaskDetailSkeleton } from '../components/LoadingSkeleton';
+import { useTaskStore } from '../store/taskStore';
 import {
   TASK_TYPE_CONFIG,
   TaskType,
@@ -20,6 +21,7 @@ export default function TaskDetailScreen() {
   const route = useRoute<TaskDetailRoute>();
   const navigation = useNavigation<any>();
   const { taskId } = route.params;
+  const selectTask = useTaskStore(s => s.selectTask);
 
   const [task, setTask] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -163,15 +165,16 @@ export default function TaskDetailScreen() {
         )}
 
         <TouchableOpacity
-          onPress={() =>
+          onPress={() => {
+            selectTask({ ...task, id: task.id || taskId });
             navigation.navigate('SubmitProof', {
               taskId,
               taskTitle: task.title,
               taskType: task.type,
               rewardAmount: task.rewardAmount,
               rewardToken: task.rewardToken || 'ECO',
-            })
-          }
+            });
+          }}
           style={{
             marginTop: spacing.xl,
             padding: spacing.md,

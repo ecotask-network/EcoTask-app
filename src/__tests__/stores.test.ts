@@ -69,6 +69,7 @@ describe('taskStore', () => {
     useTaskStore.setState({
       tasks: [],
       selectedTask: null,
+      selectedAt: null,
       isLoading: false,
       error: null,
       page: 1,
@@ -131,7 +132,7 @@ describe('taskStore', () => {
     expect(useTaskStore.getState().tasks).toHaveLength(2);
   });
 
-  it('selects a task', () => {
+  it('selects a task and stamps selectedAt', () => {
     const task = {
       id: '1',
       title: 'Task',
@@ -144,6 +145,24 @@ describe('taskStore', () => {
     };
     useTaskStore.getState().selectTask(task);
     expect(useTaskStore.getState().selectedTask?.id).toBe('1');
+    expect(useTaskStore.getState().selectedAt).toEqual(expect.any(String));
+  });
+
+  it('clears selectedAt when deselecting', () => {
+    const task = {
+      id: '1',
+      title: 'Task',
+      description: '',
+      type: 'OTHER',
+      rewardAmount: 5,
+      lat: 0,
+      lng: 0,
+      status: 'open',
+    };
+    useTaskStore.getState().selectTask(task);
+    useTaskStore.getState().selectTask(null);
+    expect(useTaskStore.getState().selectedTask).toBeNull();
+    expect(useTaskStore.getState().selectedAt).toBeNull();
   });
 
   it('resets state', () => {
