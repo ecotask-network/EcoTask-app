@@ -4,12 +4,14 @@ import HomeScreen from '../screens/HomeScreen';
 import TaskStackNavigator from './TaskStackNavigator';
 import WalletScreen from '../screens/WalletScreen';
 import SubmitScreen from '../screens/SubmitScreen';
+import MapScreen from '../screens/MapScreen';
 import TabBarIcon from '../components/TabBarIcon';
 import { createSubmitTabPressHandler } from './submitTabPress';
 
 export type MainTabParamList = {
   Home: undefined;
   Tasks: undefined;
+  Map: undefined;
   Submit: undefined;
   Wallet: undefined;
 };
@@ -41,6 +43,15 @@ export default function MainTabNavigator() {
         options={{
           tabBarIcon: ({ focused, color }) => (
             <TabBarIcon emoji="🌿" focused={focused} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Map"
+        component={MapScreen}
+        options={{
+          tabBarIcon: ({ focused, color }) => (
+            <TabBarIcon emoji="🗺️" focused={focused} color={color} />
           ),
         }}
       />
