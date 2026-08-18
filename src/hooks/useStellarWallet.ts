@@ -4,6 +4,11 @@ import Config from 'react-native-config';
 import { useWalletStore } from '../store/walletStore';
 import * as stellar from '../services/stellar';
 import { saveInAppSecret, clearInAppSecret } from '../services/walletVault';
+import {
+  isLobstrInstalled,
+  openLobstrForSigning,
+  LobstrNotInstalledError,
+} from '../services/lobstr';
 
 interface FreighterWindow {
   freighter?: {
@@ -21,6 +26,7 @@ export function useStellarWallet() {
     setEcoBalance,
     publicKey,
     isConnected,
+    walletType,
   } = useWalletStore();
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,11 +49,15 @@ export function useStellarWallet() {
   );
 
   const connectAccount = useCallback(
-    async (key: string, secretKey?: string) => {
+    async (
+      key: string,
+      secretKey?: string,
+      type: 'freighter' | 'inapp' | 'lobstr' = 'inapp',
+    ) => {
       if (secretKey) {
         saveInAppSecret(key, secretKey);
       }
-      connect(key);
+      connect(key, type);
       const balance = await stellar.getBalance(key);
       setBalance(balance);
       await refreshEcoBalance(key);
@@ -70,7 +80,7 @@ export function useStellarWallet() {
         throw new Error('Please unlock Freighter first');
       }
       const key = await freighter.getPublicKey();
-      await connectAccount(key);
+      await connectAccount(key, undefined, 'freighter');
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -78,9 +88,75 @@ export function useStellarWallet() {
     }
   }, [connectAccount]);
 
+  /**
+   * Connect via Lobstr.
+   *
+   * Flow:
+   *  1. Check Lobstr is installed; surface a clear error if not.
+   *  2. Build a minimal SEP-7 `tx` auth challenge signed by a local ephemeral
+   *     keypair.  The challenge is opened in Lobstr, which re-signs it with
+   *     the user's real keypair and redirects back with the signed XDR.
+   *  3. Parse the returned signed XDR to extract the user's public key from
+   *     the transaction source field, then complete the connection.
+   *     No secret key is ever persisted for a Lobstr wallet.
+   */
   const connectLobstr = useCallback(async () => {
-    setError('Lobstr integration coming soon');
-  }, []);
+    setIsConnecting(true);
+    setError(null);
+    try {
+      const installed = await isLobstrInstalled();
+      if (!installed) {
+        throw new LobstrNotInstalledError();
+      }
+
+      const {
+        Keypair,
+        Networks,
+        TransactionBuilder,
+        Account,
+        Operation,
+        BASE_FEE,
+      } = stellar;
+
+      const NETWORK =
+        Config.STELLAR_NETWORK === 'testnet'
+          ? Networks.TESTNET
+          : Networks.PUBLIC;
+
+      // Generate an ephemeral keypair locally — no network call required.
+      const ephemeral = Keypair.random();
+      const challengeAccount = new Account(ephemeral.publicKey(), '0');
+
+      const tx = new TransactionBuilder(challengeAccount, {
+        fee: BASE_FEE,
+        networkPassphrase: NETWORK,
+      })
+        .addOperation(
+          Operation.manageData({
+            name: 'ecotask auth',
+            value: Buffer.from(ephemeral.publicKey()),
+          }),
+        )
+        .setTimeout(60)
+        .build();
+
+      // Opens Lobstr; suspends until the deep-link callback resolves.
+      const signedXDR = await openLobstrForSigning(
+        tx.toXDR(),
+        ephemeral.publicKey(),
+      );
+
+      // Extract the user's real public key from the signed transaction source.
+      const parsed = TransactionBuilder.fromXDR(signedXDR, NETWORK);
+      const lobstrPublicKey = parsed.source;
+
+      await connectAccount(lobstrPublicKey, undefined, 'lobstr');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsConnecting(false);
+    }
+  }, [connectAccount]);
 
   const createInAppWallet = useCallback(async () => {
     setIsConnecting(true);
@@ -88,7 +164,7 @@ export function useStellarWallet() {
     try {
       const { publicKey: key, secretKey } =
         await stellar.createTestnetAccount();
-      await connectAccount(key, secretKey);
+      await connectAccount(key, secretKey, 'inapp');
       return { publicKey: key, secretKey };
     } catch (err: any) {
       setError(err.message);
@@ -107,7 +183,7 @@ export function useStellarWallet() {
           throw new Error('Invalid secret key');
         }
         const key = stellar.getPublicKeyFromSecret(trimmed);
-        await connectAccount(key, trimmed);
+        await connectAccount(key, trimmed, 'inapp');
         return { publicKey: key };
       } catch (err: any) {
         setError(err.message || 'Could not import wallet');
@@ -145,6 +221,7 @@ export function useStellarWallet() {
     error,
     publicKey,
     isConnected,
+    walletType,
     connectFreighter,
     connectLobstr,
     createInAppWallet,

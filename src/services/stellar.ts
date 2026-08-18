@@ -196,4 +196,4 @@ export async function signAndSubmitPayment(params: {
   return { hash: result.hash };
 }
 
-export { Keypair, Networks, Horizon };
+export { Keypair, Networks, Horizon, TransactionBuilder, Account, Operation, Asset, BASE_FEE };

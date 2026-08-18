@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { Linking } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useWalletStore } from '../store/walletStore';
@@ -11,6 +12,10 @@ import TaskDetailScreen from '../screens/TaskDetailScreen';
 import SubmitProofScreen from '../screens/SubmitProofScreen';
 import SendTokensScreen from '../screens/SendTokensScreen';
 import { SubmitProofParams } from '../types';
+import {
+  ECOTASK_SCHEME,
+  resolveLobstrCallback,
+} from '../services/lobstr';
 
 export type RootStackParamList = {
   Onboarding: undefined;
@@ -25,11 +30,62 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+/**
+ * Linking configuration for the `ecotask://` deep-link scheme.
+ * This makes React Navigation aware of inbound deep links so the app
+ * resumes on the correct screen after backgrounding for Lobstr signing.
+ */
+const linking = {
+  prefixes: ['ecotask://'],
+  config: {
+    screens: {
+      Main: 'main',
+      Onboarding: 'onboarding',
+    },
+  },
+};
+
 export default function RootNavigator() {
   const isConnected = useWalletStore(s => s.isConnected);
 
+  useEffect(() => {
+    /**
+     * Handle deep links that arrive while the app is already open
+     * (foreground / background).
+     */
+    function handleUrl({ url }: { url: string }) {
+      try {
+        const parsed = new URL(url);
+        // ecotask://lobstr/callback?xdr=...
+        // URL parses: hostname='lobstr', pathname='/callback'
+        if (
+          parsed.protocol === `${ECOTASK_SCHEME}:` &&
+          parsed.hostname === 'lobstr' &&
+          parsed.pathname === '/callback'
+        ) {
+          resolveLobstrCallback(url);
+        }
+      } catch {
+        // Ignore malformed URLs.
+      }
+    }
+
+    const subscription = Linking.addEventListener('url', handleUrl);
+
+    // Handle the case where the app was launched cold via a deep link.
+    Linking.getInitialURL().then(url => {
+      if (url) {
+        handleUrl({ url });
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isConnected ? (
           <>
