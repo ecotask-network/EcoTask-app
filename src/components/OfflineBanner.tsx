@@ -4,9 +4,9 @@ import { colors } from '../utils/theme';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 export default function OfflineBanner() {
-  const isConnected = useNetworkStatus();
+  const { isConnected, isInitialised } = useNetworkStatus();
 
-  if (isConnected) {
+  if (!isInitialised || isConnected) {
     return null;
   }
 

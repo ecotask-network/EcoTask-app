@@ -1,3 +1,8 @@
+jest.mock('@react-native-community/netinfo', () => ({
+  addEventListener: jest.fn(() => jest.fn()),
+  fetch: jest.fn(() => Promise.resolve({ isConnected: true })),
+}));
+
 import React from 'react';
 import renderer, { act } from 'react-test-renderer';
 import { useProofSubmit } from '../hooks/useProofSubmit';
@@ -155,7 +160,7 @@ describe('useProofSubmit retry logic', () => {
       return null;
     }
 
-    act(() => {
+    await act(async () => {
       renderer.create(<TestComponent />);
     });
 
@@ -229,7 +234,7 @@ describe('useProofSubmit retry logic', () => {
       return null;
     }
 
-    act(() => {
+    await act(async () => {
       renderer.create(<TestComponent />);
     });
 

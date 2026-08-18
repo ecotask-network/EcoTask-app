@@ -10,8 +10,10 @@ import {
   removeProofsForTask,
 } from '../services/proofQueue';
 import { useProofSyncStore } from '../store/proofSyncStore';
+import { useNetworkStatus } from './useNetworkStatus';
 
 export function useProofSubmit() {
+  const { isInitialised } = useNetworkStatus();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [progress, setProgress] = useState<
     'idle' | 'uploading' | 'verifying' | 'confirmed' | 'failed'
@@ -127,6 +129,13 @@ export function useProofSubmit() {
   );
 
   const syncPendingProofs = useCallback(async () => {
+    // Real connectivity is unknown until useNetworkStatus resolves its
+    // initial NetInfo.fetch(); syncing before then can fail silently
+    // against a network we haven't actually confirmed is up.
+    if (!isInitialised) {
+      return;
+    }
+
     // In-flight guard to prevent concurrent sync calls
     const syncStore = useProofSyncStore.getState();
     if (syncStore.isSyncing) {
@@ -163,7 +172,7 @@ export function useProofSubmit() {
     } finally {
       syncStore.endSync();
     }
-  }, [submitProofAttempt]);
+  }, [isInitialised, submitProofAttempt]);
 
   return {
     submit,
