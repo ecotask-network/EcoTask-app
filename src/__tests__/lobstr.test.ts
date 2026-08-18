@@ -97,7 +97,8 @@ describe('buildSep7TxUri', () => {
 
   it('includes the testnet network passphrase', () => {
     const uri = buildSep7TxUri(XDR, PUBLIC_KEY);
-    const decoded = decodeURIComponent(uri);
+    // URLSearchParams encodes spaces as '+'; decode both forms.
+    const decoded = decodeURIComponent(uri).replace(/\+/g, ' ');
     expect(decoded).toContain('Test SDF Network');
   });
 });
@@ -220,6 +221,10 @@ describe('openLobstrForSigning — callback flow', () => {
     const signedXDR = 'SIGNED_XDR_VALUE==';
     const promise = openLobstrForSigning('ORIGINAL_XDR==', 'GPUBLICKEY');
 
+    // Flush the microtask queue so the internal `await isLobstrInstalled()`
+    // completes and _pendingResolve is populated before we fire the callback.
+    await Promise.resolve();
+
     // Simulate Lobstr redirecting back with the signed XDR.
     resolveLobstrCallback(
       `ecotask://lobstr/callback?xdr=${encodeURIComponent(signedXDR)}`,
@@ -232,6 +237,8 @@ describe('openLobstrForSigning — callback flow', () => {
 
   it('rejects when the callback URL is malformed', async () => {
     const promise = openLobstrForSigning('XDR==', 'GPUBLICKEY');
+
+    await Promise.resolve();
 
     resolveLobstrCallback('ecotask://lobstr/callback'); // no xdr param
 
@@ -246,6 +253,10 @@ describe('openLobstrForSigning — callback flow', () => {
 describe('cancelLobstrCallback', () => {
   it('rejects the pending signing promise', async () => {
     const promise = openLobstrForSigning('XDR==', 'GPUBLICKEY');
+
+    // Flush microtasks so _pendingReject is populated before cancelling.
+    await Promise.resolve();
+
     cancelLobstrCallback();
     await expect(promise).rejects.toThrow('cancelled');
   });

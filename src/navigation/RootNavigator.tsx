@@ -12,10 +12,7 @@ import TaskDetailScreen from '../screens/TaskDetailScreen';
 import SubmitProofScreen from '../screens/SubmitProofScreen';
 import SendTokensScreen from '../screens/SendTokensScreen';
 import { SubmitProofParams } from '../types';
-import {
-  ECOTASK_SCHEME,
-  resolveLobstrCallback,
-} from '../services/lobstr';
+import { ECOTASK_SCHEME, resolveLobstrCallback } from '../services/lobstr';
 
 export type RootStackParamList = {
   Onboarding: undefined;
