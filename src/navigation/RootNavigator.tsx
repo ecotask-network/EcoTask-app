@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useCallback } from 'react';
+import { Linking } from 'react-native';
 import {
   NavigationContainer,
   NavigationContainerRef,
@@ -14,6 +15,7 @@ import TaskDetailScreen from '../screens/TaskDetailScreen';
 import SubmitProofScreen from '../screens/SubmitProofScreen';
 import SendTokensScreen from '../screens/SendTokensScreen';
 import { SubmitProofParams } from '../types';
+import { ECOTASK_SCHEME, resolveLobstrCallback } from '../services/lobstr';
 import {
   registerForPushNotifications,
   sendTokenToServer,
@@ -72,15 +74,26 @@ function parseDeepLink(link: string | undefined): {
   return null;
 }
 
+/**
+ * Linking configuration for the `ecotask://` deep-link scheme.
+ * This makes React Navigation aware of inbound deep links so the app
+ * resumes on the correct screen after backgrounding for Lobstr signing.
+ */
+const linking = {
+  prefixes: ['ecotask://'],
+  config: {
+    screens: {
+      Main: 'main',
+      Onboarding: 'onboarding',
+    },
+  },
+};
+
 export default function RootNavigator() {
   const isConnected = useWalletStore(s => s.isConnected);
   const navigationRef =
     useRef<NavigationContainerRef<RootStackParamList>>(null);
 
-  /**
-   * Pending deep-links are queued here while the navigator has not yet
-   * mounted (cold-start scenario). They are flushed in onReady().
-   */
   const pendingDeepLink = useRef<string | null>(null);
 
   const navigate = useCallback((link: string | undefined) => {
@@ -90,7 +103,6 @@ export default function RootNavigator() {
     }
     const nav = navigationRef.current;
     if (!nav?.isReady()) {
-      // Navigator not ready yet — queue for onReady
       pendingDeepLink.current = link ?? null;
       return;
     }
@@ -105,29 +117,22 @@ export default function RootNavigator() {
     let stopTokenRefresh: (() => void) | null = null;
 
     const bootstrap = async () => {
-      // 1. Request permission and obtain FCM token
       const token = await registerForPushNotifications();
       if (token) {
         await sendTokenToServer(token);
       }
 
-      // 2. Listen for token rotation and re-register
       stopTokenRefresh = listenForTokenRefresh(async (newToken: string) => {
         await sendTokenToServer(newToken);
       });
 
-      // 3. Handle notification tap that opened the app from background/quit state
       const messaging = getMessaging();
 
-      // Cold-start: getInitialNotification() is non-null when the app was
-      // opened by tapping a notification while terminated.
       const initialNotification = await messaging.getInitialNotification();
       if (initialNotification?.data?.deepLink) {
         pendingDeepLink.current = initialNotification.data.deepLink as string;
       }
 
-      // Foreground messages — surface as a local notification via notifee
-      // so the user sees a system banner even when the app is open.
       const unsubForeground = messaging.onMessage(async remoteMessage => {
         const data = (remoteMessage.data ?? {}) as Record<string, string>;
         const type =
@@ -141,7 +146,6 @@ export default function RootNavigator() {
         });
       });
 
-      // Background/quit tap: fires when notification opened the app
       messaging.onNotificationOpenedApp(remoteMessage => {
         const deepLink = (remoteMessage.data?.deepLink as string) ?? undefined;
         navigate(deepLink);
@@ -162,15 +166,47 @@ export default function RootNavigator() {
   }, []);
 
   const handleNavigatorReady = useCallback(() => {
-    // Flush any queued deep-link from a cold-start notification tap
     if (pendingDeepLink.current) {
       navigate(pendingDeepLink.current);
       pendingDeepLink.current = null;
     }
   }, [navigate]);
 
+  useEffect(() => {
+    function handleUrl({ url }: { url: string }) {
+      try {
+        const parsed = new URL(url);
+        if (
+          parsed.protocol === `${ECOTASK_SCHEME}:` &&
+          parsed.hostname === 'lobstr' &&
+          parsed.pathname === '/callback'
+        ) {
+          resolveLobstrCallback(url);
+        }
+      } catch {
+        // Ignore malformed URLs.
+      }
+    }
+
+    const subscription = Linking.addEventListener('url', handleUrl);
+
+    Linking.getInitialURL().then(url => {
+      if (url) {
+        handleUrl({ url });
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   return (
-    <NavigationContainer ref={navigationRef} onReady={handleNavigatorReady}>
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={handleNavigatorReady}
+      linking={linking}
+    >
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isConnected ? (
           <>

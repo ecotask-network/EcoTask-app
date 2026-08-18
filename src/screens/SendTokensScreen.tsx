@@ -20,12 +20,16 @@ import {
   isValidAmount,
   isValidPublicKey,
 } from '../services/stellar';
+import {
+  openLobstrForPayment,
+  LobstrNotInstalledError,
+} from '../services/lobstr';
 
 type AssetChoice = 'native' | 'eco';
 
 export default function SendTokensScreen() {
   const navigation = useNavigation();
-  const { publicKey } = useWalletStore();
+  const { publicKey, walletType } = useWalletStore();
   const { refreshBalance, refreshEcoBalance } = useStellarWallet();
 
   const [destination, setDestination] = useState('');
@@ -48,14 +52,6 @@ export default function SendTokensScreen() {
       return;
     }
 
-    const secretKey = getInAppSecret(publicKey);
-    if (!secretKey) {
-      setError(
-        'Only in-app wallets can sign payments. Create or import a wallet to send tokens.',
-      );
-      return;
-    }
-
     setIsSending(true);
     try {
       const assetParam =
@@ -65,6 +61,38 @@ export default function SendTokensScreen() {
               issuer: Config.ECO_TOKEN_ISSUER,
             }
           : undefined;
+
+      if (walletType === 'lobstr') {
+        // Lobstr handles signing and submission internally via the pay URI.
+        await openLobstrForPayment(
+          destination.trim(),
+          amount.trim(),
+          assetParam,
+        );
+        // Lobstr submits the transaction; we can't await on-chain confirmation
+        // here, so refresh balances after a short delay and inform the user.
+        setTimeout(() => {
+          refreshBalance();
+          refreshEcoBalance();
+        }, 3000);
+        Alert.alert(
+          'Payment opened in Lobstr',
+          'Complete the payment in Lobstr. Your balance will refresh shortly.',
+        );
+        setDestination('');
+        setAmount('');
+        return;
+      }
+
+      // In-app wallet: sign locally and submit.
+      const secretKey = getInAppSecret(publicKey);
+      if (!secretKey) {
+        setError(
+          'Only in-app wallets can sign payments locally. Create or import a wallet to send tokens.',
+        );
+        return;
+      }
+
       const result = await signAndSubmitPayment({
         senderPublicKey: publicKey,
         secretKey,
@@ -81,18 +109,25 @@ export default function SendTokensScreen() {
       setDestination('');
       setAmount('');
     } catch (err: any) {
-      setError(err.message || 'Failed to send payment');
+      if (err instanceof LobstrNotInstalledError) {
+        setError(err.message);
+      } else {
+        setError(err.message || 'Failed to send payment');
+      }
     } finally {
       setIsSending(false);
     }
   }, [
     publicKey,
+    walletType,
     destination,
     amount,
     asset,
     refreshBalance,
     refreshEcoBalance,
   ]);
+
+  const isLobstr = walletType === 'lobstr';
 
   return (
     <KeyboardAvoidingView
@@ -114,7 +149,9 @@ export default function SendTokensScreen() {
           Send Tokens
         </Text>
         <Text style={{ color: colors.textSecondary, fontSize: 14 }}>
-          Transfer XLM or ECO from your in-app wallet
+          {isLobstr
+            ? 'Transfer XLM or ECO via Lobstr'
+            : 'Transfer XLM or ECO from your in-app wallet'}
         </Text>
       </View>
 
@@ -244,7 +281,7 @@ export default function SendTokensScreen() {
             <ActivityIndicator color="#FFF" />
           ) : (
             <Text style={{ color: '#FFF', fontWeight: '600', fontSize: 16 }}>
-              Send
+              {isLobstr ? 'Send via Lobstr' : 'Send'}
             </Text>
           )}
         </TouchableOpacity>
