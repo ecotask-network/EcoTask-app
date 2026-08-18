@@ -221,11 +221,8 @@ describe('openLobstrForSigning — callback flow', () => {
     const signedXDR = 'SIGNED_XDR_VALUE==';
     const promise = openLobstrForSigning('ORIGINAL_XDR==', 'GPUBLICKEY');
 
-    // Flush the microtask queue so the internal `await isLobstrInstalled()`
-    // completes and _pendingResolve is populated before we fire the callback.
-    await Promise.resolve();
-
-    // Simulate Lobstr redirecting back with the signed XDR.
+    // _pendingResolve is set synchronously in the Promise constructor, so
+    // resolveLobstrCallback can be called immediately without any flush.
     resolveLobstrCallback(
       `ecotask://lobstr/callback?xdr=${encodeURIComponent(signedXDR)}`,
     );
@@ -237,8 +234,6 @@ describe('openLobstrForSigning — callback flow', () => {
 
   it('rejects when the callback URL is malformed', async () => {
     const promise = openLobstrForSigning('XDR==', 'GPUBLICKEY');
-
-    await Promise.resolve();
 
     resolveLobstrCallback('ecotask://lobstr/callback'); // no xdr param
 
@@ -254,9 +249,7 @@ describe('cancelLobstrCallback', () => {
   it('rejects the pending signing promise', async () => {
     const promise = openLobstrForSigning('XDR==', 'GPUBLICKEY');
 
-    // Flush microtasks so _pendingReject is populated before cancelling.
-    await Promise.resolve();
-
+    // _pendingReject is set synchronously, no flush needed.
     cancelLobstrCallback();
     await expect(promise).rejects.toThrow('cancelled');
   });

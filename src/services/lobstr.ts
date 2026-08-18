@@ -171,30 +171,42 @@ export async function isLobstrInstalled(): Promise<boolean> {
  * @param xdr       Unsigned transaction XDR.
  * @param publicKey Sender public key.
  */
-export async function openLobstrForSigning(
+export function openLobstrForSigning(
   xdr: string,
   publicKey: string,
 ): Promise<string> {
-  const installed = await isLobstrInstalled();
-  if (!installed) {
-    throw new LobstrNotInstalledError();
-  }
-
-  // Cancel any previous pending callback before creating a new one.
+  // Cancel any previous pending callback before registering a new one.
   cancelLobstrCallback();
 
+  // Register the resolve/reject slots synchronously so that any call to
+  // resolveLobstrCallback() or cancelLobstrCallback() — even one microtask
+  // after this function is called — will find them populated.
   return new Promise<string>((resolve, reject) => {
     _pendingResolve = resolve;
     _pendingReject = reject;
 
-    const uri = buildSep7TxUri(xdr, publicKey);
-    Linking.openURL(uri).catch(err => {
-      _pendingResolve = null;
-      _pendingReject = null;
-      reject(
-        new Error(`Could not open Lobstr for signing: ${err?.message ?? err}`),
-      );
-    });
+    // Kick off async work; on any failure, reject through the registered slot.
+    isLobstrInstalled()
+      .then(installed => {
+        if (!installed) {
+          throw new LobstrNotInstalledError();
+        }
+        return Linking.openURL(buildSep7TxUri(xdr, publicKey));
+      })
+      .catch(err => {
+        // Only reject if the slot hasn't been consumed by a callback already.
+        if (_pendingReject) {
+          _pendingResolve = null;
+          _pendingReject = null;
+          reject(
+            err instanceof LobstrNotInstalledError
+              ? err
+              : new Error(
+                  `Could not open Lobstr for signing: ${err?.message ?? err}`,
+                ),
+          );
+        }
+      });
   });
 }
 
