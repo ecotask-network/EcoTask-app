@@ -15,6 +15,10 @@ import { useUserStore } from '../store/userStore';
 import { computeImpact } from '../utils/impact';
 import { SubmitProofParams } from '../types';
 import EmptyState from '../components/EmptyState';
+import {
+  scheduleLocalNotification,
+  NOTIFICATION_TYPES,
+} from '../services/notifications';
 
 type SubmitProofRoute = RouteProp<
   { SubmitProof: SubmitProofParams },
@@ -117,6 +121,22 @@ export default function SubmitProofScreen() {
       } else {
         // No proofId from backend — mark confirmed immediately (legacy path).
         updateActivityStatus(newActivityId, 'confirmed', result.rewardAmount);
+        // Fire reward notification for the legacy path; the polling path
+        // (useProofStatus) handles its own notification on the confirmed event.
+        const amount = result.rewardAmount ?? route.params.rewardAmount ?? 0;
+        const token = result.rewardToken || route.params.rewardToken || 'ECO';
+        const title =
+          result.taskTitle || route.params.taskTitle || 'Task Completed';
+        scheduleLocalNotification({
+          title: 'Reward confirmed! 🎉',
+          body: `You earned ${amount} ${token} for "${title}".`,
+          type: NOTIFICATION_TYPES.REWARD_CONFIRMED,
+          data: {
+            type: NOTIFICATION_TYPES.REWARD_CONFIRMED,
+            activityId: newActivityId,
+            deepLink: 'ecotask://wallet',
+          },
+        });
       }
     } else if (error) {
       // Offline / network failure: stored in the proof queue as pending.
