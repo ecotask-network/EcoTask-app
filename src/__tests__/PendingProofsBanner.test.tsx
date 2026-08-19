@@ -45,7 +45,7 @@ describe('PendingProofsBanner', () => {
       );
     });
 
-    const texts = tree!.root.findAllByType('Text');
+    const texts = tree!.root.findAllByType('Text' as any);
     expect(
       texts.some(t => t.props.children === 'Checking your connection…'),
     ).toBe(true);
@@ -84,7 +84,7 @@ describe('PendingProofsBanner', () => {
       );
     });
 
-    const texts = tree!.root.findAllByType('Text');
+    const texts = tree!.root.findAllByType('Text' as any);
     expect(
       texts.some(
         t => t.props.children === "They will upload once you're back online",

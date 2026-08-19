@@ -148,7 +148,7 @@ export function useStellarWallet() {
 
       // Extract the user's real public key from the signed transaction source.
       const parsed = TransactionBuilder.fromXDR(signedXDR, NETWORK);
-      const lobstrPublicKey = parsed.source;
+      const lobstrPublicKey = (parsed as any).source;
 
       await connectAccount(lobstrPublicKey, undefined, 'lobstr');
     } catch (err: any) {

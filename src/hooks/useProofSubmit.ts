@@ -54,7 +54,7 @@ export function useProofSubmit() {
       if (!photoCid || !metadataCid) {
         try {
           if (!photoCid) {
-            const photoRes = await pinFile(photoUri, proofFileName(taskId));
+            const photoRes = await pinFile(photoUri, proofFileName(taskId, new Date().toISOString()));
             photoCid = photoRes.cid;
           }
           if (photoCid && !metadataCid) {

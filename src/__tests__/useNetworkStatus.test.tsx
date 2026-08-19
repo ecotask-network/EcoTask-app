@@ -29,7 +29,7 @@ describe('useNetworkStatus', () => {
 
     let ref: any;
     act(() => {
-      renderer.create(<HookHarness onRef={r => (ref = r)} />);
+      renderer.create(<HookHarness onRef={(r: any) => (ref = r)} />);
     });
 
     expect(ref.isInitialised).toBe(false);
@@ -58,7 +58,7 @@ describe('useNetworkStatus', () => {
 
     let ref: any;
     await act(async () => {
-      renderer.create(<HookHarness onRef={r => (ref = r)} />);
+      renderer.create(<HookHarness onRef={(r: any) => (ref = r)} />);
     });
 
     expect(ref.isConnected).toBe(false);
@@ -75,7 +75,7 @@ describe('useNetworkStatus', () => {
 
     let ref: any;
     await act(async () => {
-      renderer.create(<HookHarness onRef={r => (ref = r)} />);
+      renderer.create(<HookHarness onRef={(r: any) => (ref = r)} />);
     });
 
     expect(ref.isConnected).toBe(true);

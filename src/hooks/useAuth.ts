@@ -46,7 +46,7 @@ export function useAuth() {
           signature = await openLobstrForSigning(challenge, publicKey);
         } else {
           const freighter = (
-            Platform.OS === 'web' ? window : ({} as FreighterWindow)
+            Platform.OS === 'web' ? (globalThis as any).window : ({} as FreighterWindow)
           ).freighter;
 
           if (freighter?.signTransaction) {

@@ -33,7 +33,7 @@ describe('useProofSubmit integration', () => {
 
     let ref: any;
     await act(async () => {
-      renderer.create(<HookHarness onRef={r => (ref = r)} />);
+      renderer.create(<HookHarness onRef={(r: any) => (ref = r)} />);
     });
 
     await act(async () => {
@@ -62,7 +62,7 @@ describe('useProofSubmit integration', () => {
 
     let ref: any;
     await act(async () => {
-      renderer.create(<HookHarness onRef={r => (ref = r)} />);
+      renderer.create(<HookHarness onRef={(r: any) => (ref = r)} />);
     });
 
     await act(async () => {
@@ -90,7 +90,7 @@ describe('useProofSubmit integration', () => {
 
     let ref: any;
     await act(async () => {
-      renderer.create(<HookHarness onRef={r => (ref = r)} />);
+      renderer.create(<HookHarness onRef={(r: any) => (ref = r)} />);
     });
 
     await act(async () => {
@@ -114,7 +114,7 @@ describe('useProofSubmit integration', () => {
     // enqueue two proofs manually via the submit failure path
     let ref: any;
     await act(async () => {
-      renderer.create(<HookHarness onRef={r => (ref = r)} />);
+      renderer.create(<HookHarness onRef={(r: any) => (ref = r)} />);
     });
 
     await act(async () => {

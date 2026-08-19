@@ -159,7 +159,7 @@ describe('taskStore', () => {
       lng: 0,
       status: 'open',
     };
-    useTaskStore.getState().selectTask(task);
+    useTaskStore.getState().selectTask(task as any);
     useTaskStore.getState().selectTask(null);
     expect(useTaskStore.getState().selectedTask).toBeNull();
     expect(useTaskStore.getState().selectedAt).toBeNull();

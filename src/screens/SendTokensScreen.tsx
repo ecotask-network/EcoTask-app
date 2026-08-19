@@ -67,7 +67,7 @@ export default function SendTokensScreen() {
         await openLobstrForPayment(
           destination.trim(),
           amount.trim(),
-          assetParam,
+          assetParam as any,
         );
         // Lobstr submits the transaction; we can't await on-chain confirmation
         // here, so refresh balances after a short delay and inform the user.

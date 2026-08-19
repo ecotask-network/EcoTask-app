@@ -41,7 +41,7 @@ describe('SubmitScreen', () => {
 
   it('shows the "Choose a task" fallback when nothing is selected', () => {
     tree = renderer.create(<SubmitScreen />);
-    const texts = tree.root.findAllByType('Text');
+    const texts = tree.root.findAllByType('Text' as any);
     expect(texts.some(t => t.props.children === 'Choose a task')).toBe(true);
     expect(mockNavigate).not.toHaveBeenCalled();
   });

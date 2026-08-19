@@ -228,7 +228,7 @@ describe('listenForTokenRefresh', () => {
 
     listenForTokenRefresh(t => received.push(t));
 
-    capturedHandler?.('rotated-token-xyz');
+    (capturedHandler as any)?.('rotated-token-xyz');
     expect(received).toContain('rotated-token-xyz');
   });
 
@@ -428,7 +428,7 @@ describe('scheduleDailyStreakReminder', () => {
       id: 'a3',
       taskId: 't3',
       taskTitle: 'Yesterday task',
-      taskType: 'WASTE_COLLECTION',
+      taskType: 'TRASH_COLLECTION',
       rewardAmount: 8,
       rewardToken: 'ECO',
       completedAt: yesterday.toISOString(),
