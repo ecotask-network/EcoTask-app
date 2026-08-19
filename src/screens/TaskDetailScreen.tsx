@@ -192,7 +192,8 @@ export default function TaskDetailScreen() {
 
         <TouchableOpacity
           disabled={isClosed}
-          onPress={() =>
+          onPress={() => {
+            selectTask({ ...task, id: task.id || taskId });
             navigation.navigate('SubmitProof', {
               taskId,
               taskTitle: task.title,

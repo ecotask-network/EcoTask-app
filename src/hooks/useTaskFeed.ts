@@ -72,18 +72,13 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
 
         const result = await fetchTasks(params);
 
-        const withLocation = query.lat !== undefined && query.lng !== undefined;
         const normalize = (list: Task[]): Task[] => {
           const withStatus = list.map(task => ({
             ...task,
             status: normalizeTaskStatus(task.status),
           }));
-          if (
-            withLocation &&
-            query.lat !== undefined &&
-            query.lng !== undefined
-          ) {
-            return enrichTasksWithDistance(withStatus, query.lat, query.lng);
+          if (withLocation) {
+            return enrichTasksWithDistance(withStatus, loc.lat, loc.lng);
           }
           return withStatus;
         };
