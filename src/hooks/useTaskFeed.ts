@@ -54,13 +54,13 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
         const withLocation = query.lat !== undefined && query.lng !== undefined;
         const normalize = (list: Task[]) =>
           withLocation && query.lat !== undefined && query.lng !== undefined
-            ? enrichTasksWithDistance(list, query.lat, query.lng)
+            ? (enrichTasksWithDistance(list as any, query.lat, query.lng) as any)
             : list;
 
         if (pageNum === 1) {
-          setTasks(normalize(result.tasks));
+          setTasks(normalize(result.tasks) as any);
         } else {
-          appendTasks(normalize(result.tasks));
+          appendTasks(normalize(result.tasks) as any);
         }
         setPage(pageNum);
         setHasMore(pageNum < result.totalPages);

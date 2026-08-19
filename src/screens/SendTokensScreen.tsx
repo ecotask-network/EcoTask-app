@@ -70,7 +70,7 @@ export default function SendTokensScreen() {
         secretKey,
         destination: destination.trim(),
         amount: amount.trim(),
-        asset: assetParam,
+        asset: assetParam as any,
       });
       refreshBalance();
       refreshEcoBalance();

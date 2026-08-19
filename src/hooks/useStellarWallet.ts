@@ -60,7 +60,7 @@ export function useStellarWallet() {
     setError(null);
     try {
       const freighter = (
-        Platform.OS === 'web' ? window : ({} as FreighterWindow)
+        Platform.OS === 'web' ? (globalThis as any).window : ({} as FreighterWindow)
       ).freighter;
       if (!freighter) {
         throw new Error('Freighter extension not detected');

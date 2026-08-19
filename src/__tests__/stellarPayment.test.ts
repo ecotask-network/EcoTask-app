@@ -27,7 +27,7 @@ describe('buildPaymentXDR', () => {
     );
 
     const parsed = TransactionBuilder.fromXDR(xdr, Networks.TESTNET);
-    expect(parsed.source).toBe(kp.publicKey());
+    expect((parsed as any).source).toBe(kp.publicKey());
     expect(parsed.operations).toHaveLength(1);
     const op = parsed.operations[0] as any;
     expect(op.type).toBe('payment');

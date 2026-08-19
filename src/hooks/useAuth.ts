@@ -29,7 +29,7 @@ export function useAuth() {
         const { challenge } = await getAuthChallenge(publicKey);
 
         const freighter = (
-          Platform.OS === 'web' ? window : ({} as FreighterWindow)
+          Platform.OS === 'web' ? (globalThis as any).window : ({} as FreighterWindow)
         ).freighter;
 
         let signature: string;

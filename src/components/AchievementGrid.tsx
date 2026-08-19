@@ -5,6 +5,7 @@ import {
   Achievement,
   getEarnedCount,
   getNextAchievement,
+  getAchievements,
 } from '../utils/achievements';
 import { UserStats } from '../types';
 
@@ -60,7 +61,7 @@ export default function AchievementGrid({ stats }: AchievementGridProps) {
           justifyContent: 'space-between',
         }}
       >
-        {achievements.map(a => (
+        {achievements.map((a: any) => (
           <AchievementTile key={a.id} achievement={a} />
         ))}
       </View>
