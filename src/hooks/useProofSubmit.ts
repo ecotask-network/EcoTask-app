@@ -1,194 +1,103 @@
 import { useState, useCallback } from 'react';
-import { submitProof } from '../services/api';
-import { pinFile, pinJSON } from '../services/ipfs';
-import { PendingProof } from '../types';
-import { buildProofMetadata, proofFileName } from '../utils/proofMetadata';
-import {
-  enqueueProof,
-  loadQueue,
-  saveQueue,
-  removeProofsForTask,
-} from '../services/proofQueue';
-import { useProofSyncStore } from '../store/proofSyncStore';
-import { useNetworkStatus } from './useNetworkStatus';
+import { proofQueue, ProofData } from './proofQueue';
 
+/**
+ * Full proof submission hook (used by SubmitProofScreen)
+ * Manages the full submission flow: submit, progress, error, isSubmitting
+ * 
+ * @returns {Object} submit, progress, error, isSubmitting, pendingCount
+ */
 export function useProofSubmit() {
-  const { isInitialised } = useNetworkStatus();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [progress, setProgress] = useState<
-    'idle' | 'uploading' | 'verifying' | 'confirmed' | 'failed'
-  >('idle');
+  const [progress, setProgress] = useState<{ current: number; total: number }>({
+    current: 0,
+    total: 0,
+  });
   const [error, setError] = useState<string | null>(null);
-  const [pendingCount, setPendingCount] = useState(() => loadQueue().length);
+  const [pendingCount, setPendingCount] = useState(0);
 
-  const submitProofAttempt = useCallback(
-    async (
-      taskId: string,
-      photoUri: string,
-      opts?: {
-        lat?: number;
-        lng?: number;
-        photoCid?: string;
-        metadataCid?: string;
-      },
-    ) => {
-      const formData = new FormData();
-      formData.append('taskId', taskId);
-      if (opts?.lat !== undefined) {
-        formData.append('lat', String(opts.lat));
-      }
-      if (opts?.lng !== undefined) {
-        formData.append('lng', String(opts.lng));
-      }
+  // Update pending count on mount
+  const updateCount = useCallback(() => {
+    const count = proofQueue.getPendingCount();
+    setPendingCount(count);
+  }, []);
 
-      formData.append('photos', {
-        uri: photoUri,
-        type: 'image/jpeg',
-        name: 'proof.jpg',
-      } as any);
+  // Initial count and event listener
+  useState(() => {
+    updateCount();
+    window.addEventListener('proofsUpdated', updateCount);
+    return () => window.removeEventListener('proofsUpdated', updateCount);
+  });
 
-      // reuse provided CIDs when available
-      let photoCid = opts?.photoCid;
-      let metadataCid = opts?.metadataCid;
+  /**
+   * Submit a proof to the queue
+   */
+  const submit = useCallback(async (proof: Omit<ProofData, 'id' | 'timestamp'>) => {
+    setIsSubmitting(true);
+    setError(null);
+    setProgress({ current: 0, total: 1 });
 
-      if (!photoCid || !metadataCid) {
-        try {
-          if (!photoCid) {
-            const photoRes = await pinFile(photoUri, proofFileName(taskId));
-            photoCid = photoRes.cid;
-          }
-          if (photoCid && !metadataCid) {
-            const metadataRes = await pinJSON(
-              buildProofMetadata({
-                taskId,
-                photoCid,
-                lat: opts?.lat,
-                lng: opts?.lng,
-              }),
-              proofFileName(taskId, 'json'),
-            );
-            metadataCid = metadataRes.cid;
-          }
-        } catch {
-          // best-effort pinning; proceed to submit without cids if necessary
-        }
-      }
-
-      if (photoCid) {
-        formData.append('ipfsPhotoCid', photoCid);
-      }
-      if (metadataCid) {
-        formData.append('ipfsMetadataCid', metadataCid);
-      }
-
-      try {
-        return await submitProof(formData);
-      } catch (err) {
-        // attach the generated cids so callers can persist them
-        (err as any).photoCid = photoCid;
-        (err as any).metadataCid = metadataCid;
-        throw err;
-      }
-    },
-    [],
-  );
-
-  const submit = useCallback(
-    async (
-      taskId: string,
-      photoUri: string,
-      capturedAt: string,
-      lat?: number,
-      lng?: number,
-    ) => {
-      setIsSubmitting(true);
-      setProgress('uploading');
-      setError(null);
-
-      try {
-        setProgress('verifying');
-        const result = await submitProofAttempt(taskId, photoUri, { lat, lng });
-        removeProofsForTask(taskId);
-        setPendingCount(loadQueue().length);
-        // Stay in 'verifying' — the caller mounts useProofStatus which drives
-        // the transition to 'confirmed' or 'failed' once the backend responds.
-        setProgress('verifying');
-        return result;
-      } catch (err) {
-        enqueueProof({
-          id: `${Date.now()}`,
-          taskId,
-          photoPath: photoUri,
-          lat,
-          lng,
-          createdAt: new Date().toISOString(),
-          capturedAt,
-          photoCid: (err as any)?.photoCid,
-          metadataCid: (err as any)?.metadataCid,
-        });
-        setPendingCount(loadQueue().length);
-        setError((err as any).message || 'Upload failed, saved for later');
-        setProgress('failed');
-        return undefined;
-      } finally {
-        setIsSubmitting(false);
-      }
-    },
-    [submitProofAttempt],
-  );
-
-  const syncPendingProofs = useCallback(async () => {
-    // Real connectivity is unknown until useNetworkStatus resolves its
-    // initial NetInfo.fetch(); syncing before then can fail silently
-    // against a network we haven't actually confirmed is up.
-    if (!isInitialised) {
-      return;
-    }
-
-    // In-flight guard to prevent concurrent sync calls
-    const syncStore = useProofSyncStore.getState();
-    if (syncStore.isSyncing) {
-      return;
-    }
-
-    const pending = loadQueue();
-    if (pending.length === 0) {
-      return;
-    }
-
-    syncStore.startSync();
     try {
-      const remaining: PendingProof[] = [];
-      for (const proof of pending) {
-        try {
-          await submitProofAttempt(proof.taskId, proof.photoPath, {
-            lat: (proof as any).lat,
-            lng: (proof as any).lng,
-            photoCid: (proof as any).photoCid,
-            metadataCid: (proof as any).metadataCid,
-          });
-        } catch (err) {
-          remaining.push({
-            ...proof,
-            photoCid: (err as any)?.photoCid || (proof as any).photoCid,
-            metadataCid:
-              (err as any)?.metadataCid || (proof as any).metadataCid,
-          } as PendingProof);
-        }
-      }
-      saveQueue(remaining);
-      setPendingCount(remaining.length);
+      // Add proof to queue
+      const newProof = proofQueue.addProof(proof);
+      setProgress({ current: 1, total: 1 });
+
+      // Attempt to sync all pending proofs
+      const syncResult = await proofQueue.syncPendingProofs((current, total) => {
+        setProgress({ current, total });
+      });
+
+      // Update count
+      updateCount();
+      window.dispatchEvent(new Event('proofsUpdated'));
+
+      return {
+        success: true,
+        proofId: newProof.id,
+        syncResult,
+      };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Submission failed';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     } finally {
-      syncStore.endSync();
+      setIsSubmitting(false);
+      setProgress({ current: 0, total: 0 });
     }
-  }, [isInitialised, submitProofAttempt]);
+  }, [updateCount]);
+
+  /**
+   * Sync all pending proofs
+   */
+  const syncPendingProofs = useCallback(async () => {
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const result = await proofQueue.syncPendingProofs((current, total) => {
+        setProgress({ current, total });
+      });
+
+      updateCount();
+      window.dispatchEvent(new Event('proofsUpdated'));
+
+      return result;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Sync failed';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsSubmitting(false);
+      setProgress({ current: 0, total: 0 });
+    }
+  }, [updateCount]);
 
   return {
     submit,
     syncPendingProofs,
-    pendingCount,
-    isSubmitting,
     progress,
     error,
+    isSubmitting,
+    pendingCount,
   };
 }
