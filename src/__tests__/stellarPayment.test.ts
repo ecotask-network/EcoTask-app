@@ -55,6 +55,29 @@ describe('buildPaymentXDR', () => {
     expect(op.asset.issuer).toBe(kp.publicKey());
   });
 
+  it('builds a payment with a USDC asset', async () => {
+    const kp = Keypair.random();
+    const dest = Keypair.random().publicKey();
+    const account = new Account(kp.publicKey(), '1');
+    // Use a realistic-looking issuer key for USDC
+    const usdcIssuer = Keypair.random().publicKey();
+    const asset = { code: 'USDC', issuer: usdcIssuer };
+
+    const xdr = await buildPaymentXDR(
+      kp.publicKey(),
+      dest,
+      '10.00',
+      asset,
+      account,
+    );
+
+    const parsed = TransactionBuilder.fromXDR(xdr, Networks.TESTNET);
+    const op = parsed.operations[0] as any;
+    expect(op.asset.code).toBe('USDC');
+    expect(op.asset.issuer).toBe(usdcIssuer);
+    expect(parseFloat(op.amount)).toBe(10);
+  });
+
   it('produces an unsigned transaction', async () => {
     const kp = Keypair.random();
     const account = new Account(kp.publicKey(), '1');

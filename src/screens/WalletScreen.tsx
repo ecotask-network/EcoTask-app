@@ -10,7 +10,8 @@ import TransactionHistory from '../components/TransactionHistory';
 
 export default function WalletScreen() {
   const navigation = useNavigation<any>();
-  const { balance, ecoBalance, publicKey, isConnected } = useWalletStore();
+  const { balance, ecoBalance, usdcBalance, publicKey, isConnected } =
+    useWalletStore();
   const { disconnectWallet, refreshBalance } = useStellarWallet();
   const [loading, setLoading] = useState(true);
 
@@ -109,6 +110,30 @@ export default function WalletScreen() {
           >
             {ecoBalance ?? '0'}{' '}
             <Text style={{ fontSize: 14, color: colors.primary }}>ECO</Text>
+          </Text>
+        </View>
+
+        <View
+          style={{
+            marginTop: spacing.md,
+            padding: spacing.md,
+            backgroundColor: colors.background,
+            borderRadius: 12,
+          }}
+        >
+          <Text style={{ color: colors.textSecondary, fontSize: 14 }}>
+            USDC Balance
+          </Text>
+          <Text
+            style={{
+              color: colors.text,
+              fontSize: 24,
+              fontWeight: 'bold',
+              marginTop: spacing.xs,
+            }}
+          >
+            {usdcBalance ?? '0'}{' '}
+            <Text style={{ fontSize: 14, color: colors.primary }}>USDC</Text>
           </Text>
         </View>
 

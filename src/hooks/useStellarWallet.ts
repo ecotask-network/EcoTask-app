@@ -24,6 +24,7 @@ export function useStellarWallet() {
     disconnect,
     setBalance,
     setEcoBalance,
+    setUsdcBalance,
     publicKey,
     isConnected,
     walletType,
@@ -48,6 +49,22 @@ export function useStellarWallet() {
     [publicKey, setEcoBalance],
   );
 
+  const refreshUsdcBalance = useCallback(
+    async (pk?: string) => {
+      const key = pk || publicKey;
+      const usdcIssuer = Config.USDC_ISSUER;
+      if (key && usdcIssuer) {
+        const usdcBalance = await stellar.getTokenBalance(
+          key,
+          'USDC',
+          usdcIssuer,
+        );
+        setUsdcBalance(usdcBalance);
+      }
+    },
+    [publicKey, setUsdcBalance],
+  );
+
   const connectAccount = useCallback(
     async (
       key: string,
@@ -61,8 +78,9 @@ export function useStellarWallet() {
       const balance = await stellar.getBalance(key);
       setBalance(balance);
       await refreshEcoBalance(key);
+      await refreshUsdcBalance(key);
     },
-    [connect, setBalance, refreshEcoBalance],
+    [connect, setBalance, refreshEcoBalance, refreshUsdcBalance],
   );
 
   const connectFreighter = useCallback(async () => {
@@ -213,8 +231,15 @@ export function useStellarWallet() {
     if (isConnected && publicKey) {
       refreshBalance();
       refreshEcoBalance();
+      refreshUsdcBalance();
     }
-  }, [isConnected, publicKey, refreshBalance, refreshEcoBalance]);
+  }, [
+    isConnected,
+    publicKey,
+    refreshBalance,
+    refreshEcoBalance,
+    refreshUsdcBalance,
+  ]);
 
   return {
     isConnecting,
@@ -229,5 +254,6 @@ export function useStellarWallet() {
     disconnectWallet,
     refreshBalance,
     refreshEcoBalance,
+    refreshUsdcBalance,
   };
 }
