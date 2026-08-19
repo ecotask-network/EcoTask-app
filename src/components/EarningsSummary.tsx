@@ -1,182 +1,159 @@
-import React from 'react';
-import { View, Text } from 'react-native';
-import { colors, spacing } from '../utils/theme';
-import { Activity } from '../types';
-import {
-  sumRewards,
-  groupByTaskType,
-  computeWeeklySeries,
-} from '../utils/earnings';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { Activity, sumRewards, groupByTaskType, computeWeeklySeries } from '../utils/earnings';
 
 interface EarningsSummaryProps {
   activities: Activity[];
+  title?: string;
 }
 
-export default function EarningsSummary({ activities }: EarningsSummaryProps) {
-  const { confirmed, pending } = sumRewards(activities);
-  const byType = groupByTaskType(activities);
-  const weekly = computeWeeklySeries(activities);
-  const maxWeek = Math.max(...weekly.map(w => w.earned), 1);
+/**
+ * EarningsSummary component optimized with useMemo
+ * Computations only run when activities content actually changes
+ */
+export const EarningsSummary: React.FC<EarningsSummaryProps> = ({
+  activities,
+  title = 'Earnings Summary',
+}) => {
+  // Memoize total rewards - only recalculates when activities changes
+  const totalRewards = useMemo(() => {
+    return sumRewards(activities);
+  }, [activities]);
+
+  // Memoize grouped breakdown - uses pre-computed total to avoid double work
+  const earningsBreakdown = useMemo(() => {
+    return groupByTaskType(activities, totalRewards);
+  }, [activities, totalRewards]);
+
+  // Memoize weekly series - only recalculates when activities changes
+  const weeklySeries = useMemo(() => {
+    return computeWeeklySeries(activities, 8);
+  }, [activities]);
+
+  // Memoize task type list for rendering
+  const taskTypes = useMemo(() => {
+    return Object.entries(earningsBreakdown.byTaskType);
+  }, [earningsBreakdown.byTaskType]);
 
   return (
-    <View>
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: spacing.md,
-        }}
-      >
-        <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold' }}>
-          Earnings
-        </Text>
-        {pending > 0 && (
-          <Text style={{ color: colors.warning, fontSize: 12 }}>
-            {pending} pending
-          </Text>
-        )}
+    <View style={styles.container}>
+      <Text style={styles.title}>{title}</Text>
+      
+      {/* Total Rewards */}
+      <View style={styles.totalContainer}>
+        <Text style={styles.totalAmount}>${totalRewards.toFixed(2)}</Text>
+        <Text style={styles.totalLabel}>Total Rewards</Text>
       </View>
 
-      <View
-        style={{
-          backgroundColor: colors.background,
-          borderRadius: 12,
-          padding: spacing.md,
-          borderWidth: 1,
-          borderColor: colors.border,
-          marginBottom: spacing.md,
-        }}
-      >
-        <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-          Total earned
-        </Text>
-        <Text
-          style={{
-            color: colors.primary,
-            fontSize: 28,
-            fontWeight: 'bold',
-          }}
-        >
-          {confirmed}{' '}
-          <Text style={{ fontSize: 14, color: colors.textSecondary }}>ECO</Text>
-        </Text>
+      {/* Breakdown by Task Type */}
+      <View style={styles.breakdownContainer}>
+        <Text style={styles.sectionTitle}>By Task Type</Text>
+        {taskTypes.map(([type, amount]) => (
+          <View key={type} style={styles.breakdownRow}>
+            <Text style={styles.breakdownLabel}>{type}</Text>
+            <Text style={styles.breakdownAmount}>${amount.toFixed(2)}</Text>
+          </View>
+        ))}
       </View>
 
-      {byType.length > 0 && (
-        <View style={{ marginBottom: spacing.md }}>
-          <Text
-            style={{
-              color: colors.textSecondary,
-              fontSize: 12,
-              marginBottom: spacing.xs,
-            }}
-          >
-            By task type
-          </Text>
-          {byType.map(item => (
-            <View
-              key={item.type}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginBottom: spacing.xs,
-              }}
-            >
-              <Text style={{ fontSize: 14, width: 24 }}>{item.icon}</Text>
-              <Text
-                style={{
-                  color: colors.text,
-                  fontSize: 12,
-                  width: 90,
-                }}
-                numberOfLines={1}
-              >
-                {item.label}
-              </Text>
-              <View
-                style={{
-                  flex: 1,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: colors.surface,
-                  marginHorizontal: spacing.sm,
-                  overflow: 'hidden',
-                }}
-              >
-                <View
-                  style={{
-                    width: `${Math.round(item.share * 100)}%`,
-                    height: '100%',
-                    backgroundColor: colors.primary,
-                    borderRadius: 4,
-                  }}
-                />
-              </View>
-              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-                {item.count}× {item.total}
-              </Text>
+      {/* Weekly Series */}
+      <View style={styles.weeklyContainer}>
+        <Text style={styles.sectionTitle}>Weekly Trend</Text>
+        <View style={styles.weeklyChart}>
+          {weeklySeries.map((week) => (
+            <View key={week.week} style={styles.weeklyBarContainer}>
+              <View style={[styles.weeklyBar, { height: Math.max(4, (week.amount / Math.max(1, totalRewards)) * 60) }]} />
+              <Text style={styles.weeklyLabel}>{week.week}</Text>
             </View>
           ))}
         </View>
-      )}
-
-      {weekly.some(w => w.earned > 0) && (
-        <View>
-          <Text
-            style={{
-              color: colors.textSecondary,
-              fontSize: 12,
-              marginBottom: spacing.xs,
-            }}
-          >
-            Last 4 weeks
-          </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
-            {weekly.map(w => (
-              <View
-                key={w.label}
-                style={{
-                  flex: 1,
-                  alignItems: 'center',
-                  marginHorizontal: 2,
-                }}
-              >
-                <Text style={{ color: colors.textSecondary, fontSize: 9 }}>
-                  {w.earned > 0 ? w.earned : ''}
-                </Text>
-                <View
-                  style={{
-                    width: '100%',
-                    height: 40,
-                    justifyContent: 'flex-end',
-                  }}
-                >
-                  <View
-                    style={{
-                      width: '100%',
-                      height: Math.max(4, (w.earned / maxWeek) * 36),
-                      backgroundColor:
-                        w.earned > 0 ? colors.primary : colors.surface,
-                      borderRadius: 4,
-                    }}
-                  />
-                </View>
-                <Text
-                  style={{
-                    color: colors.textSecondary,
-                    fontSize: 8,
-                    marginTop: spacing.xs,
-                  }}
-                  numberOfLines={1}
-                >
-                  {w.label}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
+      </View>
     </View>
   );
-}
+};
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  totalContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    marginBottom: 16,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+  },
+  totalAmount: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#28a745',
+  },
+  totalLabel: {
+    fontSize: 14,
+    color: '#6c757d',
+    marginTop: 4,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+    marginTop: 8,
+  },
+  breakdownContainer: {
+    marginBottom: 16,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f3f5',
+  },
+  breakdownLabel: {
+    fontSize: 14,
+    color: '#495057',
+  },
+  breakdownAmount: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#212529',
+  },
+  weeklyContainer: {
+    marginTop: 8,
+  },
+  weeklyChart: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-around',
+    height: 80,
+    paddingTop: 8,
+  },
+  weeklyBarContainer: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  weeklyBar: {
+    width: 20,
+    backgroundColor: '#007bff',
+    borderRadius: 4,
+    minHeight: 4,
+  },
+  weeklyLabel: {
+    fontSize: 10,
+    color: '#6c757d',
+    marginTop: 4,
+  },
+});
