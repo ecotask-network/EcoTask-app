@@ -8,53 +8,53 @@ interface Location {
   lng: number;
 }
 
+const MOVEMENT_THRESHOLD_KM = 0.05; // 50 metres
+
 export function useLocation() {
   const [location, setLocation] = useState<Location | null>(null);
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const lastAcceptedRef = useRef<Location | null>(null);
   const watchIdRef = useRef<number | null>(null);
-  const lastLocationRef = useRef<Location | null>(null);
-
-  const clearWatch = useCallback(() => {
-    if (watchIdRef.current !== null) {
-      Geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
-  }, []);
 
   const startWatch = useCallback(() => {
-    clearWatch();
+    if (watchIdRef.current !== null) {
+      Geolocation.clearWatch(watchIdRef.current);
+    }
 
     watchIdRef.current = Geolocation.watchPosition(
       pos => {
-        const newLat = pos.coords.latitude;
-        const newLng = pos.coords.longitude;
+        const next = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        };
 
-        if (lastLocationRef.current) {
-          const dist = haversineDistance(
-            lastLocationRef.current.lat,
-            lastLocationRef.current.lng,
-            newLat,
-            newLng
+        if (lastAcceptedRef.current !== null) {
+          const distanceKm = haversineDistance(
+            lastAcceptedRef.current.lat,
+            lastAcceptedRef.current.lng,
+            next.lat,
+            next.lng,
           );
-          // Only update if distance is >= 50m (0.05km)
-          if (dist < 0.05) {
+          if (distanceKm < MOVEMENT_THRESHOLD_KM) {
             return;
           }
         }
 
-        const newLoc = { lat: newLat, lng: newLng };
-        lastLocationRef.current = newLoc;
-        setLocation(newLoc);
+        lastAcceptedRef.current = next;
+        setLocation(next);
         setError(null);
       },
-      err => {
-        setError(err.message);
+      err => setError(err.message),
+      {
+        enableHighAccuracy: false,
+        distanceFilter: 0,
+        timeout: 15000,
+        maximumAge: 10000,
       },
-      { enableHighAccuracy: true, distanceFilter: 0 }
     );
-  }, [clearWatch]);
+  }, []);
 
   const requestPermission = useCallback(async () => {
     try {
@@ -78,16 +78,22 @@ export function useLocation() {
     requestPermission();
 
     return () => {
-      clearWatch();
+      if (watchIdRef.current !== null) {
+        Geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
     };
-  }, [requestPermission, clearWatch]);
+  }, [requestPermission]);
 
-  const refresh = useCallback(() => {
+  function refresh() {
     Geolocation.getCurrentPosition(
       pos => {
-        const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        lastLocationRef.current = newLoc;
-        setLocation(newLoc);
+        const next = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        };
+        lastAcceptedRef.current = next;
+        setLocation(next);
         setError(null);
       },
       err => {
@@ -95,7 +101,7 @@ export function useLocation() {
       },
       { enableHighAccuracy: true, timeout: 15000 },
     );
-  }, []);
+  }
 
   return { location, permissionGranted, error, refresh };
 }

@@ -96,7 +96,7 @@ describe('useLocation hook', () => {
 
   it('5. should start watchPosition and update location on success', async () => {
     Platform.OS = 'ios';
-    (Geolocation.watchPosition as jest.Mock).mockImplementation((success) => {
+    (Geolocation.watchPosition as jest.Mock).mockImplementation(success => {
       success({ coords: { latitude: 10, longitude: 20 } });
       return 123;
     });
@@ -110,7 +110,7 @@ describe('useLocation hook', () => {
   it('6. should update location only if distance >= 50m (Haversine filter accepts)', async () => {
     Platform.OS = 'ios';
     let successCallback: any;
-    (Geolocation.watchPosition as jest.Mock).mockImplementation((success) => {
+    (Geolocation.watchPosition as jest.Mock).mockImplementation(success => {
       successCallback = success;
       return 123;
     });
@@ -136,7 +136,7 @@ describe('useLocation hook', () => {
   it('7. should not update location if distance < 50m (Haversine filter rejects)', async () => {
     Platform.OS = 'ios';
     let successCallback: any;
-    (Geolocation.watchPosition as jest.Mock).mockImplementation((success) => {
+    (Geolocation.watchPosition as jest.Mock).mockImplementation(success => {
       successCallback = success;
       return 123;
     });
@@ -213,9 +213,11 @@ describe('useLocation hook', () => {
     Platform.OS = 'ios';
     await renderHook();
 
-    (Geolocation.getCurrentPosition as jest.Mock).mockImplementation((success) => {
-      success({ coords: { latitude: 30, longitude: 40 } });
-    });
+    (Geolocation.getCurrentPosition as jest.Mock).mockImplementation(
+      success => {
+        success({ coords: { latitude: 30, longitude: 40 } });
+      },
+    );
 
     act(() => {
       hookResult.refresh();
@@ -229,9 +231,11 @@ describe('useLocation hook', () => {
     Platform.OS = 'ios';
     await renderHook();
 
-    (Geolocation.getCurrentPosition as jest.Mock).mockImplementation((_, error) => {
-      error(new Error('Refresh error'));
-    });
+    (Geolocation.getCurrentPosition as jest.Mock).mockImplementation(
+      (_, error) => {
+        error(new Error('Refresh error'));
+      },
+    );
 
     act(() => {
       hookResult.refresh();
