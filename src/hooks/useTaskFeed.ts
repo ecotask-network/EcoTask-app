@@ -4,6 +4,7 @@ import { fetchTasks } from '../services/api';
 import { Task } from '../types';
 import { TaskSortMode } from '../utils/sortTasks';
 import { enrichTasksWithDistance } from '../utils/geoUtils';
+import { normalizeTaskStatus } from '../utils/sortTasks';
 
 const LOCATION_DEBOUNCE_MS = 5000;
 
@@ -31,6 +32,11 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
     setPage,
     setHasMore,
   } = useTaskStore();
+
+  // Keep a ref to the latest tasks so the initial-load effect can decide
+  // whether a fetch is actually needed without re-running on every store update.
+  const tasksRef = useRef(tasks);
+  tasksRef.current = tasks;
 
   const serverParams = useMemo(() => ({ type, radius }), [type, radius]);
 
@@ -66,8 +72,16 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
 
         const result = await fetchTasks(params);
 
-        const normalize = (list: Task[]) =>
-          withLocation ? (enrichTasksWithDistance(list as any, loc.lat as number, loc.lng as number) as any) : list;
+        const normalize = (list: Task[]): Task[] => {
+          const withStatus = list.map(task => ({
+            ...task,
+            status: normalizeTaskStatus(task.status),
+          }));
+          if (withLocation) {
+            return enrichTasksWithDistance(withStatus, loc.lat, loc.lng);
+          }
+          return withStatus;
+        };
 
         if (pageNum === 1) {
           setTasks(normalize(result.tasks) as any);
@@ -100,9 +114,32 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
     }
   }, [isLoading, hasMore, page, loadTasks]);
 
+  // Initial load: runs exactly once on mount. Only fetch when the persisted
+  // store has no tasks yet (tasks survive across sessions via MMKV), so we
+  // don't burn a network request re-fetching data we already hold.
   useEffect(() => {
+    if (tasksRef.current.length === 0) {
+      loadTasks(1);
+    } else if (hasLocation) {
+      // Tasks already present: record the current location as "already
+      // fetched" so the debounced location effect doesn't immediately
+      // re-fetch on mount.
+      lastFetchLocationRef.current = { lat: lat as number, lng: lng as number };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Filter change: re-fetch exactly once whenever the filter (type/radius)
+  // actually changes. The first run (mount) is skipped because the initial
+  // load effect above already owns mount-time fetching.
+  const skipFirstFilterRun = useRef(true);
+  useEffect(() => {
+    if (skipFirstFilterRun.current) {
+      skipFirstFilterRun.current = false;
+      return;
+    }
     loadTasks(1);
-  }, [loadTasks]);
+  }, [serverParams, loadTasks]);
 
   const currentLocation = useMemo(
     () => (hasLocation ? { lat: lat as number, lng: lng as number } : null),

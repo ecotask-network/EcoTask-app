@@ -36,16 +36,17 @@ export function isWithinRadius(
   return haversineDistance(userLat, userLng, targetLat, targetLng) <= radiusKm;
 }
 
-export function enrichTasksWithDistance(
-  tasks: Array<{
+export function enrichTasksWithDistance<
+  T extends {
     lat?: number;
     lng?: number;
     distance?: number;
-    [key: string]: unknown;
-  }>,
+  },
+>(
+  tasks: T[],
   userLat: number,
   userLng: number,
-) {
+): Array<T & { distance?: number }> {
   return tasks
     .map(task => {
       if (
