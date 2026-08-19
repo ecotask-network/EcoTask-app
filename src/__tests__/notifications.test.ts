@@ -129,7 +129,13 @@ function resetPrefs() {
   const defaults = Object.values(NOTIFICATION_TYPES).reduce<
     Record<string, boolean>
   >((acc, t) => ({ ...acc, [t]: true }), {});
-  usePrefsStore.setState({ notificationPrefs: defaults } as any);
+  // Also reset quietHours to '00:00'–'00:00' (disabled) so tests are
+  // never suppressed by the default 22:00–07:00 window when run during
+  // those hours in CI or other environments.
+  usePrefsStore.setState({
+    notificationPrefs: defaults,
+    quietHours: { from: '00:00', to: '00:00' },
+  } as any);
 }
 
 function resetActivity() {
