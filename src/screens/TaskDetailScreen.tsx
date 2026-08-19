@@ -7,10 +7,11 @@ import { TaskDetailSkeleton } from '../components/LoadingSkeleton';
 import { useTaskStore } from '../store/taskStore';
 import {
   TASK_TYPE_CONFIG,
-  TaskType,
+  TASK_STATUS_CONFIG,
   DIFFICULTY_CONFIG,
-  TaskDifficulty,
+  Task,
 } from '../types';
+import { normalizeTaskStatus } from '../utils/sortTasks';
 
 type TaskDetailRoute = RouteProp<
   { TaskDetail: { taskId: string } },
@@ -23,7 +24,7 @@ export default function TaskDetailScreen() {
   const { taskId } = route.params;
   const selectTask = useTaskStore(s => s.selectTask);
 
-  const [task, setTask] = useState<any>(null);
+  const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,7 +36,7 @@ export default function TaskDetailScreen() {
     setLoading(true);
     try {
       const data = await fetchTaskById(taskId);
-      setTask(data);
+      setTask({ ...data, status: normalizeTaskStatus(data.status) });
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -69,6 +70,11 @@ export default function TaskDetailScreen() {
     );
   }
 
+  const difficulty = task.difficulty;
+  const diffConfig = difficulty ? DIFFICULTY_CONFIG[difficulty] : null;
+  const statusConfig = TASK_STATUS_CONFIG[task.status];
+  const isClosed = task.status === 'closed';
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ padding: spacing.lg }}>
@@ -82,11 +88,39 @@ export default function TaskDetailScreen() {
         </TouchableOpacity>
 
         <Text style={{ fontSize: 48, marginBottom: spacing.sm }}>
-          {TASK_TYPE_CONFIG[task.type as TaskType]?.icon || '📍'}
+          {TASK_TYPE_CONFIG[task.type]?.icon || '📍'}
         </Text>
         <Text style={{ color: colors.text, fontSize: 24, fontWeight: 'bold' }}>
           {task.title}
         </Text>
+
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginTop: spacing.sm,
+          }}
+        >
+          <View
+            style={{
+              borderWidth: 1,
+              borderColor: statusConfig.color,
+              borderRadius: 8,
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+            }}
+          >
+            <Text
+              style={{
+                color: statusConfig.color,
+                fontSize: 12,
+                fontWeight: '600',
+              }}
+            >
+              {statusConfig.label}
+            </Text>
+          </View>
+        </View>
 
         <View
           style={{
@@ -105,30 +139,22 @@ export default function TaskDetailScreen() {
             {task.rewardAmount} {task.rewardToken || 'ECO'}
           </Text>
           <Text style={{ color: colors.textSecondary }}>reward</Text>
-          {task.difficulty &&
-            DIFFICULTY_CONFIG[task.difficulty as TaskDifficulty] && (
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  marginLeft: 'auto',
-                }}
-              >
-                <Text style={{ fontSize: 14, marginRight: 4 }}>
-                  {DIFFICULTY_CONFIG[task.difficulty as TaskDifficulty].icon}
-                </Text>
-                <Text
-                  style={{
-                    color:
-                      DIFFICULTY_CONFIG[task.difficulty as TaskDifficulty]
-                        .color,
-                    fontWeight: '500',
-                  }}
-                >
-                  {DIFFICULTY_CONFIG[task.difficulty as TaskDifficulty].label}
-                </Text>
-              </View>
-            )}
+          {diffConfig && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginLeft: 'auto',
+              }}
+            >
+              <Text style={{ fontSize: 14, marginRight: 4 }}>
+                {diffConfig.icon}
+              </Text>
+              <Text style={{ color: diffConfig.color, fontWeight: '500' }}>
+                {diffConfig.label}
+              </Text>
+            </View>
+          )}
           {task.estimatedMinutes && (
             <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
               ~{task.estimatedMinutes}min
@@ -165,6 +191,7 @@ export default function TaskDetailScreen() {
         )}
 
         <TouchableOpacity
+          disabled={isClosed}
           onPress={() => {
             selectTask({ ...task, id: task.id || taskId });
             navigation.navigate('SubmitProof', {
@@ -178,13 +205,19 @@ export default function TaskDetailScreen() {
           style={{
             marginTop: spacing.xl,
             padding: spacing.md,
-            backgroundColor: colors.primary,
+            backgroundColor: isClosed ? colors.border : colors.primary,
             borderRadius: 12,
             alignItems: 'center',
           }}
         >
-          <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '600' }}>
-            Start Task
+          <Text
+            style={{
+              color: isClosed ? colors.textSecondary : '#FFF',
+              fontSize: 18,
+              fontWeight: '600',
+            }}
+          >
+            {isClosed ? 'Task Closed' : 'Start Task'}
           </Text>
         </TouchableOpacity>
       </View>

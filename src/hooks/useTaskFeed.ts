@@ -4,6 +4,7 @@ import { fetchTasks } from '../services/api';
 import { Task } from '../types';
 import { TaskSortMode } from '../utils/sortTasks';
 import { enrichTasksWithDistance } from '../utils/geoUtils';
+import { normalizeTaskStatus } from '../utils/sortTasks';
 
 const LOCATION_DEBOUNCE_MS = 5000;
 
@@ -73,10 +74,16 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
 
         const result = await fetchTasks(params);
 
-        const normalize = (list: Task[]) =>
-          withLocation && lat !== undefined && lng !== undefined
-            ? enrichTasksWithDistance(list, lat, lng)
-            : list;
+        const normalize = (list: Task[]): Task[] => {
+          const withStatus = list.map(task => ({
+            ...task,
+            status: normalizeTaskStatus(task.status),
+          }));
+          if (withLocation) {
+            return enrichTasksWithDistance(withStatus, loc.lat, loc.lng);
+          }
+          return withStatus;
+        };
 
         if (pageNum === 1) {
           setTasks(normalize(result.tasks));

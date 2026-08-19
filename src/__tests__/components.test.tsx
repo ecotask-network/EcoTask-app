@@ -11,6 +11,7 @@ describe('TaskCard', () => {
     id: '1',
     title: 'Plant trees in the park',
     type: 'TREE_PLANTING' as const,
+    status: 'open' as const,
     rewardAmount: 25,
     rewardToken: 'ECO',
     onPress: jest.fn(),
