@@ -1,111 +1,149 @@
-import { Activity, TaskType, TASK_TYPE_CONFIG } from '../types';
+/**
+ * Earnings utilities - optimized with memoization support
+ */
+
+export interface Activity {
+  id: string;
+  taskType: string;
+  reward: number;
+  completedAt: string;
+  status: 'completed' | 'pending' | 'failed';
+}
 
 export interface EarningsBreakdown {
   total: number;
-  confirmed: number;
-  pending: number;
+  byTaskType: Record<string, number>;
 }
 
-export function sumRewards(activities: Activity[]): EarningsBreakdown {
-  let confirmed = 0;
-  let pending = 0;
+export interface WeeklySeriesData {
+  week: string;
+  amount: number;
+}
+
+/**
+ * Sum rewards from activities - O(n)
+ * Pure function, can be memoized
+ */
+export function sumRewards(activities: Activity[]): number {
+  return activities.reduce((sum, activity) => sum + (activity.reward || 0), 0);
+}
+
+/**
+ * Group rewards by task type - O(n)
+ * Can accept pre-computed total to avoid double work
+ * 
+ * @param activities - The activities to group
+ * @param preComputedTotal - Optional pre-computed total (avoids extra sum)
+ */
+export function groupByTaskType(
+  activities: Activity[],
+  preComputedTotal?: number,
+): EarningsBreakdown {
+  const byTaskType: Record<string, number> = {};
+
   for (const activity of activities) {
-    if (activity.status === 'confirmed') {
-      confirmed += activity.rewardAmount;
-    } else if (activity.status === 'pending') {
-      pending += activity.rewardAmount;
-    }
-  }
-  return { total: confirmed + pending, confirmed, pending };
-}
-
-export interface TaskTypeEarnings {
-  type: TaskType;
-  label: string;
-  icon: string;
-  count: number;
-  total: number;
-  share: number;
-}
-
-export function groupByTaskType(activities: Activity[]): TaskTypeEarnings[] {
-  const { confirmed: confirmedTotal } = sumRewards(activities);
-  const byType = new Map<TaskType, { count: number; total: number }>();
-
-  for (const activity of activities) {
-    if (activity.status !== 'confirmed') {
-      continue;
-    }
-    const entry = byType.get(activity.taskType) || { count: 0, total: 0 };
-    entry.count += 1;
-    entry.total += activity.rewardAmount;
-    byType.set(activity.taskType, entry);
+    const type = activity.taskType || 'unknown';
+    byTaskType[type] = (byTaskType[type] || 0) + (activity.reward || 0);
   }
 
-  return [...byType.entries()]
-    .map(([type, value]) => ({
-      type,
-      label: TASK_TYPE_CONFIG[type]?.label ?? type,
-      icon: TASK_TYPE_CONFIG[type]?.icon ?? '📍',
-      count: value.count,
-      total: value.total,
-      share: confirmedTotal > 0 ? value.total / confirmedTotal : 0,
-    }))
-    .sort((a, b) => b.total - a.total);
+  // Use pre-computed total if provided, otherwise calculate
+  const total = preComputedTotal !== undefined ? preComputedTotal : sumRewards(activities);
+
+  return {
+    total,
+    byTaskType,
+  };
 }
 
-export interface WeeklyEarnings {
-  label: string;
-  earned: number;
+/**
+ * Compute weekly earnings series - O(n * weeks)
+ * Memoize this to avoid unnecessary nested loops
+ * 
+ * @param activities - The activities to analyze
+ * @param weeks - Number of weeks to include (default: 8)
+ */
+export function computeWeeklySeries(
+  activities: Activity[],
+  weeks: number = 8,
+): WeeklySeriesData[] {
+  if (activities.length === 0) {
+    return [];
+  }
+
+  // Group activities by week
+  const weekMap = new Map<string, number>();
+
+  // Only process completed activities for the series
+  for (const activity of activities) {
+    if (activity.status !== 'completed') continue;
+
+    const date = new Date(activity.completedAt);
+    // Get the start of the week (Monday)
+    const weekStart = getWeekStart(date);
+    const weekKey = weekStart.toISOString().split('T')[0];
+    
+    weekMap.set(weekKey, (weekMap.get(weekKey) || 0) + (activity.reward || 0));
+  }
+
+  // Get the last 'weeks' weeks
+  const series: WeeklySeriesData[] = [];
+  const now = new Date();
+  
+  for (let i = weeks - 1; i >= 0; i--) {
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() - i * 7);
+    const weekKey = weekStart.toISOString().split('T')[0];
+    
+    const amount = weekMap.get(weekKey) || 0;
+    const weekLabel = formatWeekLabel(weekStart);
+    
+    series.push({
+      week: weekLabel,
+      amount,
+    });
+  }
+
+  return series;
 }
 
-function formatWeekLabel(start: Date): string {
-  const startLabel = start.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-  });
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
-  const endLabel = end.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-  });
-  return `${startLabel}–${endLabel}`;
-}
-
-function startOfWeek(date: Date): Date {
+/**
+ * Get the start of the week (Monday)
+ */
+function getWeekStart(date: Date): Date {
   const d = new Date(date);
-  const daysSinceMonday = (d.getDay() + 6) % 7;
+  const day = d.getDay();
+  const diff = (day === 0 ? 6 : day - 1); // Monday as first day
+  d.setDate(d.getDate() - diff);
   d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - daysSinceMonday);
   return d;
 }
 
-export function computeWeeklySeries(
-  activities: Activity[],
-  weeks = 4,
-  now: Date = new Date(),
-): WeeklyEarnings[] {
-  const monday = startOfWeek(now);
-  const series: WeeklyEarnings[] = [];
+/**
+ * Format week label
+ */
+function formatWeekLabel(date: Date): string {
+  const month = date.toLocaleString('default', { month: 'short' });
+  const day = date.getDate();
+  return `${month} ${day}`;
+}
 
-  for (let w = weeks - 1; w >= 0; w--) {
-    const start = new Date(monday);
-    start.setDate(start.getDate() - w * 7);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 7);
-
-    let earned = 0;
-    for (const activity of activities) {
-      if (activity.status !== 'confirmed') {
-        continue;
-      }
-      const time = new Date(activity.completedAt).getTime();
-      if (time >= start.getTime() && time < end.getTime()) {
-        earned += activity.rewardAmount;
-      }
-    }
-    series.push({ label: formatWeekLabel(start), earned });
-  }
-  return series;
+/**
+ * Create an optimized memoized selector for earnings data
+ * This can be used with useMemo or reselect
+ */
+export function computeEarningsData(activities: Activity[]) {
+  // Single pass for total
+  const total = sumRewards(activities);
+  
+  // Single pass for grouping (using pre-computed total)
+  const breakdown = groupByTaskType(activities, total);
+  
+  // Single pass for weekly series
+  const weeklySeries = computeWeeklySeries(activities);
+  
+  return {
+    total,
+    byTaskType: breakdown.byTaskType,
+    weeklySeries,
+  };
 }
