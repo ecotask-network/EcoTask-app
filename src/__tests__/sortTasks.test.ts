@@ -1,6 +1,9 @@
 import {
   filterTasksByQuery,
+  filterTasksByStatus,
+  normalizeTaskStatus,
   sortTasks,
+  taskStatusLabel,
   TaskSortMode,
 } from '../utils/sortTasks';
 
@@ -60,6 +63,59 @@ describe('filterTasksByQuery', () => {
 
   it('returns an empty list when nothing matches', () => {
     expect(filterTasksByQuery(tasks, 'volcano')).toHaveLength(0);
+  });
+});
+
+describe('normalizeTaskStatus', () => {
+  it('keeps known statuses unchanged', () => {
+    expect(normalizeTaskStatus('open')).toBe('open');
+    expect(normalizeTaskStatus('active')).toBe('active');
+    expect(normalizeTaskStatus('closed')).toBe('closed');
+  });
+
+  it('falls back to open for unknown or missing statuses', () => {
+    expect(normalizeTaskStatus('in-progress')).toBe('open');
+    expect(normalizeTaskStatus(undefined)).toBe('open');
+    expect(normalizeTaskStatus(null)).toBe('open');
+    expect(normalizeTaskStatus(42)).toBe('open');
+  });
+});
+
+describe('filterTasksByStatus', () => {
+  const statusTasks = [
+    { id: '1', status: 'open' as const },
+    { id: '2', status: 'active' as const },
+    { id: '3', status: 'closed' as const },
+  ];
+
+  it('returns all tasks when no statuses are selected', () => {
+    expect(filterTasksByStatus(statusTasks, [])).toHaveLength(3);
+  });
+
+  it('filters to the requested statuses', () => {
+    const result = filterTasksByStatus(statusTasks, ['open', 'active']);
+    expect(result.map(t => t.id)).toEqual(['1', '2']);
+  });
+
+  it('returns only matching tasks for a single status', () => {
+    const result = filterTasksByStatus(statusTasks, ['closed']);
+    expect(result.map(t => t.id)).toEqual(['3']);
+  });
+
+  it('returns an empty list when nothing matches', () => {
+    const result = filterTasksByStatus(
+      [{ id: '1', status: 'open' as const }],
+      ['closed'],
+    );
+    expect(result).toHaveLength(0);
+  });
+});
+
+describe('taskStatusLabel', () => {
+  it('maps every status to a label', () => {
+    expect(taskStatusLabel('open')).toBe('Open');
+    expect(taskStatusLabel('active')).toBe('Active');
+    expect(taskStatusLabel('closed')).toBe('Closed');
   });
 });
 

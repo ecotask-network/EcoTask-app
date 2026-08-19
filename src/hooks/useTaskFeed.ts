@@ -3,6 +3,7 @@ import { useTaskStore } from '../store/taskStore';
 import { fetchTasks } from '../services/api';
 import { Task } from '../types';
 import { enrichTasksWithDistance } from '../utils/geoUtils';
+import { normalizeTaskStatus } from '../utils/sortTasks';
 
 interface UseTaskFeedOptions {
   type?: string;
@@ -52,10 +53,20 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
         const result = await fetchTasks(params);
 
         const withLocation = query.lat !== undefined && query.lng !== undefined;
-        const normalize = (list: Task[]) =>
-          withLocation && query.lat !== undefined && query.lng !== undefined
-            ? enrichTasksWithDistance(list, query.lat, query.lng)
-            : list;
+        const normalize = (list: Task[]): Task[] => {
+          const withStatus = list.map(task => ({
+            ...task,
+            status: normalizeTaskStatus(task.status),
+          }));
+          if (
+            withLocation &&
+            query.lat !== undefined &&
+            query.lng !== undefined
+          ) {
+            return enrichTasksWithDistance(withStatus, query.lat, query.lng);
+          }
+          return withStatus;
+        };
 
         if (pageNum === 1) {
           setTasks(normalize(result.tasks));

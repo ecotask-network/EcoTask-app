@@ -1,3 +1,16 @@
+export type TaskStatus = 'open' | 'closed' | 'active';
+
+export const TASK_STATUSES: TaskStatus[] = ['open', 'active', 'closed'];
+
+export const TASK_STATUS_CONFIG: Record<
+  TaskStatus,
+  { label: string; color: string }
+> = {
+  open: { label: 'Open', color: '#22C55E' },
+  active: { label: 'Active', color: '#3B82F6' },
+  closed: { label: 'Closed', color: '#6B7280' },
+};
+
 export interface Task {
   id: string;
   title: string;
@@ -7,7 +20,7 @@ export interface Task {
   rewardToken?: string;
   lat: number;
   lng: number;
-  status: string;
+  status: TaskStatus;
   distance?: number;
   instructions?: string;
   difficulty?: TaskDifficulty;
