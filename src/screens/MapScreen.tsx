@@ -88,7 +88,7 @@ function clusterTasks(tasks: Task[], region: Region | null): ClusterOrMarker[] {
   return Array.from(buckets.values()).map(group => {
     const centroidLat = group.reduce((s, t) => s + t.lat, 0) / group.length;
     const centroidLng = group.reduce((s, t) => s + t.lng, 0) / group.length;
-    const representative = group[0];
+    const representative = group[0]!;
     return {
       id:
         group.length === 1
@@ -181,9 +181,10 @@ export default function MapScreen() {
         {/* Task markers / cluster markers */}
         {clustered.map(item => {
           const isCluster = item.count !== null;
+          const firstTask = item.tasks[0];
           const label = isCluster
             ? String(item.count)
-            : (TASK_TYPE_CONFIG[item.tasks[0].type]?.icon ?? '📍');
+            : (firstTask ? (TASK_TYPE_CONFIG[firstTask.type]?.icon ?? '📍') : '📍');
 
           return (
             <Marker
@@ -191,16 +192,16 @@ export default function MapScreen() {
               testID={isCluster ? `cluster-${item.id}` : `marker-${item.id}`}
               coordinate={{ latitude: item.lat, longitude: item.lng }}
               title={
-                isCluster ? `${item.count} tasks here` : item.tasks[0].title
+                isCluster ? `${item.count} tasks here` : (firstTask?.title ?? '')
               }
               description={
                 isCluster
                   ? 'Zoom in to see individual tasks'
-                  : `${item.tasks[0].rewardAmount} ${item.tasks[0].rewardToken ?? 'ECO'}`
+                  : (firstTask ? `${firstTask.rewardAmount} ${firstTask.rewardToken ?? 'ECO'}` : '')
               }
               onCalloutPress={() => {
-                if (!isCluster) {
-                  handleCalloutPress(item.tasks[0]);
+                if (!isCluster && firstTask) {
+                  handleCalloutPress(firstTask);
                 }
               }}
             >

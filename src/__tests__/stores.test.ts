@@ -91,7 +91,7 @@ describe('taskStore', () => {
         id: '1',
         title: 'Plant tree',
         description: 'Desc',
-        type: 'TREE_PLANTING',
+        type: 'TREE_PLANTING' as const,
         rewardAmount: 10,
         lat: 0,
         lng: 0,
@@ -100,7 +100,7 @@ describe('taskStore', () => {
     ];
     useTaskStore.getState().setTasks(tasks);
     expect(useTaskStore.getState().tasks).toHaveLength(1);
-    expect(useTaskStore.getState().tasks[0].title).toBe('Plant tree');
+    expect(useTaskStore.getState().tasks[0]!.title).toBe('Plant tree');
   });
 
   it('appends tasks', () => {
@@ -109,7 +109,7 @@ describe('taskStore', () => {
         id: '1',
         title: 'A',
         description: '',
-        type: 'TREE_PLANTING',
+        type: 'TREE_PLANTING' as const,
         rewardAmount: 10,
         lat: 0,
         lng: 0,
@@ -122,7 +122,7 @@ describe('taskStore', () => {
         id: '2',
         title: 'B',
         description: '',
-        type: 'TRASH_COLLECTION',
+        type: 'TRASH_COLLECTION' as const,
         rewardAmount: 20,
         lat: 1,
         lng: 1,
@@ -137,7 +137,7 @@ describe('taskStore', () => {
       id: '1',
       title: 'Task',
       description: '',
-      type: 'OTHER',
+      type: 'OTHER' as const,
       rewardAmount: 5,
       lat: 0,
       lng: 0,
@@ -153,7 +153,7 @@ describe('taskStore', () => {
       id: '1',
       title: 'Task',
       description: '',
-      type: 'OTHER',
+      type: 'OTHER' as const,
       rewardAmount: 5,
       lat: 0,
       lng: 0,
@@ -287,7 +287,7 @@ describe('activityStore', () => {
     });
     const activities = useActivityStore.getState().activities;
     expect(activities).toHaveLength(2);
-    expect(activities[0].id).toBe('2');
+    expect(activities[0]!.id).toBe('2');
   });
 
   it('caps the feed at 20 activities', () => {

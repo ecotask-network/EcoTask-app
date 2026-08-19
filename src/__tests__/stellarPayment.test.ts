@@ -27,12 +27,15 @@ describe('buildPaymentXDR', () => {
     );
 
     const parsed = TransactionBuilder.fromXDR(xdr, Networks.TESTNET);
-    expect(parsed.source).toBe(kp.publicKey());
-    expect(parsed.operations).toHaveLength(1);
-    const op = parsed.operations[0] as any;
-    expect(op.type).toBe('payment');
-    expect(op.destination).toBe(dest);
-    expect(parseFloat(op.amount)).toBe(10.5);
+    const source = 'source' in parsed ? parsed.source : parsed.feeSource;
+    expect(source).toBe(kp.publicKey());
+    if ('operations' in parsed) {
+      expect(parsed.operations).toHaveLength(1);
+      const op = parsed.operations[0] as any;
+      expect(op.type).toBe('payment');
+      expect(op.destination).toBe(dest);
+      expect(parseFloat(op.amount)).toBe(10.5);
+    }
   });
 
   it('builds a payment with a custom (ECO) asset', async () => {

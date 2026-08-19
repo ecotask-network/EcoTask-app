@@ -57,14 +57,16 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
         }
 
         const loc = locationRef.current;
-        const withLocation = loc.lat !== undefined && loc.lng !== undefined;
-        if (withLocation) {
-          params.lat = loc.lat;
-          params.lng = loc.lng;
+        const lat = loc.lat;
+        const lng = loc.lng;
+        const withLocation = lat !== undefined && lng !== undefined;
+        if (withLocation && lat !== undefined && lng !== undefined) {
+          params.lat = lat;
+          params.lng = lng;
           if (serverParams.radius !== undefined) {
             params.radius = serverParams.radius;
           }
-          lastFetchLocationRef.current = { lat: loc.lat, lng: loc.lng };
+          lastFetchLocationRef.current = { lat, lng };
         } else {
           lastFetchLocationRef.current = null;
         }
@@ -72,7 +74,9 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
         const result = await fetchTasks(params);
 
         const normalize = (list: Task[]) =>
-          withLocation ? enrichTasksWithDistance(list, loc.lat, loc.lng) : list;
+          withLocation && lat !== undefined && lng !== undefined
+            ? enrichTasksWithDistance(list, lat, lng)
+            : list;
 
         if (pageNum === 1) {
           setTasks(normalize(result.tasks));

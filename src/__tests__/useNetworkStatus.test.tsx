@@ -5,7 +5,7 @@ import renderer, { act } from 'react-test-renderer';
 import NetInfo from '@react-native-community/netinfo';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
-function HookHarness({ onRef }: any) {
+function HookHarness({ onRef }: { onRef: (ref: any) => void }) {
   const status = useNetworkStatus();
   React.useEffect(() => {
     onRef(status);

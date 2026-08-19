@@ -49,13 +49,13 @@ describe('filterTasksByQuery', () => {
   it('matches against the title case-insensitively', () => {
     const result = filterTasksByQuery(tasks, 'BEACH');
     expect(result).toHaveLength(1);
-    expect(result[0].id).toBe('2');
+    expect(result[0]!.id).toBe('2');
   });
 
   it('matches against the description', () => {
     const result = filterTasksByQuery(tasks, 'wetlands');
     expect(result).toHaveLength(1);
-    expect(result[0].id).toBe('1');
+    expect(result[0]!.id).toBe('1');
   });
 
   it('returns an empty list when nothing matches', () => {
@@ -66,7 +66,7 @@ describe('filterTasksByQuery', () => {
 describe('sortTasks', () => {
   it('sorts by distance ascending, keeping unknown distances last', () => {
     const result = sortTasks(
-      [...tasks, { ...tasks[0], id: '4', distance: undefined }],
+      [...tasks, { ...tasks[0]!, id: '4', distance: undefined }],
       'distance' as TaskSortMode,
     );
     expect(result.map(t => t.id)).toEqual(['2', '1', '3', '4']);
@@ -79,7 +79,7 @@ describe('sortTasks', () => {
 
   it('sorts by difficulty ascending with unknown treated as hard', () => {
     const result = sortTasks(
-      [...tasks, { ...tasks[0], id: '4', difficulty: undefined }],
+      [...tasks, { ...tasks[0]!, id: '4', difficulty: undefined }],
       'difficulty',
     );
     expect(result.map(t => t.id)).toEqual(['2', '3', '1', '4']);

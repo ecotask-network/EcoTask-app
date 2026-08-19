@@ -11,7 +11,7 @@ import * as api from '../services/api';
 import { clearQueue, loadQueue } from '../services/proofQueue';
 import { useProofSyncStore } from '../store/proofSyncStore';
 
-function HookHarness({ onRef }: any) {
+function HookHarness({ onRef }: { onRef: (ref: any) => void }) {
   const hook = useProofSubmit();
   React.useEffect(() => {
     onRef(hook);

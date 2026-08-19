@@ -70,7 +70,9 @@ export function useStellarWallet() {
     setError(null);
     try {
       const freighter = (
-        Platform.OS === 'web' ? window : ({} as FreighterWindow)
+        typeof (globalThis as any).window !== 'undefined'
+          ? (globalThis as any).window
+          : ({} as FreighterWindow)
       ).freighter;
       if (!freighter) {
         throw new Error('Freighter extension not detected');
@@ -148,7 +150,8 @@ export function useStellarWallet() {
 
       // Extract the user's real public key from the signed transaction source.
       const parsed = TransactionBuilder.fromXDR(signedXDR, NETWORK);
-      const lobstrPublicKey = parsed.source;
+      const lobstrPublicKey =
+        'source' in parsed ? parsed.source : parsed.feeSource;
 
       await connectAccount(lobstrPublicKey, undefined, 'lobstr');
     } catch (err: any) {

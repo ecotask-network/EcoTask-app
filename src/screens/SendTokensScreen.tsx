@@ -55,7 +55,9 @@ export default function SendTokensScreen() {
     setIsSending(true);
     try {
       const assetParam =
-        asset === 'eco'
+        asset === 'eco' &&
+        Config.ECO_TOKEN_ASSET_CODE &&
+        Config.ECO_TOKEN_ISSUER
           ? {
               code: Config.ECO_TOKEN_ASSET_CODE,
               issuer: Config.ECO_TOKEN_ISSUER,

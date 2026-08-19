@@ -39,10 +39,11 @@ function base64UrlToString(input: string): string {
 export function decodeTokenExpiry(token: string): number | null {
   try {
     const segments = token.split('.');
-    if (segments.length < 2) {
+    const segment = segments[1];
+    if (segments.length < 2 || !segment) {
       return null;
     }
-    const payload = JSON.parse(base64UrlToString(segments[1]));
+    const payload = JSON.parse(base64UrlToString(segment));
     return typeof payload.exp === 'number' ? payload.exp * 1000 : null;
   } catch {
     return null;

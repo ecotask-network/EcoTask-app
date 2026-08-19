@@ -64,7 +64,8 @@ export const usePrefsStore = create<PrefsState>()(
               usePrefsStore.getState().scheduledNotificationIds[type] || [];
             if (ids.length > 0) {
               try {
-                const notifee = await import('@notifee/react-native');
+                const notifeeModule = await import('@notifee/react-native');
+                const notifee = notifeeModule.default || notifeeModule;
                 await Promise.all(
                   ids.map(id =>
                     notifee.cancelNotification(id).catch(() => null),
@@ -108,13 +109,20 @@ export const usePrefsStore = create<PrefsState>()(
     {
       name: 'prefs-storage',
       storage: createJSONStorage(() => zustandMMKVStorage),
-      onRehydrateStorage: () => state => {
-        return persisted => {
-          if (persisted && persisted.notificationPrefs) {
-            const merged = mergeNotificationDefaults(
-              persisted.notificationPrefs as Record<string, boolean>,
-            );
-            state?.setState({ notificationPrefs: merged });
+      onRehydrateStorage: () => () => {
+        return (persisted?: unknown) => {
+          if (
+            persisted &&
+            typeof persisted === 'object' &&
+            'notificationPrefs' in persisted
+          ) {
+            const p = persisted as {
+              notificationPrefs?: Record<string, boolean>;
+            };
+            if (p.notificationPrefs) {
+              const merged = mergeNotificationDefaults(p.notificationPrefs);
+              usePrefsStore.setState({ notificationPrefs: merged });
+            }
           }
         };
       },
