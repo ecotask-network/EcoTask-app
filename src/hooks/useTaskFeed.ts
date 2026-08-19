@@ -1,17 +1,23 @@
-import { useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTaskStore } from '../store/taskStore';
 import { fetchTasks } from '../services/api';
 import { Task } from '../types';
+import { TaskSortMode } from '../utils/sortTasks';
 import { enrichTasksWithDistance } from '../utils/geoUtils';
+
+const LOCATION_DEBOUNCE_MS = 5000;
 
 interface UseTaskFeedOptions {
   type?: string;
   lat?: number;
   lng?: number;
   radius?: number;
+  sort?: TaskSortMode;
 }
 
 export function useTaskFeed(options: UseTaskFeedOptions = {}) {
+  const { type, lat, lng, radius } = options;
+
   const {
     tasks,
     isLoading,
@@ -26,10 +32,13 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
     setHasMore,
   } = useTaskStore();
 
-  const { type, lat, lng, radius } = options;
-  const query = useMemo(
-    () => ({ type, lat, lng, radius }),
-    [type, lat, lng, radius],
+  const serverParams = useMemo(() => ({ type, radius }), [type, radius]);
+
+  const hasLocation = lat !== undefined && lng !== undefined;
+  const locationRef = useRef({ lat, lng });
+  locationRef.current = { lat, lng };
+  const lastFetchLocationRef = useRef<{ lat: number; lng: number } | null>(
+    null,
   );
 
   const loadTasks = useCallback(
@@ -38,24 +47,30 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
       setError(null);
       try {
         const params: Record<string, any> = { page: pageNum, limit: 20 };
-        if (query.type) {
-          params.type = query.type;
+        if (serverParams.type) {
+          params.type = serverParams.type;
         }
-        if (query.lat !== undefined && query.lng !== undefined) {
-          params.lat = query.lat;
-          params.lng = query.lng;
-          if (query.radius !== undefined) {
-            params.radius = query.radius;
+
+        const loc = locationRef.current;
+        const withLocation = loc.lat !== undefined && loc.lng !== undefined;
+        if (withLocation) {
+          params.lat = loc.lat;
+          params.lng = loc.lng;
+          if (serverParams.radius !== undefined) {
+            params.radius = serverParams.radius;
           }
+          lastFetchLocationRef.current = { lat: loc.lat, lng: loc.lng };
+        } else {
+          lastFetchLocationRef.current = null;
         }
 
         const result = await fetchTasks(params);
 
-        const withLocation = query.lat !== undefined && query.lng !== undefined;
         const normalize = (list: Task[]) =>
           withLocation && query.lat !== undefined && query.lng !== undefined
             ? (enrichTasksWithDistance(list as any, query.lat, query.lng) as any)
             : list;
+          withLocation ? enrichTasksWithDistance(list, loc.lat, loc.lng) : list;
 
         if (pageNum === 1) {
           setTasks(normalize(result.tasks) as any);
@@ -70,7 +85,15 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
         setLoading(false);
       }
     },
-    [query, setTasks, appendTasks, setLoading, setError, setPage, setHasMore],
+    [
+      serverParams,
+      setTasks,
+      appendTasks,
+      setLoading,
+      setError,
+      setPage,
+      setHasMore,
+    ],
   );
 
   const refresh = useCallback(() => loadTasks(1), [loadTasks]);
@@ -83,6 +106,29 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
   useEffect(() => {
     loadTasks(1);
   }, [loadTasks]);
+
+  const currentLocation = useMemo(
+    () => (hasLocation ? { lat: lat as number, lng: lng as number } : null),
+    [hasLocation, lat, lng],
+  );
+
+  useEffect(() => {
+    if (!currentLocation) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      const last = lastFetchLocationRef.current;
+      if (
+        last &&
+        last.lat === currentLocation.lat &&
+        last.lng === currentLocation.lng
+      ) {
+        return;
+      }
+      loadTasks(1);
+    }, LOCATION_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [currentLocation, loadTasks]);
 
   return { tasks, isLoading, error, hasMore, refresh, loadMore };
 }

@@ -57,6 +57,8 @@ export interface Activity {
   rewardToken: string;
   completedAt: string;
   status: 'confirmed' | 'pending' | 'failed';
+  /** ID returned by the backend after a successful proof POST; used for status polling. */
+  proofId?: string;
 }
 
 export interface PendingProof {

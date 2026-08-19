@@ -16,6 +16,12 @@ interface ActivityState {
   streak: number;
   bestStreak: number;
   addActivity: (activity: Activity) => void;
+  /** Patch the status (and optionally rewardAmount) of a single activity by id. */
+  updateActivityStatus: (
+    id: string,
+    status: Activity['status'],
+    rewardAmount?: number,
+  ) => void;
   clearActivities: () => void;
   recomputeStreaks: () => void;
 }
@@ -34,6 +40,23 @@ export const useActivityStore = create<ActivityState>()(
       bestStreak: 0,
       addActivity: activity => {
         const activities = [activity, ...get().activities].slice(0, 20);
+        const dates = confirmedDates(activities);
+        set({
+          activities,
+          streak: computeCurrentStreak(dates),
+          bestStreak: Math.max(get().bestStreak, computeBestStreak(dates)),
+        });
+      },
+      updateActivityStatus: (id, status, rewardAmount) => {
+        const activities = get().activities.map(a =>
+          a.id === id
+            ? {
+                ...a,
+                status,
+                ...(rewardAmount !== undefined ? { rewardAmount } : {}),
+              }
+            : a,
+        );
         const dates = confirmedDates(activities);
         set({
           activities,

@@ -8,8 +8,20 @@ import {
   Asset,
   BASE_FEE,
   Account,
+  NotFoundError,
 } from '@stellar/stellar-sdk';
 import Config from 'react-native-config';
+
+export interface StellarPayment {
+  id: string;
+  type: string;
+  amount: string;
+  asset_type: string;
+  asset_code?: string;
+  from: string;
+  to: string;
+  created_at: string;
+}
 
 const NETWORK =
   Config.STELLAR_NETWORK === 'testnet' ? Networks.TESTNET : Networks.PUBLIC;
@@ -46,6 +58,44 @@ export async function getTokenBalance(
     return tokenBalance ? tokenBalance.balance : '0';
   } catch {
     return '0';
+  }
+}
+
+export async function getPayments(
+  publicKey: string,
+  limit: number = 10,
+): Promise<StellarPayment[]> {
+  try {
+    const page = await server
+      .payments()
+      .forAccount(publicKey)
+      .order('desc')
+      .limit(limit)
+      .call();
+
+    // Only plain "payment" operations map to StellarPayment; other
+    // operation types (create_account, path_payment, etc.) are skipped.
+    return page.records
+      .filter(
+        (record): record is Horizon.ServerApi.PaymentOperationRecord =>
+          record.type === 'payment',
+      )
+      .map(record => ({
+        id: record.id,
+        type: record.type,
+        amount: record.amount,
+        asset_type: record.asset_type,
+        asset_code: record.asset_code,
+        from: record.from,
+        to: record.to,
+        created_at: record.created_at,
+      }));
+  } catch (err) {
+    // An unfunded/nonexistent account has no payment history yet.
+    if (err instanceof NotFoundError) {
+      return [];
+    }
+    throw err;
   }
 }
 
@@ -146,4 +196,13 @@ export async function signAndSubmitPayment(params: {
   return { hash: result.hash };
 }
 
-export { Keypair, Networks, Horizon };
+export {
+  Keypair,
+  Networks,
+  Horizon,
+  TransactionBuilder,
+  Account,
+  Operation,
+  Asset,
+  BASE_FEE,
+};

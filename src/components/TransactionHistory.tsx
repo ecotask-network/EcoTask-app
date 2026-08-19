@@ -2,17 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { colors, spacing } from '../utils/theme';
 import Skeleton from './LoadingSkeleton';
-
-interface StellarPayment {
-  id: string;
-  type: string;
-  amount: string;
-  asset_type: string;
-  asset_code?: string;
-  from: string;
-  to: string;
-  created_at: string;
-}
+import { getPayments, StellarPayment } from '../services/stellar';
 
 interface TransactionHistoryProps {
   publicKey: string;
@@ -52,11 +42,10 @@ export default function TransactionHistory({
   const loadPayments = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(
-        `https://horizon-testnet.stellar.org/accounts/${publicKey}/payments?limit=10&order=desc`,
-      );
-      const data = await response.json();
-      setPayments(data._embedded?.records || []);
+      // getPayments already resolves the correct Horizon network via
+      // Config.STELLAR_NETWORK, so no URL/network handling is needed here.
+      const records = await getPayments(publicKey, 10);
+      setPayments(records);
       setError(null);
     } catch {
       setError('Failed to load transaction history');
