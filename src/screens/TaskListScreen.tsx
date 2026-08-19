@@ -67,6 +67,7 @@ export default function TaskListScreen() {
     ...(location
       ? { lat: location.lat, lng: location.lng, radius: radiusKm }
       : {}),
+    sort: sortMode,
   });
 
   const visibleTasks = useMemo(() => {

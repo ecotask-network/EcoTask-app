@@ -4,6 +4,14 @@ import { useTaskStore } from '../store/taskStore';
 import { useUserStore } from '../store/userStore';
 import { useActivityStore } from '../store/activityStore';
 
+function makeJwt(exp: number): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256' })).toString(
+    'base64url',
+  );
+  const payload = Buffer.from(JSON.stringify({ exp })).toString('base64url');
+  return `${header}.${payload}.signature`;
+}
+
 describe('walletStore', () => {
   beforeEach(() => {
     useWalletStore.setState({
@@ -61,6 +69,7 @@ describe('taskStore', () => {
     useTaskStore.setState({
       tasks: [],
       selectedTask: null,
+      selectedAt: null,
       isLoading: false,
       error: null,
       page: 1,
@@ -123,7 +132,7 @@ describe('taskStore', () => {
     expect(useTaskStore.getState().tasks).toHaveLength(2);
   });
 
-  it('selects a task', () => {
+  it('selects a task and stamps selectedAt', () => {
     const task = {
       id: '1',
       title: 'Task',
@@ -136,6 +145,24 @@ describe('taskStore', () => {
     };
     useTaskStore.getState().selectTask(task);
     expect(useTaskStore.getState().selectedTask?.id).toBe('1');
+    expect(useTaskStore.getState().selectedAt).toEqual(expect.any(String));
+  });
+
+  it('clears selectedAt when deselecting', () => {
+    const task = {
+      id: '1',
+      title: 'Task',
+      description: '',
+      type: 'OTHER',
+      rewardAmount: 5,
+      lat: 0,
+      lng: 0,
+      status: 'open',
+    };
+    useTaskStore.getState().selectTask(task);
+    useTaskStore.getState().selectTask(null);
+    expect(useTaskStore.getState().selectedTask).toBeNull();
+    expect(useTaskStore.getState().selectedAt).toBeNull();
   });
 
   it('resets state', () => {
@@ -165,7 +192,7 @@ describe('taskStore', () => {
 
 describe('userStore', () => {
   beforeEach(() => {
-    useUserStore.setState({ profile: null, token: null });
+    useUserStore.setState({ profile: null, token: null, tokenExpiresAt: null });
   });
   it('starts with no profile or token', () => {
     const state = useUserStore.getState();
@@ -187,6 +214,13 @@ describe('userStore', () => {
   it('sets token', () => {
     useUserStore.getState().setToken('jwt-abc');
     expect(useUserStore.getState().token).toBe('jwt-abc');
+    expect(useUserStore.getState().tokenExpiresAt).toBeNull();
+  });
+
+  it('decodes token expiry from the JWT exp claim', () => {
+    const token = makeJwt(1234567890);
+    useUserStore.getState().setToken(token);
+    expect(useUserStore.getState().tokenExpiresAt).toBe(1234567890 * 1000);
   });
 
   it('updates stats', () => {
@@ -211,11 +245,12 @@ describe('userStore', () => {
       name: 'Alice',
       stats: { treesPlanted: 0, plasticCollected: 0, co2Reduced: 0 },
     });
-    setToken('jwt-abc');
+    setToken(makeJwt(1234567890));
     logout();
     const state = useUserStore.getState();
     expect(state.profile).toBeNull();
     expect(state.token).toBeNull();
+    expect(state.tokenExpiresAt).toBeNull();
   });
 });
 
@@ -285,5 +320,68 @@ describe('activityStore', () => {
     });
     useActivityStore.getState().clearActivities();
     expect(useActivityStore.getState().activities).toEqual([]);
+  });
+
+  it('updateActivityStatus patches the status of a single activity', () => {
+    useActivityStore.getState().addActivity({
+      id: 'a1',
+      taskId: 't1',
+      taskTitle: 'Plant tree',
+      taskType: 'TREE_PLANTING',
+      rewardAmount: 0,
+      rewardToken: 'ECO',
+      completedAt: '2026-01-01',
+      status: 'pending',
+    });
+    useActivityStore.getState().updateActivityStatus('a1', 'confirmed', 10);
+    const activity = useActivityStore
+      .getState()
+      .activities.find(a => a.id === 'a1');
+    expect(activity?.status).toBe('confirmed');
+    expect(activity?.rewardAmount).toBe(10);
+  });
+
+  it('updateActivityStatus does not mutate unrelated activities', () => {
+    useActivityStore.getState().addActivity({
+      id: 'a1',
+      taskId: 't1',
+      taskTitle: 'Task 1',
+      taskType: 'OTHER',
+      rewardAmount: 5,
+      rewardToken: 'ECO',
+      completedAt: '2026-01-01',
+      status: 'pending',
+    });
+    useActivityStore.getState().addActivity({
+      id: 'a2',
+      taskId: 't2',
+      taskTitle: 'Task 2',
+      taskType: 'OTHER',
+      rewardAmount: 3,
+      rewardToken: 'ECO',
+      completedAt: '2026-01-02',
+      status: 'pending',
+    });
+    useActivityStore.getState().updateActivityStatus('a1', 'failed');
+    const a2 = useActivityStore.getState().activities.find(a => a.id === 'a2');
+    expect(a2?.status).toBe('pending');
+  });
+
+  it('updateActivityStatus to confirmed updates streaks', () => {
+    useActivityStore.getState().addActivity({
+      id: 'a1',
+      taskId: 't1',
+      taskTitle: 'Task',
+      taskType: 'OTHER',
+      rewardAmount: 0,
+      rewardToken: 'ECO',
+      completedAt: new Date().toISOString(),
+      status: 'pending',
+    });
+    // Streak should be 0 while pending.
+    expect(useActivityStore.getState().streak).toBe(0);
+    useActivityStore.getState().updateActivityStatus('a1', 'confirmed');
+    // Now it's confirmed, streak should become 1.
+    expect(useActivityStore.getState().streak).toBe(1);
   });
 });

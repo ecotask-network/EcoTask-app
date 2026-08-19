@@ -18,6 +18,7 @@ describe('proofQueue', () => {
     lat: 51.5,
     lng: -0.1,
     createdAt: '2026-01-01T00:00:00.000Z',
+    capturedAt: '2026-01-01T00:00:00.000Z',
   };
 
   beforeEach(() => {
@@ -45,6 +46,32 @@ describe('proofQueue', () => {
     enqueueProof(baseProof);
     enqueueProof({ ...baseProof, id: '2' });
     expect(loadQueue()).toHaveLength(1);
+  });
+
+  it('replaces an existing queued proof with a newer submission for the same task', () => {
+    enqueueProof(baseProof);
+    const retry = {
+      ...baseProof,
+      id: '2',
+      createdAt: '2026-01-02T00:00:00.000Z',
+      photoCid: 'new-photo-cid',
+      metadataCid: 'new-meta-cid',
+    };
+    const queue = enqueueProof(retry);
+    expect(queue).toHaveLength(1);
+    expect(queue[0].id).toBe('2');
+    expect(queue[0].photoCid).toBe('new-photo-cid');
+    expect(queue[0].metadataCid).toBe('new-meta-cid');
+  });
+
+  it('drops a true duplicate (same task, photo and timestamp) without replacing', () => {
+    enqueueProof(baseProof);
+    const duplicate = { ...baseProof, id: '2' };
+    const queue = enqueueProof(duplicate);
+    expect(queue).toHaveLength(1);
+    // The original entry (id '1') is preserved; the identical resubmission
+    // is deduplicated rather than replacing the queued proof.
+    expect(queue[0].id).toBe('1');
   });
 
   it('reports whether a task already has a queued proof', () => {

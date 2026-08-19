@@ -4,7 +4,7 @@
 
 **The EcoTask mobile dApp — browse tasks, submit proof, and earn rewards.**
 
-*A React Native application that puts climate-action income in the hands of communities across the developing world.*
+_A React Native application that puts climate-action income in the hands of communities across the developing world._
 
 [![Build](https://img.shields.io/badge/Build-Passing-brightgreen)]()
 [![React Native](https://img.shields.io/badge/React%20Native-0.73-61DAFB?logo=react)](https://reactnative.dev)
@@ -50,40 +50,40 @@ The app is designed with **low-bandwidth environments** in mind — optimized fo
 
 ## ✨ Features
 
-| Feature | Status | Description |
-|---------|--------|-------------|
-| 🔐 **Wallet Integration** | ✅ | Connect via Freighter, create a testnet wallet, or import an existing one |
-| 🗂️ **Task Browser** | ✅ | Filter by type, search, sort by distance/reward/difficulty, adjustable radius |
-| 📸 **Proof Submission** | ✅ | Real camera capture with GPS metadata via Vision Camera |
-| 🔑 **Wallet Authentication** | ✅ | Sign challenges with your Stellar wallet (Freighter or in-app) to authenticate |
-| 💸 **Instant Rewards** | ✅ | Receive ECO tokens after task verification |
-| 📈 **Impact Dashboard** | ✅ | Track trees planted, plastic collected, CO₂ offset per task type |
-| 📊 **Earnings Analytics** | ✅ | Total earnings, task-type breakdown and 4-week trend chart |
-| 💰 **Transaction History** | ✅ | View recent Stellar payments on the wallet screen |
-| 💸 **Send Tokens** | ✅ | Sign and submit XLM/ECO payments from in-app wallets |
-| 🔥 **Streak Tracking** | ✅ | Consecutive-day streaks with milestone progress (7/14/30/60/100) |
-| 🏅 **Achievements** | ✅ | Eco-badges unlocked by trees, waste and CO₂ milestones |
-| 👤 **Profile Management** | ✅ | Edit name and bio, view impact stats |
-| 🌐 **Multi-language** | 🔜 | Designed for localisation (English, Swahili, French, Portuguese) |
-| 📶 **Offline-first** | ✅ | Queue submissions when offline, sync when connected, cache the task feed |
-| 🔔 **Push Notifications** | ✅ | Task reminders, reward confirmations, streak nudges |
-| 🗄️ **Decentralized Storage** | ✅ | IPFS pinning of proof photos and metadata, wired into submissions |
+| Feature                      | Status | Description                                                                    |
+| ---------------------------- | ------ | ------------------------------------------------------------------------------ |
+| 🔐 **Wallet Integration**    | ✅     | Connect via Freighter, Lobstr (SEP-7), create a testnet wallet, or import an existing one |
+| 🗂️ **Task Browser**          | ✅     | Filter by type, search, sort by distance/reward/difficulty, adjustable radius  |
+| 📸 **Proof Submission**      | ✅     | Real camera capture with GPS metadata via Vision Camera                        |
+| 🔑 **Wallet Authentication** | ✅     | Sign challenges with your Stellar wallet (Freighter or in-app) to authenticate |
+| 💸 **Instant Rewards**       | ✅     | Receive ECO tokens after task verification                                     |
+| 📈 **Impact Dashboard**      | ✅     | Track trees planted, plastic collected, CO₂ offset per task type               |
+| 📊 **Earnings Analytics**    | ✅     | Total earnings, task-type breakdown and 4-week trend chart                     |
+| 💰 **Transaction History**   | ✅     | View recent Stellar payments on the wallet screen                              |
+| 💸 **Send Tokens**           | ✅     | Sign and submit XLM/ECO payments from in-app wallets                           |
+| 🔥 **Streak Tracking**       | ✅     | Consecutive-day streaks with milestone progress (7/14/30/60/100)               |
+| 🏅 **Achievements**          | ✅     | Eco-badges unlocked by trees, waste and CO₂ milestones                         |
+| 👤 **Profile Management**    | ✅     | Edit name and bio, view impact stats                                           |
+| 🌐 **Multi-language**        | 🔜     | Designed for localisation (English, Swahili, French, Portuguese)               |
+| 📶 **Offline-first**         | ✅     | Queue submissions when offline, sync when connected, cache the task feed       |
+| 🔔 **Push Notifications**    | ✅     | Task reminders, reward confirmations, streak nudges                            |
+| 🗄️ **Decentralized Storage** | ✅     | IPFS pinning of proof photos and metadata, wired into submissions              |
 
 ---
 
 ## 🏗️ Tech Stack
 
-| Layer | Technology | Why |
-|-------|-----------|-----|
-| Framework | React Native 0.73 | Cross-platform iOS & Android from one codebase |
-| Language | TypeScript 5.3 (strict) | Type safety across the entire codebase |
-| Wallet | Stellar SDK | Direct blockchain interaction via Horizon API |
-| State | Zustand + MMKV | Lightweight state with persistent local storage |
-| Navigation | React Navigation v6 | Bottom tabs + nested stack navigators |
-| Camera | React Native Vision Camera 3 | High-quality photo capture with GPS metadata |
-| API | Axios | REST client with auth interceptors |
-| Styling | NativeWind (Tailwind) | Consistent, responsive UI |
-| Testing | Jest + React Test Renderer | Unit, component, and integration tests |
+| Layer      | Technology                   | Why                                             |
+| ---------- | ---------------------------- | ----------------------------------------------- |
+| Framework  | React Native 0.73            | Cross-platform iOS & Android from one codebase  |
+| Language   | TypeScript 5.3 (strict)      | Type safety across the entire codebase          |
+| Wallet     | Stellar SDK                  | Direct blockchain interaction via Horizon API   |
+| State      | Zustand + MMKV               | Lightweight state with persistent local storage |
+| Navigation | React Navigation v6          | Bottom tabs + nested stack navigators           |
+| Camera     | React Native Vision Camera 3 | High-quality photo capture with GPS metadata    |
+| API        | Axios                        | REST client with auth interceptors              |
+| Styling    | NativeWind (Tailwind)        | Consistent, responsive UI                       |
+| Testing    | Jest + React Test Renderer   | Unit, component, and integration tests          |
 
 ---
 
@@ -137,6 +137,7 @@ ecotask-app/
 │   │   ├── api.ts                # Axios client with auth + endpoints
 │   │   ├── stellar.ts            # Stellar SDK: balances, signing, payments
 │   │   ├── ipfs.ts               # IPFS pinning via Pinata API
+│   │   ├── lobstr.ts             # Lobstr SEP-7 deep-link: URI build, callback, pay
 │   │   ├── notifications.ts      # Push notification registration
 │   │   ├── proofQueue.ts         # Persistent offline proof queue (deduped)
 │   │   └── walletVault.ts        # Per-account in-app secret key storage
@@ -177,6 +178,7 @@ ecotask-app/
 │       ├── achievements.test.ts  # Achievement thresholds & progress
 │       ├── sortTasks.test.ts     # Search & sort logic
 │       ├── stellarPayment.test.ts# Payment build/sign & validation
+│       ├── lobstr.test.ts        # SEP-7 URI build, callback parsing, errors
 │       └── earnings.test.ts      # Earnings sums, grouping & weekly series
 │
 ├── .github/                      # CI/CD & templates
@@ -242,6 +244,47 @@ ECO_TOKEN_ISSUER=YOUR_ISSUER_PUBLIC_KEY
 FCM_SERVER_KEY=your_fcm_key
 ```
 
+### Lobstr Deep-Link Scheme Registration
+
+The app uses the `ecotask://` URI scheme to receive signed-transaction callbacks
+from Lobstr after SEP-7 signing.  You must register the scheme in both platform
+manifests before the Lobstr flow will work on a real device.
+
+**Android — `android/app/src/main/AndroidManifest.xml`**
+
+Add the following `<intent-filter>` inside the `<activity>` tag:
+
+```xml
+<intent-filter android:label="EcoTask deep link">
+  <action android:name="android.intent.action.VIEW" />
+  <category android:name="android.intent.category.DEFAULT" />
+  <category android:name="android.intent.category.BROWSABLE" />
+  <data android:scheme="ecotask" />
+</intent-filter>
+```
+
+**iOS — `ios/<AppName>/Info.plist`**
+
+Add or extend the `CFBundleURLTypes` array:
+
+```xml
+<key>CFBundleURLTypes</key>
+<array>
+  <dict>
+    <key>CFBundleURLName</key>
+    <string>com.ecotask.app</string>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <string>ecotask</string>
+    </array>
+  </dict>
+</array>
+```
+
+After adding these entries, rebuild the app (`npm run android` / `npm run ios`).
+The `ecotask://lobstr/callback` path is handled automatically by
+`RootNavigator` — no additional routing configuration is needed.
+
 ---
 
 ## 🧪 Testing
@@ -259,12 +302,12 @@ npm run test:integration
 
 ### Test Coverage
 
-| Category | Tests | Files |
-|----------|-------|-------|
-| Store logic | 19 | walletStore, taskStore, userStore, activityStore |
-| Component rendering | 19 | TaskCard, ImpactStats, RewardBadge, EmptyState |
-| Utility functions | 71 | formatTokens, geoUtils, validation, impact, proofMetadata, streaks, achievements, sortTasks, earnings |
-| Service logic | 26 | proofQueue, walletVault, signChallenge, stellarPayment |
+| Category            | Tests | Files                                                                                                       |
+| ------------------- | ----- | ----------------------------------------------------------------------------------------------------------- |
+| Store logic         | 19    | walletStore, taskStore, userStore, activityStore                                                            |
+| Component rendering | 19    | TaskCard, ImpactStats, RewardBadge, EmptyState                                                              |
+| Utility functions   | 71    | formatTokens, geoUtils, validation, impact, proofMetadata, streaks, achievements, sortTasks, earnings       |
+| Service logic       | 52    | proofQueue, walletVault, signChallenge, stellarPayment, lobstr                                              |
 
 ---
 
@@ -302,7 +345,8 @@ Launch
 EcoTask is in early alpha. Here's what we're building and in what order:
 
 ### Now (v0.2 — current)
-- ✅ Wallet connection (Freighter + in-app testnet wallets)
+
+- ✅ Wallet connection (Freighter + Lobstr SEP-7 + in-app testnet wallets)
 - ✅ Wallet-based authentication
 - ✅ In-app wallet import, secret key backup & challenge signing
 - ✅ Real camera proof capture with GPS
@@ -320,12 +364,13 @@ EcoTask is in early alpha. Here's what we're building and in what order:
 - ✅ Send tokens (XLM/ECO) with signed Stellar payments
 
 ### Next (v0.3)
+
 - 🔜 **Backend verification engine** — photo + GPS proof validation
 - 🔜 **ECO reward payouts** via Stellar smart contracts
-- 🔜 **Lobstr & xBull wallet support**
 - 🔜 **Push notifications** for reward confirmations & new tasks
 
 ### Later (v0.4+)
+
 - 🔜 **Map-based task discovery** (React Native Maps)
 - 🔜 **Multi-language support** (English, Swahili, French, Portuguese)
 - 🔜 **USDC payout option**
@@ -354,12 +399,12 @@ Good first issues are tagged [`good first issue`](https://github.com/ecotask-net
 
 Questions, feedback, or partnership ideas? We'd love to hear from you.
 
-| Channel | Where |
-|---------|-------|
-| 📧 **Email** | [solapromise112@gmail.com](mailto:solapromise112@gmail.com) |
-| 🐙 **GitHub Organization** | [github.com/ecotask-network](https://github.com/ecotask-network) |
-| 💬 **GitHub Discussions** | [EcoTask-app discussions](https://github.com/ecotask-network/EcoTask-app/discussions) |
-| 🐛 **Bug Reports** | [Open an issue](https://github.com/ecotask-network/EcoTask-app/issues/new?template=bug_report.md) |
+| Channel                    | Where                                                                                             |
+| -------------------------- | ------------------------------------------------------------------------------------------------- |
+| 📧 **Email**               | [solapromise112@gmail.com](mailto:solapromise112@gmail.com)                                       |
+| 🐙 **GitHub Organization** | [github.com/ecotask-network](https://github.com/ecotask-network)                                  |
+| 💬 **GitHub Discussions**  | [EcoTask-app discussions](https://github.com/ecotask-network/EcoTask-app/discussions)             |
+| 🐛 **Bug Reports**         | [Open an issue](https://github.com/ecotask-network/EcoTask-app/issues/new?template=bug_report.md) |
 
 **Preferred channel:** For project questions and feature discussions, use GitHub Discussions. For direct or time-sensitive inquiries, email the maintainers.
 
@@ -375,17 +420,17 @@ MIT — see [LICENSE](./LICENSE) for details.
 
 This is part of the [EcoTask Network](https://github.com/ecotask-network):
 
-| Repo | Description |
-|------|-------------|
-| [EcoTask-app](https://github.com/ecotask-network/EcoTask-app) | Mobile dApp (this repo) |
-| [EcoTask-backend](https://github.com/ecotask-network/EcoTask-backend) | Node.js API & verification engine |
-| [EcoTask-contracts](https://github.com/ecotask-network/EcoTask-contract) | Stellar Soroban smart contracts |
-| [EcoTask-docs](https://github.com/ecotask-network/EcoTask-docs) | Documentation hub |
+| Repo                                                                     | Description                       |
+| ------------------------------------------------------------------------ | --------------------------------- |
+| [EcoTask-app](https://github.com/ecotask-network/EcoTask-app)            | Mobile dApp (this repo)           |
+| [EcoTask-backend](https://github.com/ecotask-network/EcoTask-backend)    | Node.js API & verification engine |
+| [EcoTask-contracts](https://github.com/ecotask-network/EcoTask-contract) | Stellar Soroban smart contracts   |
+| [EcoTask-docs](https://github.com/ecotask-network/EcoTask-docs)          | Documentation hub                 |
 
 ---
 
 <div align="center">
 
-*Part of the [EcoTask Network](https://github.com/ecotask-network) — Because the environment deserves an economy.*
+_Part of the [EcoTask Network](https://github.com/ecotask-network) — Because the environment deserves an economy._
 
 </div>

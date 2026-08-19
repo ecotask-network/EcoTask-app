@@ -23,6 +23,8 @@ interface AchievementDefinition {
   target: number;
 }
 
+// List of achievement definitions with their respective metrics and targets
+
 export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   {
     id: 'first-seedling',
@@ -105,6 +107,8 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     target: 1000,
   },
 ];
+
+// Function to get the list of achievements based on user stats
 
 export function getAchievements(stats: UserStats): Achievement[] {
   return ACHIEVEMENT_DEFINITIONS.map(def => {

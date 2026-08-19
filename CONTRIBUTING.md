@@ -108,13 +108,13 @@ Edit `.env` with your own values. See [.env.example](.env.example) for all avail
 
 We use a lightweight branching strategy:
 
-| Branch | Purpose |
-|--------|---------|
-| `main` | Stable, release-ready code |
-| `feat/*` | New features |
-| `fix/*` | Bug fixes |
+| Branch    | Purpose                    |
+| --------- | -------------------------- |
+| `main`    | Stable, release-ready code |
+| `feat/*`  | New features               |
+| `fix/*`   | Bug fixes                  |
 | `chore/*` | Maintenance, deps, tooling |
-| `docs/*` | Documentation changes |
+| `docs/*`  | Documentation changes      |
 
 ### Commit Messages
 
@@ -131,6 +131,7 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 Types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `style`, `ci`, `perf`
 
 Examples:
+
 ```
 feat(wallet): add Stellar testnet faucet integration
 fix(submit): handle GPS timeout on older Android devices
@@ -191,12 +192,12 @@ src/
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| Metro bundler errors | `npx react-native start --reset-cache` |
-| iOS Pod install fails | `cd ios && pod repo update && pod install` |
-| Android build fails | Check `android/gradle.properties` and Java version (JDK 17) |
-| Tests not running | Ensure Jest cache is cleared: `npx jest --clearCache` |
+| Issue                 | Solution                                                    |
+| --------------------- | ----------------------------------------------------------- |
+| Metro bundler errors  | `npx react-native start --reset-cache`                      |
+| iOS Pod install fails | `cd ios && pod repo update && pod install`                  |
+| Android build fails   | Check `android/gradle.properties` and Java version (JDK 17) |
+| Tests not running     | Ensure Jest cache is cleared: `npx jest --clearCache`       |
 
 ---
 
