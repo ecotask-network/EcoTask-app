@@ -12,6 +12,9 @@ import SubmitProofScreen from '../screens/SubmitProofScreen';
 import SendTokensScreen from '../screens/SendTokensScreen';
 import { SubmitProofParams } from '../types';
 
+// react-navigation's typed hooks require ParamList to satisfy an implicit
+// index signature, which only object-literal `type` aliases provide (not
+// `interface`) — https://reactnavigation.org/docs/typescript
 export type RootStackParamList = {
   Onboarding: undefined;
   Main: undefined;

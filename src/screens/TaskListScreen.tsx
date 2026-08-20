@@ -9,6 +9,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, spacing } from '../utils/theme';
 import { useTaskFeed } from '../hooks/useTaskFeed';
 import { useLocation } from '../hooks/useLocation';
@@ -21,6 +22,7 @@ import {
   filterTasksByQuery,
   sortTasks,
 } from '../utils/sortTasks';
+import { TaskStackParamList } from '../navigation/TaskStackNavigator';
 
 const TASK_TYPES = [
   { key: '', label: 'All', icon: '🌍' },
@@ -40,7 +42,8 @@ const SORT_OPTIONS: { key: TaskSortMode; label: string }[] = [
 const RADIUS_OPTIONS = [10, 25, 50, 100];
 
 export default function TaskListScreen() {
-  const navigation = useNavigation<any>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<TaskStackParamList, 'TaskList'>>();
   const [activeType, setActiveType] = useState('');
   const [query, setQuery] = useState('');
   const [sortMode, setSortMode] = useState<TaskSortMode>('distance');
@@ -103,7 +106,10 @@ export default function TaskListScreen() {
         }}
       >
         <Text style={{ color: colors.error }}>{error}</Text>
-        <TouchableOpacity onPress={refresh} style={{ marginTop: spacing.md }}>
+        <TouchableOpacity
+          onPress={() => void refresh()}
+          style={{ marginTop: spacing.md }}
+        >
           <Text style={{ color: colors.primary }}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -277,7 +283,7 @@ export default function TaskListScreen() {
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         refreshing={isLoading && tasks.length > 0}
-        onRefresh={refresh}
+        onRefresh={() => void refresh()}
         ListEmptyComponent={
           !isLoading ? (
             <EmptyState

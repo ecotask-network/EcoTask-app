@@ -37,12 +37,12 @@ export function isWithinRadius(
 }
 
 export function enrichTasksWithDistance(
-  tasks: Array<{
+  tasks: {
     lat?: number;
     lng?: number;
     distance?: number;
     [key: string]: unknown;
-  }>,
+  }[],
   userLat: number,
   userLng: number,
 ) {

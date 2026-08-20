@@ -10,7 +10,10 @@ const zustandMMKVStorage = {
   removeItem: (name: string) => storage.delete(name),
 };
 
-type QuietHours = { from: string; to: string };
+interface QuietHours {
+  from: string;
+  to: string;
+}
 
 // Create default notification preferences with all types enabled
 function makeDefaultNotificationPrefs() {
@@ -35,7 +38,7 @@ interface PrefsState {
   allEnabled: boolean;
   notificationPrefs: Record<string, boolean>;
   quietHours: QuietHours;
-  scheduledNotificationIds: Record<string, string[]>; // type -> ids
+  scheduledNotificationIds: Record<string, string[] | undefined>; // type -> ids
   toggleType: (type: string, enabled: boolean) => void;
   setAllEnabled: (enabled: boolean) => void;
   setQuietHours: (from: string, to: string) => void;
@@ -59,12 +62,13 @@ export const usePrefsStore = create<PrefsState>()(
 
         // if disabling, cancel any scheduled notifications asynchronously
         if (!enabled) {
-          (async () => {
+          void (async () => {
             const ids =
               usePrefsStore.getState().scheduledNotificationIds[type] || [];
             if (ids.length > 0) {
               try {
-                const notifee = await import('@notifee/react-native');
+                const { default: notifee } =
+                  await import('@notifee/react-native');
                 await Promise.all(
                   ids.map(id =>
                     notifee.cancelNotification(id).catch(() => null),
@@ -74,15 +78,12 @@ export const usePrefsStore = create<PrefsState>()(
                 // notifee not available or cancel failed; best-effort
               }
             }
-            usePrefsStore.setState(
-              s =>
-                ({
-                  scheduledNotificationIds: {
-                    ...s.scheduledNotificationIds,
-                    [type]: [],
-                  },
-                }) as any,
-            );
+            usePrefsStore.setState(s => ({
+              scheduledNotificationIds: {
+                ...s.scheduledNotificationIds,
+                [type]: [],
+              },
+            }));
           })();
         }
       },
@@ -108,15 +109,12 @@ export const usePrefsStore = create<PrefsState>()(
     {
       name: 'prefs-storage',
       storage: createJSONStorage(() => zustandMMKVStorage),
-      onRehydrateStorage: () => state => {
-        return persisted => {
-          if (persisted && persisted.notificationPrefs) {
-            const merged = mergeNotificationDefaults(
-              persisted.notificationPrefs as Record<string, boolean>,
-            );
-            state?.setState({ notificationPrefs: merged });
-          }
-        };
+      onRehydrateStorage: () => (persisted, error) => {
+        if (error != null || !persisted) {
+          return;
+        }
+        const merged = mergeNotificationDefaults(persisted.notificationPrefs);
+        usePrefsStore.setState({ notificationPrefs: merged });
       },
     },
   ),

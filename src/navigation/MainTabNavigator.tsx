@@ -6,6 +6,9 @@ import WalletScreen from '../screens/WalletScreen';
 import SubmitPlaceholderScreen from '../screens/SubmitPlaceholderScreen';
 import TabBarIcon from '../components/TabBarIcon';
 
+// react-navigation's typed hooks require ParamList to satisfy an implicit
+// index signature, which only object-literal `type` aliases provide (not
+// `interface`) — https://reactnavigation.org/docs/typescript
 export type MainTabParamList = {
   Home: undefined;
   Tasks: undefined;

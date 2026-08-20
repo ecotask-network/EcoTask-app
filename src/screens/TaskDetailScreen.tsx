@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, spacing } from '../utils/theme';
 import { fetchTaskById } from '../services/api';
 import { TaskDetailSkeleton } from '../components/LoadingSkeleton';
@@ -9,7 +10,9 @@ import {
   TaskType,
   DIFFICULTY_CONFIG,
   TaskDifficulty,
+  Task,
 } from '../types';
+import { TaskStackParamList } from '../navigation/TaskStackNavigator';
 
 type TaskDetailRoute = RouteProp<
   { TaskDetail: { taskId: string } },
@@ -18,15 +21,18 @@ type TaskDetailRoute = RouteProp<
 
 export default function TaskDetailScreen() {
   const route = useRoute<TaskDetailRoute>();
-  const navigation = useNavigation<any>();
+  const navigation =
+    useNavigation<
+      NativeStackNavigationProp<TaskStackParamList, 'TaskDetail'>
+    >();
   const { taskId } = route.params;
 
-  const [task, setTask] = useState<any>(null);
+  const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadTask();
+    void loadTask();
   }, [taskId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadTask() {
@@ -34,8 +40,8 @@ export default function TaskDetailScreen() {
     try {
       const data = await fetchTaskById(taskId);
       setTask(data);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load task');
     } finally {
       setLoading(false);
     }
@@ -60,7 +66,10 @@ export default function TaskDetailScreen() {
         }}
       >
         <Text style={{ color: colors.error }}>{error || 'Task not found'}</Text>
-        <TouchableOpacity onPress={loadTask} style={{ marginTop: spacing.md }}>
+        <TouchableOpacity
+          onPress={() => void loadTask()}
+          style={{ marginTop: spacing.md }}
+        >
           <Text style={{ color: colors.primary }}>Try Again</Text>
         </TouchableOpacity>
       </View>
@@ -103,30 +112,28 @@ export default function TaskDetailScreen() {
             {task.rewardAmount} {task.rewardToken || 'ECO'}
           </Text>
           <Text style={{ color: colors.textSecondary }}>reward</Text>
-          {task.difficulty &&
-            DIFFICULTY_CONFIG[task.difficulty as TaskDifficulty] && (
-              <View
+          {task.difficulty && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginLeft: 'auto',
+              }}
+            >
+              <Text style={{ fontSize: 14, marginRight: 4 }}>
+                {DIFFICULTY_CONFIG[task.difficulty as TaskDifficulty].icon}
+              </Text>
+              <Text
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  marginLeft: 'auto',
+                  color:
+                    DIFFICULTY_CONFIG[task.difficulty as TaskDifficulty].color,
+                  fontWeight: '500',
                 }}
               >
-                <Text style={{ fontSize: 14, marginRight: 4 }}>
-                  {DIFFICULTY_CONFIG[task.difficulty as TaskDifficulty].icon}
-                </Text>
-                <Text
-                  style={{
-                    color:
-                      DIFFICULTY_CONFIG[task.difficulty as TaskDifficulty]
-                        .color,
-                    fontWeight: '500',
-                  }}
-                >
-                  {DIFFICULTY_CONFIG[task.difficulty as TaskDifficulty].label}
-                </Text>
-              </View>
-            )}
+                {DIFFICULTY_CONFIG[task.difficulty as TaskDifficulty].label}
+              </Text>
+            </View>
+          )}
           {task.estimatedMinutes && (
             <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
               ~{task.estimatedMinutes}min

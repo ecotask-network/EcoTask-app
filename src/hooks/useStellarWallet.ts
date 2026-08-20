@@ -13,6 +13,10 @@ interface FreighterWindow {
   };
 }
 
+// React Native has no DOM `window`; Freighter (browser extension) only
+// exists when this code happens to run in a web context.
+declare const window: FreighterWindow;
+
 export function useStellarWallet() {
   const {
     connect,
@@ -71,8 +75,8 @@ export function useStellarWallet() {
       }
       const key = await freighter.getPublicKey();
       await connectAccount(key);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not connect');
     } finally {
       setIsConnecting(false);
     }
@@ -90,8 +94,8 @@ export function useStellarWallet() {
         await stellar.createTestnetAccount();
       await connectAccount(key, secretKey);
       return { publicKey: key, secretKey };
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create wallet');
     } finally {
       setIsConnecting(false);
     }
@@ -109,8 +113,10 @@ export function useStellarWallet() {
         const key = stellar.getPublicKeyFromSecret(trimmed);
         await connectAccount(key, trimmed);
         return { publicKey: key };
-      } catch (err: any) {
-        setError(err.message || 'Could not import wallet');
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : 'Could not import wallet',
+        );
         return undefined;
       } finally {
         setIsConnecting(false);
@@ -135,8 +141,8 @@ export function useStellarWallet() {
 
   useEffect(() => {
     if (isConnected && publicKey) {
-      refreshBalance();
-      refreshEcoBalance();
+      void refreshBalance();
+      void refreshEcoBalance();
     }
   }, [isConnected, publicKey, refreshBalance, refreshEcoBalance]);
 

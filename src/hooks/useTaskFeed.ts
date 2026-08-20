@@ -42,24 +42,30 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
   );
 
   const loadTasks = useCallback(
-    async (pageNum: number = 1) => {
+    async (pageNum = 1) => {
       setLoading(true);
       setError(null);
       try {
-        const params: Record<string, any> = { page: pageNum, limit: 20 };
+        const params: Record<string, string | number> = {
+          page: pageNum,
+          limit: 20,
+        };
         if (serverParams.type) {
           params.type = serverParams.type;
         }
 
         const loc = locationRef.current;
-        const withLocation = loc.lat !== undefined && loc.lng !== undefined;
-        if (withLocation) {
-          params.lat = loc.lat;
-          params.lng = loc.lng;
+        const location =
+          loc.lat !== undefined && loc.lng !== undefined
+            ? { lat: loc.lat, lng: loc.lng }
+            : null;
+        if (location) {
+          params.lat = location.lat;
+          params.lng = location.lng;
           if (serverParams.radius !== undefined) {
             params.radius = serverParams.radius;
           }
-          lastFetchLocationRef.current = { lat: loc.lat, lng: loc.lng };
+          lastFetchLocationRef.current = location;
         } else {
           lastFetchLocationRef.current = null;
         }
@@ -67,7 +73,9 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
         const result = await fetchTasks(params);
 
         const normalize = (list: Task[]) =>
-          withLocation ? enrichTasksWithDistance(list, loc.lat, loc.lng) : list;
+          location
+            ? enrichTasksWithDistance(list, location.lat, location.lng)
+            : list;
 
         if (pageNum === 1) {
           setTasks(normalize(result.tasks));
@@ -76,8 +84,8 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
         }
         setPage(pageNum);
         setHasMore(pageNum < result.totalPages);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load tasks');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load tasks');
       } finally {
         setLoading(false);
       }
@@ -96,12 +104,12 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
   const refresh = useCallback(() => loadTasks(1), [loadTasks]);
   const loadMore = useCallback(() => {
     if (!isLoading && hasMore) {
-      loadTasks(page + 1);
+      void loadTasks(page + 1);
     }
   }, [isLoading, hasMore, page, loadTasks]);
 
   useEffect(() => {
-    loadTasks(1);
+    void loadTasks(1);
   }, [loadTasks]);
 
   const currentLocation = useMemo(
@@ -122,7 +130,7 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
       ) {
         return;
       }
-      loadTasks(1);
+      void loadTasks(1);
     }, LOCATION_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [currentLocation, loadTasks]);

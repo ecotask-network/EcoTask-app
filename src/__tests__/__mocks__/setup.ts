@@ -14,24 +14,36 @@ jest.mock('react-native-mmkv', () => {
   };
 });
 
+type ZustandSet = (...args: unknown[]) => void;
+type ZustandGet = (...args: unknown[]) => unknown;
+type ZustandStateCreator = (
+  set: ZustandSet,
+  get: ZustandGet,
+  api: unknown,
+) => unknown;
+interface ZustandPersistOptions {
+  name?: string;
+  storage?: { getItem: (name: string) => string | null };
+}
+
 jest.mock('zustand/middleware', () => {
   // simple in-memory JSON storage adapter for tests
   return {
-    persist: (config: any, options: any) => {
+    persist: (config: ZustandStateCreator, options?: ZustandPersistOptions) => {
       // options may include name and storage
       const storage = options?.storage;
       const name = options?.name || 'zustand-test';
 
       // create a wrapped config that uses the provided set/get
-      return (set: any, get: any, api: any) => {
+      return (set: ZustandSet, get: ZustandGet, api: unknown) => {
         // persist storage helpers are intentionally unused in tests
         // (storage is accessed directly via createJSONStorage mock below)
 
         // if storage has existing data, try to hydrate by calling set with parsed JSON
-        const existing = storage.getItem(name);
+        const existing = storage?.getItem(name);
         if (existing) {
           try {
-            const parsed = JSON.parse(existing);
+            const parsed: unknown = JSON.parse(existing);
             // apply initial state by calling set
             set(() => parsed);
           } catch {}

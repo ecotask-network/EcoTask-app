@@ -55,7 +55,7 @@ export default function TransactionHistory({
   }, [publicKey]);
 
   useEffect(() => {
-    loadPayments();
+    void loadPayments();
   }, [loadPayments]);
 
   if (loading) {
@@ -82,7 +82,7 @@ export default function TransactionHistory({
     return (
       <View style={{ marginTop: spacing.xl, alignItems: 'center' }}>
         <Text style={{ color: colors.error, fontSize: 13 }}>{error}</Text>
-        <TouchableOpacity onPress={loadPayments}>
+        <TouchableOpacity onPress={() => void loadPayments()}>
           <Text
             style={{
               color: colors.primary,

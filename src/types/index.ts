@@ -79,6 +79,13 @@ export interface SubmitProofParams {
   rewardToken?: string;
 }
 
+export interface SubmitProofResult {
+  taskTitle?: string;
+  taskType?: TaskType;
+  rewardAmount?: number;
+  rewardToken?: string;
+}
+
 export const TASK_TYPE_CONFIG: Record<
   TaskType,
   { icon: string; label: string }

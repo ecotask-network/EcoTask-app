@@ -39,7 +39,7 @@ export function useLocation() {
   const watchIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    requestPermission();
+    void requestPermission();
 
     return () => {
       // Acceptance: clear watcher on unmount
@@ -64,8 +64,8 @@ export function useLocation() {
       }
       setPermissionGranted(true);
       startWatch();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Location error');
     }
   }
 

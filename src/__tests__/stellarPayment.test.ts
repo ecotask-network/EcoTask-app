@@ -4,6 +4,7 @@ import {
   Networks,
   Account,
   TransactionBuilder,
+  Operation,
 } from '@stellar/stellar-sdk';
 import {
   buildPaymentXDR,
@@ -29,7 +30,7 @@ describe('buildPaymentXDR', () => {
     const parsed = TransactionBuilder.fromXDR(xdr, Networks.TESTNET);
     expect(parsed.source).toBe(kp.publicKey());
     expect(parsed.operations).toHaveLength(1);
-    const op = parsed.operations[0] as any;
+    const op = parsed.operations[0] as Operation.Payment;
     expect(op.type).toBe('payment');
     expect(op.destination).toBe(dest);
     expect(parseFloat(op.amount)).toBe(10.5);
@@ -50,7 +51,7 @@ describe('buildPaymentXDR', () => {
     );
 
     const parsed = TransactionBuilder.fromXDR(xdr, Networks.TESTNET);
-    const op = parsed.operations[0] as any;
+    const op = parsed.operations[0] as Operation.Payment;
     expect(op.asset.code).toBe('ECO');
     expect(op.asset.issuer).toBe(kp.publicKey());
   });

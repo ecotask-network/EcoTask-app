@@ -16,6 +16,10 @@ interface FreighterWindow {
   };
 }
 
+// React Native has no DOM `window`; Freighter (browser extension) only
+// exists when this code happens to run in a web context.
+declare const window: FreighterWindow;
+
 export function useAuth() {
   const { setProfile, setToken, logout } = useUserStore();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -62,8 +66,8 @@ export function useAuth() {
         setToken(token);
 
         return { token, user };
-      } catch (err: any) {
-        setError(err.message || 'Authentication failed');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Authentication failed');
         throw err;
       } finally {
         setIsAuthenticating(false);

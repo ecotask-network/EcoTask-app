@@ -11,6 +11,21 @@ import {
 } from '../services/proofQueue';
 import { useProofSyncStore } from '../store/proofSyncStore';
 
+// Thrown by submitProofAttempt so callers can recover the CIDs that were
+// already pinned to IPFS before the network submission failed, and avoid
+// re-pinning them when the proof is retried from the offline queue.
+class ProofUploadError extends Error {
+  photoCid?: string;
+  metadataCid?: string;
+
+  constructor(message: string, photoCid?: string, metadataCid?: string) {
+    super(message);
+    this.name = 'ProofUploadError';
+    this.photoCid = photoCid;
+    this.metadataCid = metadataCid;
+  }
+}
+
 export function useProofSubmit() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [progress, setProgress] = useState<
@@ -23,6 +38,7 @@ export function useProofSubmit() {
     async (
       taskId: string,
       photoUri: string,
+      capturedAt: string,
       opts?: {
         lat?: number;
         lng?: number;
@@ -39,11 +55,16 @@ export function useProofSubmit() {
         formData.append('lng', String(opts.lng));
       }
 
+      interface ReactNativeFilePart {
+        uri: string;
+        type: string;
+        name: string;
+      }
       formData.append('photos', {
         uri: photoUri,
         type: 'image/jpeg',
         name: 'proof.jpg',
-      } as any);
+      } as ReactNativeFilePart as unknown as Blob);
 
       // reuse provided CIDs when available
       let photoCid = opts?.photoCid;
@@ -52,7 +73,10 @@ export function useProofSubmit() {
       if (!photoCid || !metadataCid) {
         try {
           if (!photoCid) {
-            const photoRes = await pinFile(photoUri, proofFileName(taskId));
+            const photoRes = await pinFile(
+              photoUri,
+              proofFileName(taskId, capturedAt),
+            );
             photoCid = photoRes.cid;
           }
           if (photoCid && !metadataCid) {
@@ -63,7 +87,7 @@ export function useProofSubmit() {
                 lat: opts?.lat,
                 lng: opts?.lng,
               }),
-              proofFileName(taskId, 'json'),
+              proofFileName(taskId, capturedAt, 'json'),
             );
             metadataCid = metadataRes.cid;
           }
@@ -83,28 +107,40 @@ export function useProofSubmit() {
         return await submitProof(formData);
       } catch (err) {
         // attach the generated cids so callers can persist them
-        (err as any).photoCid = photoCid;
-        (err as any).metadataCid = metadataCid;
-        throw err;
+        throw new ProofUploadError(
+          err instanceof Error ? err.message : 'Upload failed',
+          photoCid,
+          metadataCid,
+        );
       }
     },
     [],
   );
 
   const submit = useCallback(
-    async (taskId: string, photoUri: string, lat?: number, lng?: number) => {
+    async (
+      taskId: string,
+      photoUri: string,
+      capturedAt: string,
+      lat?: number,
+      lng?: number,
+    ) => {
       setIsSubmitting(true);
       setProgress('uploading');
       setError(null);
 
       try {
         setProgress('verifying');
-        const result = await submitProofAttempt(taskId, photoUri, { lat, lng });
+        const result = await submitProofAttempt(taskId, photoUri, capturedAt, {
+          lat,
+          lng,
+        });
         removeProofsForTask(taskId);
         setPendingCount(loadQueue().length);
         setProgress('confirmed');
         return result;
       } catch (err) {
+        const uploadError = err instanceof ProofUploadError ? err : undefined;
         enqueueProof({
           id: `${Date.now()}`,
           taskId,
@@ -112,11 +148,14 @@ export function useProofSubmit() {
           lat,
           lng,
           createdAt: new Date().toISOString(),
-          photoCid: (err as any)?.photoCid,
-          metadataCid: (err as any)?.metadataCid,
+          capturedAt,
+          photoCid: uploadError?.photoCid,
+          metadataCid: uploadError?.metadataCid,
         });
         setPendingCount(loadQueue().length);
-        setError((err as any).message || 'Upload failed, saved for later');
+        setError(
+          err instanceof Error ? err.message : 'Upload failed, saved for later',
+        );
         setProgress('failed');
         return undefined;
       } finally {
@@ -143,19 +182,24 @@ export function useProofSubmit() {
       const remaining: PendingProof[] = [];
       for (const proof of pending) {
         try {
-          await submitProofAttempt(proof.taskId, proof.photoPath, {
-            lat: (proof as any).lat,
-            lng: (proof as any).lng,
-            photoCid: (proof as any).photoCid,
-            metadataCid: (proof as any).metadataCid,
-          });
+          await submitProofAttempt(
+            proof.taskId,
+            proof.photoPath,
+            proof.capturedAt,
+            {
+              lat: proof.lat,
+              lng: proof.lng,
+              photoCid: proof.photoCid,
+              metadataCid: proof.metadataCid,
+            },
+          );
         } catch (err) {
+          const uploadError = err instanceof ProofUploadError ? err : undefined;
           remaining.push({
             ...proof,
-            photoCid: (err as any)?.photoCid || (proof as any).photoCid,
-            metadataCid:
-              (err as any)?.metadataCid || (proof as any).metadataCid,
-          } as PendingProof);
+            photoCid: uploadError?.photoCid || proof.photoCid,
+            metadataCid: uploadError?.metadataCid || proof.metadataCid,
+          });
         }
       }
       saveQueue(remaining);

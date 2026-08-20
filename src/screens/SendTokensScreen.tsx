@@ -72,16 +72,16 @@ export default function SendTokensScreen() {
         amount: amount.trim(),
         asset: assetParam,
       });
-      refreshBalance();
-      refreshEcoBalance();
+      void refreshBalance();
+      void refreshEcoBalance();
       Alert.alert(
         'Payment sent',
         `Transaction ${result.hash.slice(0, 12)}… submitted to the network.`,
       );
       setDestination('');
       setAmount('');
-    } catch (err: any) {
-      setError(err.message || 'Failed to send payment');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send payment');
     } finally {
       setIsSending(false);
     }
@@ -230,7 +230,7 @@ export default function SendTokensScreen() {
         )}
 
         <TouchableOpacity
-          onPress={handleSend}
+          onPress={() => void handleSend()}
           disabled={isSending}
           style={{
             padding: spacing.md,

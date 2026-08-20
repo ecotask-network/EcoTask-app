@@ -1,21 +1,33 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import {
+  useNavigation,
+  CompositeNavigationProp,
+} from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useWalletStore } from '../store/walletStore';
 import { useStellarWallet } from '../hooks/useStellarWallet';
 import { colors, spacing } from '../utils/theme';
 import EmptyState from '../components/EmptyState';
 import Skeleton from '../components/LoadingSkeleton';
 import TransactionHistory from '../components/TransactionHistory';
+import { MainTabParamList } from '../navigation/MainTabNavigator';
+import { RootStackParamList } from '../navigation/RootNavigator';
+
+type WalletScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<MainTabParamList, 'Wallet'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
 
 export default function WalletScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<WalletScreenNavigationProp>();
   const { balance, ecoBalance, publicKey, isConnected } = useWalletStore();
   const { disconnectWallet, refreshBalance } = useStellarWallet();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    refreshBalance().finally(() => setLoading(false));
+    void refreshBalance().finally(() => setLoading(false));
   }, [refreshBalance]);
 
   if (!isConnected) {
