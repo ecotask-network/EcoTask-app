@@ -135,5 +135,5 @@ export function getNextAchievement(stats: UserStats): Achievement | null {
   const remaining = getAchievements(stats)
     .filter(a => !a.earned)
     .sort((a, b) => a.target - b.target);
-  return remaining.length > 0 ? remaining[0] : null;
+  return remaining[0] ?? null;
 }

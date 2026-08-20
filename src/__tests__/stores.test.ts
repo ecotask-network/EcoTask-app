@@ -3,6 +3,7 @@ import { useWalletStore } from '../store/walletStore';
 import { useTaskStore } from '../store/taskStore';
 import { useUserStore } from '../store/userStore';
 import { useActivityStore } from '../store/activityStore';
+import { Task } from '../types';
 
 function makeJwt(exp: number): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256' })).toString(
@@ -19,6 +20,7 @@ describe('walletStore', () => {
       publicKey: null,
       balance: null,
       ecoBalance: null,
+      usdcBalance: null,
     });
   });
 
@@ -49,18 +51,26 @@ describe('walletStore', () => {
     expect(useWalletStore.getState().ecoBalance).toBe('500');
   });
 
+  it('sets USDC balance', () => {
+    const { setUsdcBalance } = useWalletStore.getState();
+    setUsdcBalance('25.50');
+    expect(useWalletStore.getState().usdcBalance).toBe('25.50');
+  });
+
   it('disconnects and clears all state', () => {
-    const { connect, setBalance, setEcoBalance, disconnect } =
+    const { connect, setBalance, setEcoBalance, setUsdcBalance, disconnect } =
       useWalletStore.getState();
     connect('GCXXYZ...');
     setBalance('10');
     setEcoBalance('20');
+    setUsdcBalance('5.00');
     disconnect();
     const state = useWalletStore.getState();
     expect(state.isConnected).toBe(false);
     expect(state.publicKey).toBeNull();
     expect(state.balance).toBeNull();
     expect(state.ecoBalance).toBeNull();
+    expect(state.usdcBalance).toBeNull();
   });
 });
 
@@ -69,6 +79,7 @@ describe('taskStore', () => {
     useTaskStore.setState({
       tasks: [],
       selectedTask: null,
+      selectedAt: null,
       isLoading: false,
       error: null,
       page: 1,
@@ -85,12 +96,12 @@ describe('taskStore', () => {
   });
 
   it('sets tasks', () => {
-    const tasks = [
+    const tasks: Task[] = [
       {
         id: '1',
         title: 'Plant tree',
         description: 'Desc',
-        type: 'TREE_PLANTING',
+        type: 'TREE_PLANTING' as const,
         rewardAmount: 10,
         lat: 0,
         lng: 0,
@@ -99,16 +110,16 @@ describe('taskStore', () => {
     ];
     useTaskStore.getState().setTasks(tasks);
     expect(useTaskStore.getState().tasks).toHaveLength(1);
-    expect(useTaskStore.getState().tasks[0].title).toBe('Plant tree');
+    expect(useTaskStore.getState().tasks[0]!.title).toBe('Plant tree');
   });
 
   it('appends tasks', () => {
-    const tasks = [
+    const tasks: Task[] = [
       {
         id: '1',
         title: 'A',
         description: '',
-        type: 'TREE_PLANTING',
+        type: 'TREE_PLANTING' as const,
         rewardAmount: 10,
         lat: 0,
         lng: 0,
@@ -121,7 +132,7 @@ describe('taskStore', () => {
         id: '2',
         title: 'B',
         description: '',
-        type: 'TRASH_COLLECTION',
+        type: 'TRASH_COLLECTION' as const,
         rewardAmount: 20,
         lat: 1,
         lng: 1,
@@ -131,12 +142,12 @@ describe('taskStore', () => {
     expect(useTaskStore.getState().tasks).toHaveLength(2);
   });
 
-  it('selects a task', () => {
-    const task = {
+  it('selects a task and stamps selectedAt', () => {
+    const task: Task = {
       id: '1',
       title: 'Task',
       description: '',
-      type: 'OTHER',
+      type: 'OTHER' as const,
       rewardAmount: 5,
       lat: 0,
       lng: 0,
@@ -144,6 +155,24 @@ describe('taskStore', () => {
     };
     useTaskStore.getState().selectTask(task);
     expect(useTaskStore.getState().selectedTask?.id).toBe('1');
+    expect(useTaskStore.getState().selectedAt).toEqual(expect.any(String));
+  });
+
+  it('clears selectedAt when deselecting', () => {
+    const task: Task = {
+      id: '1',
+      title: 'Task',
+      description: '',
+      type: 'OTHER' as const,
+      rewardAmount: 5,
+      lat: 0,
+      lng: 0,
+      status: 'open',
+    };
+    useTaskStore.getState().selectTask(task);
+    useTaskStore.getState().selectTask(null);
+    expect(useTaskStore.getState().selectedTask).toBeNull();
+    expect(useTaskStore.getState().selectedAt).toBeNull();
   });
 
   it('resets state', () => {
@@ -268,7 +297,7 @@ describe('activityStore', () => {
     });
     const activities = useActivityStore.getState().activities;
     expect(activities).toHaveLength(2);
-    expect(activities[0].id).toBe('2');
+    expect(activities[0]!.id).toBe('2');
   });
 
   it('caps the feed at 20 activities', () => {
@@ -301,5 +330,68 @@ describe('activityStore', () => {
     });
     useActivityStore.getState().clearActivities();
     expect(useActivityStore.getState().activities).toEqual([]);
+  });
+
+  it('updateActivityStatus patches the status of a single activity', () => {
+    useActivityStore.getState().addActivity({
+      id: 'a1',
+      taskId: 't1',
+      taskTitle: 'Plant tree',
+      taskType: 'TREE_PLANTING',
+      rewardAmount: 0,
+      rewardToken: 'ECO',
+      completedAt: '2026-01-01',
+      status: 'pending',
+    });
+    useActivityStore.getState().updateActivityStatus('a1', 'confirmed', 10);
+    const activity = useActivityStore
+      .getState()
+      .activities.find(a => a.id === 'a1');
+    expect(activity?.status).toBe('confirmed');
+    expect(activity?.rewardAmount).toBe(10);
+  });
+
+  it('updateActivityStatus does not mutate unrelated activities', () => {
+    useActivityStore.getState().addActivity({
+      id: 'a1',
+      taskId: 't1',
+      taskTitle: 'Task 1',
+      taskType: 'OTHER',
+      rewardAmount: 5,
+      rewardToken: 'ECO',
+      completedAt: '2026-01-01',
+      status: 'pending',
+    });
+    useActivityStore.getState().addActivity({
+      id: 'a2',
+      taskId: 't2',
+      taskTitle: 'Task 2',
+      taskType: 'OTHER',
+      rewardAmount: 3,
+      rewardToken: 'ECO',
+      completedAt: '2026-01-02',
+      status: 'pending',
+    });
+    useActivityStore.getState().updateActivityStatus('a1', 'failed');
+    const a2 = useActivityStore.getState().activities.find(a => a.id === 'a2');
+    expect(a2?.status).toBe('pending');
+  });
+
+  it('updateActivityStatus to confirmed updates streaks', () => {
+    useActivityStore.getState().addActivity({
+      id: 'a1',
+      taskId: 't1',
+      taskTitle: 'Task',
+      taskType: 'OTHER',
+      rewardAmount: 0,
+      rewardToken: 'ECO',
+      completedAt: new Date().toISOString(),
+      status: 'pending',
+    });
+    // Streak should be 0 while pending.
+    expect(useActivityStore.getState().streak).toBe(0);
+    useActivityStore.getState().updateActivityStatus('a1', 'confirmed');
+    // Now it's confirmed, streak should become 1.
+    expect(useActivityStore.getState().streak).toBe(1);
   });
 });

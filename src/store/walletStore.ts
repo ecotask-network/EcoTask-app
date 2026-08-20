@@ -9,15 +9,20 @@ const zustandMMKVStorage = {
   removeItem: (name: string) => storage.delete(name),
 };
 
+export type WalletType = 'freighter' | 'inapp' | 'lobstr';
+
 interface WalletState {
   isConnected: boolean;
   publicKey: string | null;
   balance: string | null;
   ecoBalance: string | null;
-  connect: (publicKey: string) => void;
+  usdcBalance: string | null;
+  walletType: WalletType | null;
+  connect: (publicKey: string, walletType?: WalletType) => void;
   disconnect: () => void;
   setBalance: (balance: string) => void;
   setEcoBalance: (ecoBalance: string) => void;
+  setUsdcBalance: (usdcBalance: string) => void;
 }
 
 export const useWalletStore = create<WalletState>()(
@@ -27,16 +32,22 @@ export const useWalletStore = create<WalletState>()(
       publicKey: null,
       balance: null,
       ecoBalance: null,
-      connect: publicKey => set({ isConnected: true, publicKey }),
+      usdcBalance: null,
+      walletType: null,
+      connect: (publicKey, walletType = 'inapp') =>
+        set({ isConnected: true, publicKey, walletType }),
       disconnect: () =>
         set({
           isConnected: false,
           publicKey: null,
           balance: null,
           ecoBalance: null,
+          usdcBalance: null,
+          walletType: null,
         }),
       setBalance: balance => set({ balance }),
       setEcoBalance: ecoBalance => set({ ecoBalance }),
+      setUsdcBalance: usdcBalance => set({ usdcBalance }),
     }),
     {
       name: 'wallet-storage',

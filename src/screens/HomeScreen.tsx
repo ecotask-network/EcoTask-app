@@ -1,11 +1,5 @@
 import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import {
-  useNavigation,
-  CompositeNavigationProp,
-} from '@react-navigation/native';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, spacing } from '../utils/theme';
 import ImpactStats from '../components/ImpactStats';
 import StreakCard from '../components/StreakCard';
@@ -17,13 +11,7 @@ import { useWalletStore } from '../store/walletStore';
 import { useProofSubmit } from '../hooks/useProofSubmit';
 import { TASK_TYPE_CONFIG, TaskType } from '../types';
 import { truncatePublicKey } from '../utils/validation';
-import { MainTabParamList } from '../navigation/MainTabNavigator';
-import { RootStackParamList } from '../navigation/RootNavigator';
-
-type HomeScreenNavigationProp = CompositeNavigationProp<
-  BottomTabNavigationProp<MainTabParamList, 'Home'>,
-  NativeStackNavigationProp<RootStackParamList>
->;
+import { useTabNavigation } from '../navigation/useAppNavigation';
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -54,7 +42,7 @@ function getGreeting(): string {
 }
 
 export default function HomeScreen() {
-  const navigation = useNavigation<HomeScreenNavigationProp>();
+  const navigation = useTabNavigation();
   const { profile } = useUserStore();
   const activities = useActivityStore(s => s.activities);
   const streak = useActivityStore(s => s.streak);
@@ -246,60 +234,80 @@ export default function HomeScreen() {
               </Text>
             </View>
           ) : (
-            activities.slice(0, 5).map(a => (
-              <View
-                key={a.id}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: colors.surface,
-                  borderRadius: 12,
-                  padding: spacing.md,
-                  marginBottom: spacing.sm,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                }}
-              >
-                <Text style={{ fontSize: 24, marginRight: spacing.md }}>
-                  {TASK_TYPE_CONFIG[a.taskType as TaskType]?.icon || '📍'}
-                </Text>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{ color: colors.text, fontWeight: '600' }}
-                    numberOfLines={1}
-                  >
-                    {a.taskTitle}
+            activities.slice(0, 5).map(a => {
+              const statusColor =
+                a.status === 'confirmed'
+                  ? colors.primary
+                  : a.status === 'pending'
+                    ? colors.warning
+                    : colors.error;
+
+              const statusLabel =
+                a.status === 'confirmed'
+                  ? '✅ Confirmed'
+                  : a.status === 'pending'
+                    ? '⏳ Pending'
+                    : '❌ Failed';
+
+              return (
+                <View
+                  key={a.id}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: colors.surface,
+                    borderRadius: 12,
+                    padding: spacing.md,
+                    marginBottom: spacing.sm,
+                    borderWidth: 1,
+                    borderColor:
+                      a.status === 'pending' ? colors.warning : colors.border,
+                  }}
+                >
+                  <Text style={{ fontSize: 24, marginRight: spacing.md }}>
+                    {TASK_TYPE_CONFIG[a.taskType as TaskType]?.icon || '📍'}
                   </Text>
-                  <Text
-                    style={{
-                      color: colors.textSecondary,
-                      fontSize: 12,
-                      marginTop: 2,
-                    }}
-                  >
-                    {timeAgo(a.completedAt)}
-                  </Text>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{ color: colors.text, fontWeight: '600' }}
+                      numberOfLines={1}
+                    >
+                      {a.taskTitle}
+                    </Text>
+                    <Text
+                      style={{
+                        color: colors.textSecondary,
+                        fontSize: 12,
+                        marginTop: 2,
+                      }}
+                    >
+                      {timeAgo(a.completedAt)}
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    {a.status !== 'pending' && (
+                      <Text
+                        style={{
+                          color: statusColor,
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        +{a.rewardAmount}
+                      </Text>
+                    )}
+                    <Text
+                      style={{
+                        color: statusColor,
+                        fontSize: 11,
+                        fontWeight: a.status !== 'confirmed' ? '600' : 'normal',
+                      }}
+                    >
+                      {a.status !== 'confirmed' ? statusLabel : a.rewardToken}
+                    </Text>
+                  </View>
                 </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text
-                    style={{
-                      color:
-                        a.status === 'confirmed'
-                          ? colors.primary
-                          : a.status === 'pending'
-                            ? colors.warning
-                            : colors.error,
-                      fontWeight: 'bold',
-                    }}
-                  >
-                    +{a.rewardAmount}
-                  </Text>
-                  <Text style={{ color: colors.textSecondary, fontSize: 11 }}>
-                    {a.rewardToken}
-                  </Text>
-                </View>
-              </View>
-            ))
+              );
+            })
           )}
         </View>
       </View>

@@ -8,21 +8,26 @@ import {
   ScrollView,
   TextInput,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, spacing } from '../utils/theme';
 import { useTaskFeed } from '../hooks/useTaskFeed';
 import { useLocation } from '../hooks/useLocation';
 import TaskCard from '../components/TaskCard';
 import { TaskCardSkeleton } from '../components/LoadingSkeleton';
 import EmptyState from '../components/EmptyState';
-import { TASK_TYPE_CONFIG, TaskType } from '../types';
+import {
+  TASK_TYPE_CONFIG,
+  TASK_STATUSES,
+  TaskStatus,
+  TaskType,
+} from '../types';
 import {
   TaskSortMode,
   filterTasksByQuery,
+  filterTasksByStatus,
   sortTasks,
+  taskStatusLabel,
 } from '../utils/sortTasks';
-import { TaskStackParamList } from '../navigation/TaskStackNavigator';
+import { useTaskStackNavigation } from '../navigation/useAppNavigation';
 
 const TASK_TYPES = [
   { key: '', label: 'All', icon: '🌍' },
@@ -30,6 +35,14 @@ const TASK_TYPES = [
     key,
     label: config.label,
     icon: config.icon,
+  })),
+];
+
+const STATUS_FILTERS: { key: TaskStatus | 'all'; label: string }[] = [
+  { key: 'all', label: 'All statuses' },
+  ...TASK_STATUSES.map(status => ({
+    key: status,
+    label: taskStatusLabel(status),
   })),
 ];
 
@@ -42,9 +55,9 @@ const SORT_OPTIONS: { key: TaskSortMode; label: string }[] = [
 const RADIUS_OPTIONS = [10, 25, 50, 100];
 
 export default function TaskListScreen() {
-  const navigation =
-    useNavigation<NativeStackNavigationProp<TaskStackParamList, 'TaskList'>>();
+  const navigation = useTaskStackNavigation();
   const [activeType, setActiveType] = useState('');
+  const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
   const [query, setQuery] = useState('');
   const [sortMode, setSortMode] = useState<TaskSortMode>('distance');
   const [radiusKm, setRadiusKm] = useState(50);
@@ -57,10 +70,13 @@ export default function TaskListScreen() {
     sort: sortMode,
   });
 
-  const visibleTasks = useMemo(
-    () => sortTasks(filterTasksByQuery(tasks, query), sortMode),
-    [tasks, query, sortMode],
-  );
+  const visibleTasks = useMemo(() => {
+    const statuses: TaskStatus[] = statusFilter === 'all' ? [] : [statusFilter];
+    return sortTasks(
+      filterTasksByStatus(filterTasksByQuery(tasks, query), statuses),
+      sortMode,
+    );
+  }, [tasks, query, sortMode, statusFilter]);
 
   const handleTaskPress = useCallback(
     (taskId: string) => {
@@ -173,6 +189,42 @@ export default function TaskListScreen() {
         ))}
       </ScrollView>
 
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingHorizontal: spacing.lg,
+          paddingBottom: spacing.sm,
+        }}
+      >
+        {STATUS_FILTERS.map(s => (
+          <TouchableOpacity
+            key={s.key}
+            onPress={() => setStatusFilter(s.key)}
+            style={{
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.xs,
+              borderRadius: 16,
+              marginRight: spacing.sm,
+              backgroundColor:
+                statusFilter === s.key ? colors.primary : colors.surface,
+              borderWidth: 1,
+              borderColor:
+                statusFilter === s.key ? colors.primary : colors.border,
+            }}
+          >
+            <Text
+              style={{
+                color: statusFilter === s.key ? '#FFF' : colors.textSecondary,
+                fontSize: 12,
+              }}
+            >
+              {s.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
       <View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.sm }}>
         <TextInput
           value={query}
@@ -271,6 +323,7 @@ export default function TaskListScreen() {
               id={item.id}
               title={item.title}
               type={item.type as TaskType}
+              status={item.status}
               rewardAmount={item.rewardAmount}
               rewardToken={item.rewardToken || 'ECO'}
               distance={item.distance}

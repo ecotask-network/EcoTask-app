@@ -49,6 +49,32 @@ describe('proofQueue', () => {
     expect(loadQueue()).toHaveLength(1);
   });
 
+  it('replaces an existing queued proof with a newer submission for the same task', () => {
+    enqueueProof(baseProof);
+    const retry = {
+      ...baseProof,
+      id: '2',
+      createdAt: '2026-01-02T00:00:00.000Z',
+      photoCid: 'new-photo-cid',
+      metadataCid: 'new-meta-cid',
+    };
+    const queue = enqueueProof(retry);
+    expect(queue).toHaveLength(1);
+    expect(queue[0]!.id).toBe('2');
+    expect(queue[0]!.photoCid).toBe('new-photo-cid');
+    expect(queue[0]!.metadataCid).toBe('new-meta-cid');
+  });
+
+  it('drops a true duplicate (same task, photo and timestamp) without replacing', () => {
+    enqueueProof(baseProof);
+    const duplicate = { ...baseProof, id: '2' };
+    const queue = enqueueProof(duplicate);
+    expect(queue).toHaveLength(1);
+    // The original entry (id '1') is preserved; the identical resubmission
+    // is deduplicated rather than replacing the queued proof.
+    expect(queue[0]!.id).toBe('1');
+  });
+
   it('reports whether a task already has a queued proof', () => {
     expect(hasPendingProof('t1')).toBe(false);
     enqueueProof(baseProof);
@@ -61,7 +87,7 @@ describe('proofQueue', () => {
     enqueueProof({ ...baseProof, id: '2', taskId: 't2' });
     const queue = removeProof('1');
     expect(queue).toHaveLength(1);
-    expect(queue[0].taskId).toBe('t2');
+    expect(queue[0]!.taskId).toBe('t2');
   });
 
   it('removes all proofs for a task', () => {
@@ -69,7 +95,7 @@ describe('proofQueue', () => {
     enqueueProof({ ...baseProof, id: '2', taskId: 't2' });
     const queue = removeProofsForTask('t1');
     expect(queue).toHaveLength(1);
-    expect(queue[0].taskId).toBe('t2');
+    expect(queue[0]!.taskId).toBe('t2');
   });
 
   it('clears the queue', () => {
@@ -85,7 +111,7 @@ describe('proofQueue', () => {
     ]);
     const queue = loadQueue();
     expect(queue).toHaveLength(2);
-    expect(queue[1].id).toBe('2');
+    expect(queue[1]!.id).toBe('2');
   });
 
   it('returns an empty array when storage is corrupted', () => {

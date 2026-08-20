@@ -9,7 +9,6 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { colors, spacing } from '../utils/theme';
 import Config from 'react-native-config';
 import { useWalletStore } from '../store/walletStore';
@@ -20,13 +19,19 @@ import {
   isValidAmount,
   isValidPublicKey,
 } from '../services/stellar';
+import {
+  openLobstrForPayment,
+  LobstrNotInstalledError,
+} from '../services/lobstr';
+import { useRootNavigation } from '../navigation/useAppNavigation';
 
-type AssetChoice = 'native' | 'eco';
+type AssetChoice = 'native' | 'eco' | 'usdc';
 
 export default function SendTokensScreen() {
-  const navigation = useNavigation();
-  const { publicKey } = useWalletStore();
-  const { refreshBalance, refreshEcoBalance } = useStellarWallet();
+  const navigation = useRootNavigation();
+  const { publicKey, walletType } = useWalletStore();
+  const { refreshBalance, refreshEcoBalance, refreshUsdcBalance } =
+    useStellarWallet();
 
   const [destination, setDestination] = useState('');
   const [amount, setAmount] = useState('');
@@ -48,23 +53,59 @@ export default function SendTokensScreen() {
       return;
     }
 
-    const secretKey = getInAppSecret(publicKey);
-    if (!secretKey) {
-      setError(
-        'Only in-app wallets can sign payments. Create or import a wallet to send tokens.',
-      );
-      return;
-    }
-
     setIsSending(true);
     try {
-      const assetParam =
-        asset === 'eco'
-          ? {
-              code: Config.ECO_TOKEN_ASSET_CODE,
-              issuer: Config.ECO_TOKEN_ISSUER,
-            }
-          : undefined;
+      let assetParam: { code: string; issuer: string } | undefined;
+      if (asset === 'eco') {
+        const ecoCode = Config.ECO_TOKEN_ASSET_CODE;
+        const ecoIssuer = Config.ECO_TOKEN_ISSUER;
+        if (!ecoCode || !ecoIssuer) {
+          setError(
+            'ECO token is not configured. Set ECO_TOKEN_ASSET_CODE and ECO_TOKEN_ISSUER in your .env file.',
+          );
+          return;
+        }
+        assetParam = { code: ecoCode, issuer: ecoIssuer };
+      } else if (asset === 'usdc') {
+        if (!Config.USDC_ISSUER) {
+          setError('USDC_ISSUER is not configured. Set it in your .env file.');
+          return;
+        }
+        assetParam = { code: 'USDC', issuer: Config.USDC_ISSUER };
+      }
+
+      if (walletType === 'lobstr') {
+        // Lobstr handles signing and submission internally via the pay URI.
+        await openLobstrForPayment(
+          destination.trim(),
+          amount.trim(),
+          assetParam,
+        );
+        // Lobstr submits the transaction; we can't await on-chain confirmation
+        // here, so refresh balances after a short delay and inform the user.
+        setTimeout(() => {
+          void refreshBalance();
+          void refreshEcoBalance();
+          void refreshUsdcBalance();
+        }, 3000);
+        Alert.alert(
+          'Payment opened in Lobstr',
+          'Complete the payment in Lobstr. Your balance will refresh shortly.',
+        );
+        setDestination('');
+        setAmount('');
+        return;
+      }
+
+      // In-app wallet: sign locally and submit.
+      const secretKey = getInAppSecret(publicKey);
+      if (!secretKey) {
+        setError(
+          'Only in-app wallets can sign payments locally. Create or import a wallet to send tokens.',
+        );
+        return;
+      }
+
       const result = await signAndSubmitPayment({
         senderPublicKey: publicKey,
         secretKey,
@@ -74,6 +115,7 @@ export default function SendTokensScreen() {
       });
       void refreshBalance();
       void refreshEcoBalance();
+      void refreshUsdcBalance();
       Alert.alert(
         'Payment sent',
         `Transaction ${result.hash.slice(0, 12)}… submitted to the network.`,
@@ -81,18 +123,30 @@ export default function SendTokensScreen() {
       setDestination('');
       setAmount('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send payment');
+      if (err instanceof LobstrNotInstalledError) {
+        setError(err.message);
+      } else if (err instanceof Error && err.message.includes('op_no_trust')) {
+        setError(
+          'The destination account has no trustline for this asset. They must add a trustline before receiving it.',
+        );
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to send payment');
+      }
     } finally {
       setIsSending(false);
     }
   }, [
     publicKey,
+    walletType,
     destination,
     amount,
     asset,
     refreshBalance,
     refreshEcoBalance,
+    refreshUsdcBalance,
   ]);
+
+  const isLobstr = walletType === 'lobstr';
 
   return (
     <KeyboardAvoidingView
@@ -114,7 +168,9 @@ export default function SendTokensScreen() {
           Send Tokens
         </Text>
         <Text style={{ color: colors.textSecondary, fontSize: 14 }}>
-          Transfer XLM or ECO from your in-app wallet
+          {isLobstr
+            ? 'Transfer XLM, ECO, or USDC via Lobstr'
+            : 'Transfer XLM, ECO, or USDC from your in-app wallet'}
         </Text>
       </View>
 
@@ -189,7 +245,7 @@ export default function SendTokensScreen() {
             marginBottom: spacing.lg,
           }}
         >
-          {(['native', 'eco'] as AssetChoice[]).map(a => (
+          {(['native', 'eco', 'usdc'] as AssetChoice[]).map((a, index) => (
             <TouchableOpacity
               key={a}
               onPress={() => setAsset(a)}
@@ -197,7 +253,7 @@ export default function SendTokensScreen() {
                 flex: 1,
                 padding: spacing.md,
                 borderRadius: 12,
-                marginRight: a === 'native' ? spacing.sm : 0,
+                marginRight: index < 2 ? spacing.sm : 0,
                 alignItems: 'center',
                 backgroundColor: asset === a ? colors.primary : colors.surface,
                 borderWidth: 1,
@@ -210,7 +266,7 @@ export default function SendTokensScreen() {
                   fontWeight: '600',
                 }}
               >
-                {a === 'native' ? 'XLM' : 'ECO'}
+                {a === 'native' ? 'XLM' : a.toUpperCase()}
               </Text>
             </TouchableOpacity>
           ))}
@@ -244,7 +300,7 @@ export default function SendTokensScreen() {
             <ActivityIndicator color="#FFF" />
           ) : (
             <Text style={{ color: '#FFF', fontWeight: '600', fontSize: 16 }}>
-              Send
+              {isLobstr ? 'Send via Lobstr' : 'Send'}
             </Text>
           )}
         </TouchableOpacity>

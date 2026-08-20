@@ -21,10 +21,10 @@ export function buildProofMetadata(
 
 export function proofFileName(
   taskId: string,
-  capturedAt: string,
+  capturedAt?: string,
   extension = 'jpg',
 ): string {
-  const time = new Date(capturedAt).getTime();
+  const time = capturedAt ? new Date(capturedAt).getTime() : Date.now();
   const safeTime = isNaN(time) ? Date.now() : time;
   return `proof-${taskId}-${safeTime}.${extension}`;
 }

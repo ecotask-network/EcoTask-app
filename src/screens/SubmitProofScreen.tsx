@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Image, Alert } from 'react-native';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import {
   useCameraPermission,
   useCameraDevice,
@@ -9,11 +9,17 @@ import {
 import { colors, spacing } from '../utils/theme';
 import { useLocation } from '../hooks/useLocation';
 import { useProofSubmit } from '../hooks/useProofSubmit';
+import { useProofStatus } from '../hooks/useProofStatus';
 import { useActivityStore } from '../store/activityStore';
 import { useUserStore } from '../store/userStore';
 import { computeImpact } from '../utils/impact';
 import { SubmitProofParams } from '../types';
 import EmptyState from '../components/EmptyState';
+import {
+  scheduleLocalNotification,
+  NOTIFICATION_TYPES,
+} from '../services/notifications';
+import { useTaskStackNavigation } from '../navigation/useAppNavigation';
 
 type SubmitProofRoute = RouteProp<
   { SubmitProof: SubmitProofParams },
@@ -22,18 +28,31 @@ type SubmitProofRoute = RouteProp<
 
 export default function SubmitProofScreen() {
   const route = useRoute<SubmitProofRoute>();
-  const navigation = useNavigation();
+  const navigation = useTaskStackNavigation();
   const { taskId } = route.params;
   const cameraRef = useRef<Camera>(null);
 
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [capturedAt, setCapturedAt] = useState<string | null>(null);
+  // proofId returned by the backend after a successful POST; drives polling.
+  const [proofId, setProofId] = useState<string | null>(null);
+  // Local activity id created on submit; used to link useProofStatus updates.
+  const [activityId, setActivityId] = useState<string | null>(null);
+
   const { location, error: locationError } = useLocation();
   const { submit, isSubmitting, progress, error } = useProofSubmit();
   const addActivity = useActivityStore(s => s.addActivity);
+  const updateActivityStatus = useActivityStore(s => s.updateActivityStatus);
   const updateStats = useUserStore(s => s.updateStats);
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('back');
+
+  // Poll the backend for the real verification outcome.
+  useProofStatus(proofId, {
+    activityId: activityId ?? '',
+    taskTitle: route.params.taskTitle ?? 'Task Completed',
+    rewardToken: route.params.rewardToken ?? 'ECO',
+  });
 
   useEffect(() => {
     if (!hasPermission) {
@@ -64,30 +83,69 @@ export default function SubmitProofScreen() {
       Alert.alert('Error', 'Please take a photo first');
       return;
     }
-    const result = await submit(
+    const submission = await submit(
       taskId,
       photoUri,
       capturedAt,
       location?.lat,
       location?.lng,
     );
-    if (result) {
+
+    if (submission.status === 'success') {
+      const result = submission.result;
+      // Store the activity immediately as 'pending'; useProofStatus will
+      // patch it to 'confirmed' or 'failed' once the backend verifies.
+      const newActivityId = Date.now().toString();
+      const returnedProofId: string | undefined = result.proofId;
+
       addActivity({
-        id: Date.now().toString(),
+        id: newActivityId,
         taskId,
-        taskTitle: result.taskTitle || 'Task Completed',
-        taskType: result.taskType || 'OTHER',
-        rewardAmount: result.rewardAmount || 0,
-        rewardToken: result.rewardToken || 'ECO',
+        taskTitle:
+          result.taskTitle || route.params.taskTitle || 'Task Completed',
+        taskType: result.taskType || route.params.taskType || 'OTHER',
+        rewardAmount: result.rewardAmount ?? route.params.rewardAmount ?? 0,
+        rewardToken: result.rewardToken || route.params.rewardToken || 'ECO',
         completedAt: new Date().toISOString(),
-        status: 'confirmed',
+        status: 'pending',
+        proofId: returnedProofId,
       });
+
+      // Update environmental impact stats eagerly (optimistic).
       const stats = useUserStore.getState().profile?.stats;
       if (stats) {
-        const impact = computeImpact(result.taskType || 'OTHER');
+        const impact = computeImpact(
+          result.taskType || route.params.taskType || 'OTHER',
+        );
         updateStats(impact);
       }
-    } else if (error) {
+
+      setActivityId(newActivityId);
+      // Kick off polling only when the backend returned a proofId.
+      if (returnedProofId) {
+        setProofId(returnedProofId);
+      } else {
+        // No proofId from backend — mark confirmed immediately (legacy path).
+        updateActivityStatus(newActivityId, 'confirmed', result.rewardAmount);
+        // Fire reward notification for the legacy path; the polling path
+        // (useProofStatus) handles its own notification on the confirmed event.
+        const amount = result.rewardAmount ?? route.params.rewardAmount ?? 0;
+        const token = result.rewardToken || route.params.rewardToken || 'ECO';
+        const title =
+          result.taskTitle || route.params.taskTitle || 'Task Completed';
+        void scheduleLocalNotification({
+          title: 'Reward confirmed! 🎉',
+          body: `You earned ${amount} ${token} for "${title}".`,
+          type: NOTIFICATION_TYPES.REWARD_CONFIRMED,
+          data: {
+            type: NOTIFICATION_TYPES.REWARD_CONFIRMED,
+            activityId: newActivityId,
+            deepLink: 'ecotask://wallet',
+          },
+        });
+      }
+    } else if (submission.status === 'queued') {
+      // Offline / network failure: stored in the proof queue as pending.
       addActivity({
         id: Date.now().toString(),
         taskId,
@@ -98,6 +156,9 @@ export default function SubmitProofScreen() {
         completedAt: new Date().toISOString(),
         status: 'pending',
       });
+      Alert.alert('Proof queued', submission.error);
+    } else {
+      Alert.alert('Submission failed', submission.error);
     }
   }, [
     photoUri,
@@ -106,14 +167,16 @@ export default function SubmitProofScreen() {
     location,
     submit,
     addActivity,
+    updateActivityStatus,
     updateStats,
-    error,
     route.params,
   ]);
 
   const progressLabels: Record<string, string> = {
     uploading: 'Uploading proof...',
-    verifying: 'Verifying with network...',
+    verifying: proofId
+      ? 'Verifying proof — reward pending...'
+      : 'Verifying with network...',
     confirmed: 'Reward confirmed!',
     failed: 'Upload failed',
   };
@@ -271,6 +334,11 @@ export default function SubmitProofScreen() {
               onPress={() => {
                 setPhotoUri(null);
                 setCapturedAt(null);
+                // Clear stale submission state so useProofStatus stops
+                // polling the old proof and no duplicate activity is
+                // created on recapture + resubmit.
+                setProofId(null);
+                setActivityId(null);
               }}
               disabled={isSubmitting}
               style={{

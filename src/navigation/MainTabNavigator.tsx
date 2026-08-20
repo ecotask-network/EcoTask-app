@@ -3,18 +3,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import HomeScreen from '../screens/HomeScreen';
 import TaskStackNavigator from './TaskStackNavigator';
 import WalletScreen from '../screens/WalletScreen';
-import SubmitPlaceholderScreen from '../screens/SubmitPlaceholderScreen';
+import SubmitScreen from '../screens/SubmitScreen';
+import MapScreen from '../screens/MapScreen';
 import TabBarIcon from '../components/TabBarIcon';
-
-// react-navigation's typed hooks require ParamList to satisfy an implicit
-// index signature, which only object-literal `type` aliases provide (not
-// `interface`) — https://reactnavigation.org/docs/typescript
-export type MainTabParamList = {
-  Home: undefined;
-  Tasks: undefined;
-  Submit: undefined;
-  Wallet: undefined;
-};
+import { createSubmitTabPressHandler } from './submitTabPress';
+import type { MainTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -47,13 +40,25 @@ export default function MainTabNavigator() {
         }}
       />
       <Tab.Screen
+        name="Map"
+        component={MapScreen}
+        options={{
+          tabBarIcon: ({ focused, color }) => (
+            <TabBarIcon emoji="🗺️" focused={focused} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
         name="Submit"
-        component={SubmitPlaceholderScreen}
+        component={SubmitScreen}
         options={{
           tabBarIcon: ({ focused, color }) => (
             <TabBarIcon emoji="📸" focused={focused} color={color} />
           ),
         }}
+        listeners={({ navigation }) => ({
+          tabPress: createSubmitTabPressHandler(navigation),
+        })}
       />
       <Tab.Screen
         name="Wallet"
@@ -67,3 +72,5 @@ export default function MainTabNavigator() {
     </Tab.Navigator>
   );
 }
+
+export type { MainTabParamList } from './types';

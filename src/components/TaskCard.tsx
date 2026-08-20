@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { colors, spacing } from '../utils/theme';
 import {
   TASK_TYPE_CONFIG,
+  TASK_STATUS_CONFIG,
+  TaskStatus,
   TaskType,
   DIFFICULTY_CONFIG,
   TaskDifficulty,
@@ -12,6 +14,7 @@ interface TaskCardProps {
   id: string;
   title: string;
   type: TaskType;
+  status: TaskStatus;
   rewardAmount: number;
   rewardToken: string;
   distance?: number;
@@ -24,6 +27,7 @@ export default function TaskCard({
   id,
   title,
   type,
+  status,
   rewardAmount,
   rewardToken,
   distance,
@@ -32,6 +36,7 @@ export default function TaskCard({
   onPress,
 }: TaskCardProps) {
   const diffConfig = difficulty ? DIFFICULTY_CONFIG[difficulty] : null;
+  const statusConfig = TASK_STATUS_CONFIG[status];
 
   return (
     <TouchableOpacity
@@ -93,6 +98,25 @@ export default function TaskCard({
               ~{estimatedMinutes}min
             </Text>
           )}
+          <View
+            style={{
+              borderWidth: 1,
+              borderColor: statusConfig.color,
+              borderRadius: 8,
+              paddingHorizontal: 6,
+              paddingVertical: 2,
+            }}
+          >
+            <Text
+              style={{
+                color: statusConfig.color,
+                fontSize: 10,
+                fontWeight: '600',
+              }}
+            >
+              {statusConfig.label}
+            </Text>
+          </View>
         </View>
       </View>
       <View style={{ alignItems: 'flex-end' }}>

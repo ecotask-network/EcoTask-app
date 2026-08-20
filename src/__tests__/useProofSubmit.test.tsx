@@ -1,3 +1,8 @@
+jest.mock('@react-native-community/netinfo', () => ({
+  addEventListener: jest.fn(() => jest.fn()),
+  fetch: jest.fn(() => Promise.resolve({ isConnected: true })),
+}));
+
 import React from 'react';
 import renderer, { act } from 'react-test-renderer';
 import { useProofSubmit } from '../hooks/useProofSubmit';
@@ -58,9 +63,50 @@ describe('useProofSubmit integration', () => {
         1,
         2,
       );
-      expect(res).toEqual(submitResult);
-      expect(ref.progress).toBe('confirmed');
+      expect(res).toEqual({
+        status: 'success',
+        result: submitResult,
+      });
+      // After a successful POST the hook stays at 'verifying'; useProofStatus
+      // drives the transition to 'confirmed' once the backend responds.
+      expect(ref.progress).toBe('verifying');
       expect(ref.pendingCount).toBe(0);
+    });
+  });
+
+  test('undefined API response returns an explicit failed result', async () => {
+    jest.spyOn(ipfs, 'pinFile').mockResolvedValue({
+      cid: 'QmX',
+      url: 'https://ipfs.io/ipfs/QmX',
+      size: 10,
+    });
+    jest.spyOn(ipfs, 'pinJSON').mockResolvedValue({
+      cid: 'QmMeta',
+      url: 'https://ipfs.io/ipfs/QmMeta',
+      size: 50,
+    });
+    jest
+      .spyOn(api, 'submitProof')
+      .mockResolvedValue(undefined as unknown as SubmitProofResult);
+
+    let ref!: UseProofSubmitResult;
+    await act(async () => {
+      renderer.create(<HookHarness onRef={r => (ref = r)} />);
+    });
+
+    await act(async () => {
+      const res = await ref.submit(
+        'task-no-result',
+        '/path/no-result.jpg',
+        '2026-01-01T00:00:00.000Z',
+      );
+      expect(res).toEqual({
+        status: 'failed',
+        error: 'Submission returned no result',
+      });
+      expect(ref.error).toBe('Submission returned no result');
+      expect(ref.progress).toBe('failed');
+      expect(loadQueue()).toHaveLength(0);
     });
   });
 
@@ -87,7 +133,10 @@ describe('useProofSubmit integration', () => {
 
     await act(async () => {
       const res = await ref.submit('task-2', '/path/p.jpg', CAPTURED_AT);
-      expect(res).toBeUndefined();
+      expect(res).toEqual({
+        status: 'queued',
+        error: 'Upload failed, saved for later: network',
+      });
       expect(ref.progress).toBe('failed');
       expect(ref.pendingCount).toBeGreaterThan(0);
     });
@@ -112,8 +161,9 @@ describe('useProofSubmit integration', () => {
 
     await act(async () => {
       const res = await ref.submit('task-3', '/p.jpg', CAPTURED_AT);
-      expect(res).toEqual(submitResult);
-      expect(ref.progress).toBe('confirmed');
+      expect(res).toEqual({ status: 'success', result: submitResult });
+      // Progress stays at 'verifying' — polling will drive to 'confirmed'.
+      expect(ref.progress).toBe('verifying');
     });
   });
 
@@ -192,7 +242,7 @@ describe('useProofSubmit retry logic', () => {
       return null;
     }
 
-    void act(() => {
+    await act(async () => {
       renderer.create(<TestComponent />);
     });
 
@@ -203,7 +253,7 @@ describe('useProofSubmit retry logic', () => {
     expect(mockPinFile).not.toHaveBeenCalled();
     expect(mockPinJSON).not.toHaveBeenCalled();
     const formDataArg = mockSubmitProof.mock
-      .calls[0][0] as unknown as FormDataLike;
+      .calls[0]![0] as unknown as FormDataLike;
 
     // Extract ipfs CIDs from FormData variations
     let photoCid;
@@ -263,7 +313,7 @@ describe('useProofSubmit retry logic', () => {
       return null;
     }
 
-    void act(() => {
+    await act(async () => {
       renderer.create(<TestComponent />);
     });
 

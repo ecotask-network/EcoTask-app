@@ -1,4 +1,5 @@
 import React from 'react';
+import { Text } from 'react-native';
 import renderer from 'react-test-renderer';
 import TaskCard from '../components/TaskCard';
 import ImpactStats from '../components/ImpactStats';
@@ -10,6 +11,7 @@ describe('TaskCard', () => {
     id: '1',
     title: 'Plant trees in the park',
     type: 'TREE_PLANTING' as const,
+    status: 'open' as const,
     rewardAmount: 25,
     rewardToken: 'ECO',
     onPress: jest.fn(),
@@ -23,7 +25,7 @@ describe('TaskCard', () => {
   it('displays the title', () => {
     const tree = renderer.create(<TaskCard {...defaultProps} />);
     const instance = tree.root;
-    const texts = instance.findAllByType('Text');
+    const texts = instance.findAllByType(Text);
     const titleText = texts.find(
       t => t.props.children === 'Plant trees in the park',
     );
@@ -33,7 +35,7 @@ describe('TaskCard', () => {
   it('displays reward amount and token', () => {
     const tree = renderer.create(<TaskCard {...defaultProps} />);
     const instance = tree.root;
-    const texts = instance.findAllByType('Text');
+    const texts = instance.findAllByType(Text);
     const rewardText = texts.find(t => t.props.children === 25);
     expect(rewardText).toBeTruthy();
   });
@@ -41,7 +43,7 @@ describe('TaskCard', () => {
   it('displays distance when provided', () => {
     const tree = renderer.create(<TaskCard {...defaultProps} distance={2.5} />);
     const instance = tree.root;
-    const texts = instance.findAllByType('Text');
+    const texts = instance.findAllByType(Text);
     const distText = texts.find(t => t.props.children === '2.5km');
     expect(distText).toBeTruthy();
   });
@@ -49,7 +51,7 @@ describe('TaskCard', () => {
   it('displays meters for sub-km distances', () => {
     const tree = renderer.create(<TaskCard {...defaultProps} distance={0.5} />);
     const instance = tree.root;
-    const texts = instance.findAllByType('Text');
+    const texts = instance.findAllByType(Text);
     const distText = texts.find(t => t.props.children === '500m');
     expect(distText).toBeTruthy();
   });
@@ -59,7 +61,7 @@ describe('TaskCard', () => {
       <TaskCard {...defaultProps} difficulty="easy" />,
     );
     const instance = tree.root;
-    const texts = instance.findAllByType('Text');
+    const texts = instance.findAllByType(Text);
     const diffText = texts.find(t => t.props.children === 'Easy');
     expect(diffText).toBeTruthy();
   });
@@ -84,7 +86,7 @@ describe('ImpactStats', () => {
       <ImpactStats trees={10} plastic={25} co2={50} />,
     );
     const instance = tree.root;
-    const texts = instance.findAllByType('Text');
+    const texts = instance.findAllByType(Text);
 
     const treesText = texts.find(t => t.props.children === 10);
     expect(treesText).toBeTruthy();
@@ -99,7 +101,7 @@ describe('ImpactStats', () => {
   it('displays labels', () => {
     const tree = renderer.create(<ImpactStats />);
     const instance = tree.root;
-    const texts = instance.findAllByType('Text');
+    const texts = instance.findAllByType(Text);
 
     const treesLabel = texts.find(t => t.props.children === 'Trees');
     expect(treesLabel).toBeTruthy();
@@ -121,7 +123,7 @@ describe('RewardBadge', () => {
   it('displays the reward amount', () => {
     const tree = renderer.create(<RewardBadge rewardAmount={100} />);
     const instance = tree.root;
-    const texts = instance.findAllByType('Text');
+    const texts = instance.findAllByType(Text);
     const amountText = texts.find(t => t.props.children === 100);
     expect(amountText).toBeTruthy();
   });
@@ -129,7 +131,7 @@ describe('RewardBadge', () => {
   it('displays default ECO token', () => {
     const tree = renderer.create(<RewardBadge rewardAmount={100} />);
     const instance = tree.root;
-    const texts = instance.findAllByType('Text');
+    const texts = instance.findAllByType(Text);
     const tokenText = texts.find(t => t.props.children === 'ECO');
     expect(tokenText).toBeTruthy();
   });
@@ -139,7 +141,7 @@ describe('RewardBadge', () => {
       <RewardBadge rewardAmount={100} rewardToken="XLM" />,
     );
     const instance = tree.root;
-    const texts = instance.findAllByType('Text');
+    const texts = instance.findAllByType(Text);
     const tokenText = texts.find(t => t.props.children === 'XLM');
     expect(tokenText).toBeTruthy();
   });
@@ -169,7 +171,7 @@ describe('EmptyState', () => {
       <EmptyState icon="📋" title="No tasks" description="Check back later" />,
     );
     const instance = tree.root;
-    const texts = instance.findAllByType('Text');
+    const texts = instance.findAllByType(Text);
 
     const iconText = texts.find(t => t.props.children === '📋');
     expect(iconText).toBeTruthy();

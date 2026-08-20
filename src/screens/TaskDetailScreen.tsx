@@ -1,18 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import { colors, spacing } from '../utils/theme';
 import { fetchTaskById } from '../services/api';
 import { TaskDetailSkeleton } from '../components/LoadingSkeleton';
+import { useTaskStore } from '../store/taskStore';
 import {
   TASK_TYPE_CONFIG,
-  TaskType,
+  TASK_STATUS_CONFIG,
   DIFFICULTY_CONFIG,
-  TaskDifficulty,
   Task,
 } from '../types';
-import { TaskStackParamList } from '../navigation/TaskStackNavigator';
+import { useTaskStackNavigation } from '../navigation/useAppNavigation';
 
 type TaskDetailRoute = RouteProp<
   { TaskDetail: { taskId: string } },
@@ -21,11 +20,9 @@ type TaskDetailRoute = RouteProp<
 
 export default function TaskDetailScreen() {
   const route = useRoute<TaskDetailRoute>();
-  const navigation =
-    useNavigation<
-      NativeStackNavigationProp<TaskStackParamList, 'TaskDetail'>
-    >();
+  const navigation = useTaskStackNavigation();
   const { taskId } = route.params;
+  const selectTask = useTaskStore(s => s.selectTask);
 
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,9 +34,9 @@ export default function TaskDetailScreen() {
 
   async function loadTask() {
     setLoading(true);
+    setError(null);
     try {
-      const data = await fetchTaskById(taskId);
-      setTask(data);
+      setTask(await fetchTaskById(taskId));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load task');
     } finally {
@@ -76,6 +73,11 @@ export default function TaskDetailScreen() {
     );
   }
 
+  const difficulty = task.difficulty;
+  const diffConfig = difficulty ? DIFFICULTY_CONFIG[difficulty] : null;
+  const statusConfig = TASK_STATUS_CONFIG[task.status];
+  const isClosed = task.status === 'closed';
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ padding: spacing.lg }}>
@@ -89,11 +91,39 @@ export default function TaskDetailScreen() {
         </TouchableOpacity>
 
         <Text style={{ fontSize: 48, marginBottom: spacing.sm }}>
-          {TASK_TYPE_CONFIG[task.type as TaskType]?.icon || '📍'}
+          {TASK_TYPE_CONFIG[task.type]?.icon || '📍'}
         </Text>
         <Text style={{ color: colors.text, fontSize: 24, fontWeight: 'bold' }}>
           {task.title}
         </Text>
+
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginTop: spacing.sm,
+          }}
+        >
+          <View
+            style={{
+              borderWidth: 1,
+              borderColor: statusConfig.color,
+              borderRadius: 8,
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+            }}
+          >
+            <Text
+              style={{
+                color: statusConfig.color,
+                fontSize: 12,
+                fontWeight: '600',
+              }}
+            >
+              {statusConfig.label}
+            </Text>
+          </View>
+        </View>
 
         <View
           style={{
@@ -112,7 +142,7 @@ export default function TaskDetailScreen() {
             {task.rewardAmount} {task.rewardToken || 'ECO'}
           </Text>
           <Text style={{ color: colors.textSecondary }}>reward</Text>
-          {task.difficulty && (
+          {diffConfig && (
             <View
               style={{
                 flexDirection: 'row',
@@ -121,16 +151,10 @@ export default function TaskDetailScreen() {
               }}
             >
               <Text style={{ fontSize: 14, marginRight: 4 }}>
-                {DIFFICULTY_CONFIG[task.difficulty as TaskDifficulty].icon}
+                {diffConfig.icon}
               </Text>
-              <Text
-                style={{
-                  color:
-                    DIFFICULTY_CONFIG[task.difficulty as TaskDifficulty].color,
-                  fontWeight: '500',
-                }}
-              >
-                {DIFFICULTY_CONFIG[task.difficulty as TaskDifficulty].label}
+              <Text style={{ color: diffConfig.color, fontWeight: '500' }}>
+                {diffConfig.label}
               </Text>
             </View>
           )}
@@ -170,25 +194,33 @@ export default function TaskDetailScreen() {
         )}
 
         <TouchableOpacity
-          onPress={() =>
+          disabled={isClosed}
+          onPress={() => {
+            selectTask({ ...task, id: task.id || taskId });
             navigation.navigate('SubmitProof', {
               taskId,
               taskTitle: task.title,
               taskType: task.type,
               rewardAmount: task.rewardAmount,
               rewardToken: task.rewardToken || 'ECO',
-            })
-          }
+            });
+          }}
           style={{
             marginTop: spacing.xl,
             padding: spacing.md,
-            backgroundColor: colors.primary,
+            backgroundColor: isClosed ? colors.border : colors.primary,
             borderRadius: 12,
             alignItems: 'center',
           }}
         >
-          <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '600' }}>
-            Start Task
+          <Text
+            style={{
+              color: isClosed ? colors.textSecondary : '#FFF',
+              fontSize: 18,
+              fontWeight: '600',
+            }}
+          >
+            {isClosed ? 'Task Closed' : 'Start Task'}
           </Text>
         </TouchableOpacity>
       </View>

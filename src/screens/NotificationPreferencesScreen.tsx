@@ -1,17 +1,12 @@
 import React from 'react';
 import { View, Text, Switch, TouchableOpacity, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, spacing } from '../utils/theme';
 import { NOTIFICATION_TYPES } from '../services/notifications';
 import usePrefsStore from '../store/prefsStore';
-import { RootStackParamList } from '../navigation/RootNavigator';
+import { useRootNavigation } from '../navigation/useAppNavigation';
 
 export default function NotificationPreferencesScreen() {
-  const navigation =
-    useNavigation<
-      NativeStackNavigationProp<RootStackParamList, 'NotificationPreferences'>
-    >();
+  const navigation = useRootNavigation();
   const {
     notificationPrefs,
     allEnabled,
@@ -78,7 +73,7 @@ export default function NotificationPreferencesScreen() {
             <TouchableOpacity
               onPress={() => {
                 // simple cycle hours by +1 for a quick picker-friendly implementation
-                const [h, m] = quietHours.from.split(':').map(Number);
+                const [h = 0, m = 0] = quietHours.from.split(':').map(Number);
                 const nh = (h + 1) % 24;
                 setQuietHours(
                   `${nh.toString().padStart(2, '0')}:${(m || 0).toString().padStart(2, '0')}`,
@@ -98,7 +93,7 @@ export default function NotificationPreferencesScreen() {
 
             <TouchableOpacity
               onPress={() => {
-                const [h, m] = quietHours.to.split(':').map(Number);
+                const [h = 0, m = 0] = quietHours.to.split(':').map(Number);
                 const nh = (h + 1) % 24;
                 setQuietHours(
                   quietHours.from,

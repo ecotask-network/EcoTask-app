@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { Platform } from 'react-native';
 import { useUserStore } from '../store/userStore';
+import { useWalletStore } from '../store/walletStore';
 import {
   getAuthChallenge,
   loginWithWallet,
@@ -8,6 +8,7 @@ import {
 } from '../services/api';
 import { getInAppSecret } from '../services/walletVault';
 import { signChallengeXDR } from '../services/stellar';
+import { openLobstrForSigning } from '../services/lobstr';
 import { UserStats } from '../types';
 
 interface FreighterWindow {
@@ -32,15 +33,29 @@ export function useAuth() {
       try {
         const { challenge } = await getAuthChallenge(publicKey);
 
-        const freighter = (
-          Platform.OS === 'web' ? window : ({} as FreighterWindow)
-        ).freighter;
+        // Resolve which signing method to use, in priority order:
+        //   1. Lobstr deep-link (wallet stored as 'lobstr' in persisted store)
+        //   2. Freighter browser extension (web / dev)
+        //   3. In-app keypair
+        const walletType = useWalletStore.getState().walletType;
 
         let signature: string;
-        if (freighter?.signTransaction) {
-          signature = await freighter.signTransaction(challenge);
+
+        if (walletType === 'lobstr') {
+          // Opens Lobstr; suspends until deep-link callback resolves.
+          signature = await openLobstrForSigning(challenge, publicKey);
         } else {
-          signature = await signWithKeypair(challenge, publicKey);
+          // `typeof window` is safe to reference even where no global
+          // `window` is declared (native platforms); a direct reference
+          // is not.
+          const freighter =
+            typeof window !== 'undefined' ? window.freighter : undefined;
+
+          if (freighter?.signTransaction) {
+            signature = await freighter.signTransaction(challenge);
+          } else {
+            signature = await signWithKeypair(challenge, publicKey);
+          }
         }
 
         const { token, user } = await loginWithWallet(

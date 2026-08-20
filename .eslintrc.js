@@ -43,9 +43,21 @@ module.exports = {
       // react-navigation's ParamList generics require an object-literal
       // `type` alias (not `interface`) to satisfy their implicit index
       // signature constraint — https://reactnavigation.org/docs/typescript
-      files: ['src/navigation/*.tsx'],
+      files: ['src/navigation/*.ts', 'src/navigation/*.tsx'],
       rules: {
         '@typescript-eslint/consistent-type-definitions': 'off',
+      },
+    },
+    {
+      // @react-native-firebase/messaging is an optional peer dependency
+      // (see .env.example): a static `import` would be resolved by Metro at
+      // bundle time and fail hard when the package or native config is
+      // absent, whereas a synchronous `require()` inside try/catch can be
+      // caught and swapped for a no-op adapter, and is intercepted cleanly
+      // by jest.mock() in tests.
+      files: ['src/services/firebaseMessaging.ts'],
+      rules: {
+        '@typescript-eslint/no-var-requires': 'off',
       },
     },
   ],

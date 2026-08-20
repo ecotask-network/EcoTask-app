@@ -9,13 +9,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { colors, spacing } from '../utils/theme';
 import { useUserStore } from '../store/userStore';
 import { updateProfile } from '../services/api';
+import { useRootNavigation } from '../navigation/useAppNavigation';
 
 export default function EditProfileScreen() {
-  const navigation = useNavigation();
+  const navigation = useRootNavigation();
   const { profile, setProfile } = useUserStore();
 
   const [name, setName] = useState(profile?.name || '');

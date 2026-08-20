@@ -10,6 +10,21 @@ import {
   removeProofsForTask,
 } from '../services/proofQueue';
 import { useProofSyncStore } from '../store/proofSyncStore';
+import { useNetworkStatus } from './useNetworkStatus';
+
+export type ProofSubmitResult =
+  | {
+      status: 'success';
+      result: Awaited<ReturnType<typeof submitProof>>;
+    }
+  | {
+      status: 'queued';
+      error: string;
+    }
+  | {
+      status: 'failed';
+      error: string;
+    };
 
 // Thrown by submitProofAttempt so callers can recover the CIDs that were
 // already pinned to IPFS before the network submission failed, and avoid
@@ -27,6 +42,7 @@ class ProofUploadError extends Error {
 }
 
 export function useProofSubmit() {
+  const { isInitialised } = useNetworkStatus();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [progress, setProgress] = useState<
     'idle' | 'uploading' | 'verifying' | 'confirmed' | 'failed'
@@ -124,7 +140,7 @@ export function useProofSubmit() {
       capturedAt: string,
       lat?: number,
       lng?: number,
-    ) => {
+    ): Promise<ProofSubmitResult> => {
       setIsSubmitting(true);
       setProgress('uploading');
       setError(null);
@@ -137,27 +153,45 @@ export function useProofSubmit() {
         });
         removeProofsForTask(taskId);
         setPendingCount(loadQueue().length);
-        setProgress('confirmed');
-        return result;
+        // Stay in 'verifying' — the caller mounts useProofStatus which drives
+        // the transition to 'confirmed' or 'failed' once the backend responds.
+        setProgress('verifying');
+        if (result === undefined || result === null) {
+          const message = 'Submission returned no result';
+          setError(message);
+          setProgress('failed');
+          return { status: 'failed', error: message };
+        }
+        return { status: 'success', result };
       } catch (err) {
         const uploadError = err instanceof ProofUploadError ? err : undefined;
-        enqueueProof({
-          id: `${Date.now()}`,
-          taskId,
-          photoPath: photoUri,
-          lat,
-          lng,
-          createdAt: new Date().toISOString(),
-          capturedAt,
-          photoCid: uploadError?.photoCid,
-          metadataCid: uploadError?.metadataCid,
-        });
-        setPendingCount(loadQueue().length);
-        setError(
-          err instanceof Error ? err.message : 'Upload failed, saved for later',
-        );
-        setProgress('failed');
-        return undefined;
+        const message = err instanceof Error ? err.message : 'Upload failed';
+        try {
+          enqueueProof({
+            id: `${Date.now()}`,
+            taskId,
+            photoPath: photoUri,
+            lat,
+            lng,
+            createdAt: new Date().toISOString(),
+            capturedAt,
+            photoCid: uploadError?.photoCid,
+            metadataCid: uploadError?.metadataCid,
+          });
+          setPendingCount(loadQueue().length);
+          const queuedMessage = `Upload failed, saved for later: ${message}`;
+          setError(queuedMessage);
+          setProgress('failed');
+          return { status: 'queued', error: queuedMessage };
+        } catch (queueError) {
+          const failureMessage =
+            queueError instanceof Error
+              ? queueError.message
+              : `Upload failed and could not be saved: ${message}`;
+          setError(failureMessage);
+          setProgress('failed');
+          return { status: 'failed', error: failureMessage };
+        }
       } finally {
         setIsSubmitting(false);
       }
@@ -166,6 +200,13 @@ export function useProofSubmit() {
   );
 
   const syncPendingProofs = useCallback(async () => {
+    // Real connectivity is unknown until useNetworkStatus resolves its
+    // initial NetInfo.fetch(); syncing before then can fail silently
+    // against a network we haven't actually confirmed is up.
+    if (!isInitialised) {
+      return;
+    }
+
     // In-flight guard to prevent concurrent sync calls
     const syncStore = useProofSyncStore.getState();
     if (syncStore.isSyncing) {
@@ -207,7 +248,7 @@ export function useProofSubmit() {
     } finally {
       syncStore.endSync();
     }
-  }, [submitProofAttempt]);
+  }, [isInitialised, submitProofAttempt]);
 
   return {
     submit,

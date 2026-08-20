@@ -17,6 +17,7 @@ import { colors, spacing } from '../utils/theme';
 export default function OnboardingScreen() {
   const {
     connectFreighter,
+    connectLobstr,
     createInAppWallet,
     importWallet,
     isConnecting,
@@ -121,6 +122,25 @@ export default function OnboardingScreen() {
               Connect Freighter
             </Text>
           )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => void connectLobstr()}
+          disabled={busy}
+          style={{
+            padding: spacing.md,
+            backgroundColor: colors.surface,
+            borderRadius: 12,
+            alignItems: 'center',
+            borderWidth: 1,
+            borderColor: colors.border,
+            marginBottom: spacing.md,
+            opacity: busy ? 0.5 : 1,
+          }}
+        >
+          <Text style={{ color: colors.text, fontWeight: '600', fontSize: 16 }}>
+            Connect Lobstr
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity

@@ -14,6 +14,10 @@ ios/build/
 .env.local
 .env.production
 
+# Firebase native config (contains API keys — never commit)
+android/app/google-services.json
+ios/*/GoogleService-Info.plist
+
 # IDE
 .idea/
 .vscode/

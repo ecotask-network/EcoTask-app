@@ -109,6 +109,11 @@ export const usePrefsStore = create<PrefsState>()(
     {
       name: 'prefs-storage',
       storage: createJSONStorage(() => zustandMMKVStorage),
+      // zustand's persist option calls this once with the pre-hydration
+      // state and expects the *return value* to be the post-hydration
+      // callback `(state?, error?) => void` — it does not call a further
+      // nested function, so any extra level of wrapping here is dead code
+      // that silently never runs.
       onRehydrateStorage: () => (persisted, error) => {
         if (error != null || !persisted) {
           return;

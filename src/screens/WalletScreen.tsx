@@ -1,28 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import {
-  useNavigation,
-  CompositeNavigationProp,
-} from '@react-navigation/native';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useWalletStore } from '../store/walletStore';
 import { useStellarWallet } from '../hooks/useStellarWallet';
 import { colors, spacing } from '../utils/theme';
 import EmptyState from '../components/EmptyState';
 import Skeleton from '../components/LoadingSkeleton';
 import TransactionHistory from '../components/TransactionHistory';
-import { MainTabParamList } from '../navigation/MainTabNavigator';
-import { RootStackParamList } from '../navigation/RootNavigator';
-
-type WalletScreenNavigationProp = CompositeNavigationProp<
-  BottomTabNavigationProp<MainTabParamList, 'Wallet'>,
-  NativeStackNavigationProp<RootStackParamList>
->;
+import { useTabNavigation } from '../navigation/useAppNavigation';
 
 export default function WalletScreen() {
-  const navigation = useNavigation<WalletScreenNavigationProp>();
-  const { balance, ecoBalance, publicKey, isConnected } = useWalletStore();
+  const navigation = useTabNavigation();
+  const { balance, ecoBalance, usdcBalance, publicKey, isConnected } =
+    useWalletStore();
   const { disconnectWallet, refreshBalance } = useStellarWallet();
   const [loading, setLoading] = useState(true);
 
@@ -121,6 +110,30 @@ export default function WalletScreen() {
           >
             {ecoBalance ?? '0'}{' '}
             <Text style={{ fontSize: 14, color: colors.primary }}>ECO</Text>
+          </Text>
+        </View>
+
+        <View
+          style={{
+            marginTop: spacing.md,
+            padding: spacing.md,
+            backgroundColor: colors.background,
+            borderRadius: 12,
+          }}
+        >
+          <Text style={{ color: colors.textSecondary, fontSize: 14 }}>
+            USDC Balance
+          </Text>
+          <Text
+            style={{
+              color: colors.text,
+              fontSize: 24,
+              fontWeight: 'bold',
+              marginTop: spacing.xs,
+            }}
+          >
+            {usdcBalance ?? '0'}{' '}
+            <Text style={{ fontSize: 14, color: colors.primary }}>USDC</Text>
           </Text>
         </View>
 
