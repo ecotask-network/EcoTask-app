@@ -79,7 +79,7 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
             ...task,
             status: normalizeTaskStatus(task.status),
           }));
-          if (withLocation) {
+          if (withLocation && loc.lat !== undefined && loc.lng !== undefined) {
             return enrichTasksWithDistance(withStatus, loc.lat, loc.lng);
           }
           return withStatus;

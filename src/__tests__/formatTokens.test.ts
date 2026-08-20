@@ -1,4 +1,8 @@
-import { formatTokenAmount, formatReward } from '../utils/formatTokens';
+import {
+  formatTokenAmount,
+  formatReward,
+  formatUsdc,
+} from '../utils/formatTokens';
 
 describe('formatTokenAmount', () => {
   it('formats small numbers with decimals', () => {
@@ -38,5 +42,23 @@ describe('formatReward', () => {
 
   it('formats large amounts', () => {
     expect(formatReward(10000, 'ECO')).toBe('10.00K ECO');
+  });
+});
+
+describe('formatUsdc', () => {
+  it('always formats with 2 decimal places', () => {
+    expect(formatUsdc(25.5)).toBe('25.50');
+    expect(formatUsdc('100.1234567')).toBe('100.12');
+    expect(formatUsdc(0)).toBe('0.00');
+  });
+
+  it('applies K/M suffixes at scale', () => {
+    expect(formatUsdc(1500)).toBe('1.50K');
+    expect(formatUsdc(2000000)).toBe('2.00M');
+  });
+
+  it('returns 0 for invalid input', () => {
+    expect(formatUsdc(NaN)).toBe('0');
+    expect(formatUsdc('not-a-number')).toBe('0');
   });
 });

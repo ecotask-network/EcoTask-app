@@ -3,6 +3,7 @@ import { useWalletStore } from '../store/walletStore';
 import { useTaskStore } from '../store/taskStore';
 import { useUserStore } from '../store/userStore';
 import { useActivityStore } from '../store/activityStore';
+import { Task } from '../types';
 
 function makeJwt(exp: number): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256' })).toString(
@@ -19,6 +20,7 @@ describe('walletStore', () => {
       publicKey: null,
       balance: null,
       ecoBalance: null,
+      usdcBalance: null,
     });
   });
 
@@ -49,18 +51,26 @@ describe('walletStore', () => {
     expect(useWalletStore.getState().ecoBalance).toBe('500');
   });
 
+  it('sets USDC balance', () => {
+    const { setUsdcBalance } = useWalletStore.getState();
+    setUsdcBalance('25.50');
+    expect(useWalletStore.getState().usdcBalance).toBe('25.50');
+  });
+
   it('disconnects and clears all state', () => {
-    const { connect, setBalance, setEcoBalance, disconnect } =
+    const { connect, setBalance, setEcoBalance, setUsdcBalance, disconnect } =
       useWalletStore.getState();
     connect('GCXXYZ...');
     setBalance('10');
     setEcoBalance('20');
+    setUsdcBalance('5.00');
     disconnect();
     const state = useWalletStore.getState();
     expect(state.isConnected).toBe(false);
     expect(state.publicKey).toBeNull();
     expect(state.balance).toBeNull();
     expect(state.ecoBalance).toBeNull();
+    expect(state.usdcBalance).toBeNull();
   });
 });
 
@@ -86,7 +96,7 @@ describe('taskStore', () => {
   });
 
   it('sets tasks', () => {
-    const tasks = [
+    const tasks: Task[] = [
       {
         id: '1',
         title: 'Plant tree',
@@ -104,7 +114,7 @@ describe('taskStore', () => {
   });
 
   it('appends tasks', () => {
-    const tasks = [
+    const tasks: Task[] = [
       {
         id: '1',
         title: 'A',
@@ -133,7 +143,7 @@ describe('taskStore', () => {
   });
 
   it('selects a task and stamps selectedAt', () => {
-    const task = {
+    const task: Task = {
       id: '1',
       title: 'Task',
       description: '',
@@ -149,7 +159,7 @@ describe('taskStore', () => {
   });
 
   it('clears selectedAt when deselecting', () => {
-    const task = {
+    const task: Task = {
       id: '1',
       title: 'Task',
       description: '',
