@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+
 import { useWalletStore } from '../store/walletStore';
 import { useStellarWallet } from '../hooks/useStellarWallet';
 import { colors, spacing } from '../utils/theme';
 import EmptyState from '../components/EmptyState';
 import Skeleton from '../components/LoadingSkeleton';
 import TransactionHistory from '../components/TransactionHistory';
+import { useTabNavigation } from '../navigation/useAppNavigation';
 
 export default function WalletScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useTabNavigation();
   const { balance, ecoBalance, usdcBalance, publicKey, isConnected } =
     useWalletStore();
   const { disconnectWallet, refreshBalance } = useStellarWallet();
