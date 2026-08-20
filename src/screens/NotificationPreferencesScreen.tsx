@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, Text, Switch, TouchableOpacity, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+
 import { colors, spacing } from '../utils/theme';
 import { NOTIFICATION_TYPES } from '../services/notifications';
 import usePrefsStore from '../store/prefsStore';
+import { useRootNavigation } from '../navigation/useAppNavigation';
 
 export default function NotificationPreferencesScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useRootNavigation();
   const {
     notificationPrefs,
     allEnabled,

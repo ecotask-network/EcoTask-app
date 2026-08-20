@@ -19,11 +19,12 @@ import MapView, {
   Region,
   PROVIDER_GOOGLE,
 } from 'react-native-maps';
-import { useNavigation } from '@react-navigation/native';
+
 import { useTaskFeed } from '../hooks/useTaskFeed';
 import { useLocation } from '../hooks/useLocation';
 import { Task, TASK_TYPE_CONFIG } from '../types';
 import { colors, spacing } from '../utils/theme';
+import { useTaskStackNavigation } from '../navigation/useAppNavigation';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -105,7 +106,7 @@ function clusterTasks(tasks: Task[], region: Region | null): ClusterOrMarker[] {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function MapScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useTaskStackNavigation();
   const { location } = useLocation();
   const [radiusKm, setRadiusKm] = useState(50);
   const [region, setRegion] = useState<Region | null>(null);

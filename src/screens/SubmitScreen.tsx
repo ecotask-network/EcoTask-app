@@ -1,12 +1,13 @@
 import React, { useCallback } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors, spacing } from '../utils/theme';
 import { useTaskStore } from '../store/taskStore';
 import {
   isSelectionFresh,
   buildSubmitProofParams,
 } from '../utils/taskSelection';
+import { useTabNavigation } from '../navigation/useAppNavigation';
 
 /**
  * Fallback shown on the Submit tab when there's no active task.
@@ -16,7 +17,7 @@ import {
  * cover, e.g. this tab being the initial route on cold start.
  */
 export default function SubmitScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useTabNavigation();
   const selectedTask = useTaskStore(s => s.selectedTask);
   const selectedAt = useTaskStore(s => s.selectedAt);
 

@@ -60,6 +60,23 @@ function textValues(tree: renderer.ReactTestRenderer): string[] {
     );
 }
 
+/**
+ * Index into a query result, failing the test if the element is missing.
+ *
+ * `noUncheckedIndexedAccess` types every index access as possibly-undefined.
+ * Asserting here turns "the button we expected isn't there" into a clear test
+ * failure rather than a `!` that hides it.
+ */
+function at<T>(items: T[], index: number): T {
+  const item = items[index];
+  if (item === undefined) {
+    throw new Error(
+      `expected an element at index ${index}, found ${items.length} items`,
+    );
+  }
+  return item;
+}
+
 async function renderScreen() {
   let tree: renderer.ReactTestRenderer;
   await act(async () => {
@@ -112,7 +129,7 @@ describe('TaskDetailScreen', () => {
     tree = await renderScreen();
 
     const buttons = tree.root.findAllByType(TouchableOpacity);
-    const cta = buttons[buttons.length - 1];
+    const cta = at(buttons, buttons.length - 1);
     expect(cta.props.disabled).toBe(true);
     expect(textValues(tree)).toContain('Task Closed');
   });
@@ -124,7 +141,7 @@ describe('TaskDetailScreen', () => {
     expect(textValues(tree)).toContain('Network unreachable');
 
     mockFetchTaskById.mockResolvedValueOnce(task);
-    const retry = tree.root.findAllByType(TouchableOpacity)[0];
+    const retry = at(tree.root.findAllByType(TouchableOpacity), 0);
     await act(async () => {
       retry.props.onPress();
     });
@@ -139,7 +156,7 @@ describe('TaskDetailScreen', () => {
 
     const buttons = tree.root.findAllByType(TouchableOpacity);
     await act(async () => {
-      buttons[buttons.length - 1].props.onPress();
+      at(buttons, buttons.length - 1).props.onPress();
     });
 
     expect(useTaskStore.getState().selectedTask).toEqual(task);

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+
 import { useUserStore } from '../store/userStore';
 import { useWalletStore } from '../store/walletStore';
 import { useStellarWallet } from '../hooks/useStellarWallet';
@@ -9,9 +9,10 @@ import ImpactStats from '../components/ImpactStats';
 import AchievementGrid from '../components/AchievementGrid';
 import EmptyState from '../components/EmptyState';
 import { truncatePublicKey } from '../utils/validation';
+import { useRootNavigation } from '../navigation/useAppNavigation';
 
 export default function ProfileScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useRootNavigation();
   const { profile, logout } = useUserStore();
   const { isConnected, publicKey } = useWalletStore();
   const { disconnectWallet } = useStellarWallet();

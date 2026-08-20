@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Image, Alert } from 'react-native';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import {
   useCameraPermission,
   useCameraDevice,
@@ -19,6 +19,7 @@ import {
   scheduleLocalNotification,
   NOTIFICATION_TYPES,
 } from '../services/notifications';
+import { useTaskStackNavigation } from '../navigation/useAppNavigation';
 
 type SubmitProofRoute = RouteProp<
   { SubmitProof: SubmitProofParams },
@@ -27,7 +28,7 @@ type SubmitProofRoute = RouteProp<
 
 export default function SubmitProofScreen() {
   const route = useRoute<SubmitProofRoute>();
-  const navigation = useNavigation();
+  const navigation = useTaskStackNavigation();
   const { taskId } = route.params;
   const cameraRef = useRef<Camera>(null);
 
