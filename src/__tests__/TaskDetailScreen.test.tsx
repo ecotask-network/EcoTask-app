@@ -112,7 +112,7 @@ describe('TaskDetailScreen', () => {
     tree = await renderScreen();
 
     const buttons = tree.root.findAllByType(TouchableOpacity);
-    const cta = buttons[buttons.length - 1];
+    const cta = buttons[buttons.length - 1]!;
     expect(cta.props.disabled).toBe(true);
     expect(textValues(tree)).toContain('Task Closed');
   });
@@ -124,7 +124,7 @@ describe('TaskDetailScreen', () => {
     expect(textValues(tree)).toContain('Network unreachable');
 
     mockFetchTaskById.mockResolvedValueOnce(task);
-    const retry = tree.root.findAllByType(TouchableOpacity)[0];
+    const retry = tree.root.findAllByType(TouchableOpacity)[0]!;
     await act(async () => {
       retry.props.onPress();
     });
@@ -139,7 +139,7 @@ describe('TaskDetailScreen', () => {
 
     const buttons = tree.root.findAllByType(TouchableOpacity);
     await act(async () => {
-      buttons[buttons.length - 1].props.onPress();
+      buttons[buttons.length - 1]!.props.onPress();
     });
 
     expect(useTaskStore.getState().selectedTask).toEqual(task);
