@@ -331,6 +331,11 @@ export default function SubmitProofScreen() {
               onPress={() => {
                 setPhotoUri(null);
                 setCapturedAt(null);
+                // Clear stale submission state so useProofStatus stops
+                // polling the old proof and no duplicate activity is
+                // created on recapture + resubmit.
+                setProofId(null);
+                setActivityId(null);
               }}
               disabled={isSubmitting}
               style={{
