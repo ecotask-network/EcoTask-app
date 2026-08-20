@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Platform } from 'react-native';
 import Config from 'react-native-config';
 import { useWalletStore } from '../store/walletStore';
 import * as stellar from '../services/stellar';

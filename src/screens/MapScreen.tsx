@@ -184,7 +184,9 @@ export default function MapScreen() {
           const firstTask = item.tasks[0];
           const label = isCluster
             ? String(item.count)
-            : (firstTask ? (TASK_TYPE_CONFIG[firstTask.type]?.icon ?? '📍') : '📍');
+            : firstTask
+              ? (TASK_TYPE_CONFIG[firstTask.type]?.icon ?? '📍')
+              : '📍';
 
           return (
             <Marker
@@ -192,12 +194,16 @@ export default function MapScreen() {
               testID={isCluster ? `cluster-${item.id}` : `marker-${item.id}`}
               coordinate={{ latitude: item.lat, longitude: item.lng }}
               title={
-                isCluster ? `${item.count} tasks here` : (firstTask?.title ?? '')
+                isCluster
+                  ? `${item.count} tasks here`
+                  : (firstTask?.title ?? '')
               }
               description={
                 isCluster
                   ? 'Zoom in to see individual tasks'
-                  : (firstTask ? `${firstTask.rewardAmount} ${firstTask.rewardToken ?? 'ECO'}` : '')
+                  : firstTask
+                    ? `${firstTask.rewardAmount} ${firstTask.rewardToken ?? 'ECO'}`
+                    : ''
               }
               onCalloutPress={() => {
                 if (!isCluster && firstTask) {
