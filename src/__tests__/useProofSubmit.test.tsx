@@ -44,11 +44,40 @@ describe('useProofSubmit integration', () => {
         1,
         2,
       );
-      expect(res).toEqual({ success: true });
+      expect(res).toEqual({
+        status: 'success',
+        result: { success: true },
+      });
       // After a successful POST the hook stays at 'verifying'; useProofStatus
       // drives the transition to 'confirmed' once the backend responds.
       expect(ref.progress).toBe('verifying');
       expect(ref.pendingCount).toBe(0);
+    });
+  });
+
+  test('undefined API response returns an explicit failed result', async () => {
+    jest.spyOn(ipfs, 'pinFile').mockResolvedValue({ cid: 'QmX' } as any);
+    jest.spyOn(ipfs, 'pinJSON').mockResolvedValue({ cid: 'QmMeta' } as any);
+    jest.spyOn(api, 'submitProof').mockResolvedValue(undefined as any);
+
+    let ref: any;
+    await act(async () => {
+      renderer.create(<HookHarness onRef={r => (ref = r)} />);
+    });
+
+    await act(async () => {
+      const res = await ref.submit(
+        'task-no-result',
+        '/path/no-result.jpg',
+        '2026-01-01T00:00:00.000Z',
+      );
+      expect(res).toEqual({
+        status: 'failed',
+        error: 'Submission returned no result',
+      });
+      expect(ref.error).toBe('Submission returned no result');
+      expect(ref.progress).toBe('failed');
+      expect(loadQueue()).toHaveLength(0);
     });
   });
 
@@ -71,7 +100,10 @@ describe('useProofSubmit integration', () => {
         '/path/p.jpg',
         '2026-01-01T00:00:00.000Z',
       );
-      expect(res).toBeUndefined();
+      expect(res).toEqual({
+        status: 'queued',
+        error: 'Upload failed, saved for later: network',
+      });
       expect(ref.progress).toBe('failed');
       expect(ref.pendingCount).toBeGreaterThan(0);
     });
@@ -99,7 +131,7 @@ describe('useProofSubmit integration', () => {
         '/p.jpg',
         '2026-01-01T00:00:00.000Z',
       );
-      expect(res).toEqual({ ok: true });
+      expect(res).toEqual({ status: 'success', result: { ok: true } });
       // Progress stays at 'verifying' — polling will drive to 'confirmed'.
       expect(ref.progress).toBe('verifying');
     });

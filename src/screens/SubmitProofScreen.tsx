@@ -80,14 +80,16 @@ export default function SubmitProofScreen() {
       Alert.alert('Error', 'Please take a photo first');
       return;
     }
-    const result = await submit(
+    const submission = await submit(
       taskId,
       photoUri,
       capturedAt,
       location?.lat,
       location?.lng,
     );
-    if (result) {
+
+    if (submission.status === 'success') {
+      const result = submission.result;
       // Store the activity immediately as 'pending'; useProofStatus will
       // patch it to 'confirmed' or 'failed' once the backend verifies.
       const newActivityId = Date.now().toString();
@@ -139,7 +141,7 @@ export default function SubmitProofScreen() {
           },
         });
       }
-    } else if (error) {
+    } else if (submission.status === 'queued') {
       // Offline / network failure: stored in the proof queue as pending.
       addActivity({
         id: Date.now().toString(),
@@ -151,6 +153,9 @@ export default function SubmitProofScreen() {
         completedAt: new Date().toISOString(),
         status: 'pending',
       });
+      Alert.alert('Proof queued', submission.error);
+    } else {
+      Alert.alert('Submission failed', submission.error);
     }
   }, [
     photoUri,
@@ -161,7 +166,6 @@ export default function SubmitProofScreen() {
     addActivity,
     updateActivityStatus,
     updateStats,
-    error,
     route.params,
   ]);
 

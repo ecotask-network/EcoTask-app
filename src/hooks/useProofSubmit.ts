@@ -12,6 +12,20 @@ import {
 import { useProofSyncStore } from '../store/proofSyncStore';
 import { useNetworkStatus } from './useNetworkStatus';
 
+export type ProofSubmitResult =
+  | {
+      status: 'success';
+      result: Awaited<ReturnType<typeof submitProof>>;
+    }
+  | {
+      status: 'queued';
+      error: string;
+    }
+  | {
+      status: 'failed';
+      error: string;
+    };
+
 export function useProofSubmit() {
   const { isInitialised } = useNetworkStatus();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -113,23 +127,40 @@ export function useProofSubmit() {
         // Stay in 'verifying' — the caller mounts useProofStatus which drives
         // the transition to 'confirmed' or 'failed' once the backend responds.
         setProgress('verifying');
-        return result;
+        if (result === undefined || result === null) {
+          const message = 'Submission returned no result';
+          setError(message);
+          setProgress('failed');
+          return { status: 'failed', error: message };
+        }
+        return { status: 'success', result };
       } catch (err) {
-        enqueueProof({
-          id: `${Date.now()}`,
-          taskId,
-          photoPath: photoUri,
-          lat,
-          lng,
-          createdAt: new Date().toISOString(),
-          capturedAt,
-          photoCid: (err as any)?.photoCid,
-          metadataCid: (err as any)?.metadataCid,
-        });
-        setPendingCount(loadQueue().length);
-        setError((err as any).message || 'Upload failed, saved for later');
-        setProgress('failed');
-        return undefined;
+        const message = (err as any)?.message || 'Upload failed';
+        try {
+          enqueueProof({
+            id: `${Date.now()}`,
+            taskId,
+            photoPath: photoUri,
+            lat,
+            lng,
+            createdAt: new Date().toISOString(),
+            capturedAt,
+            photoCid: (err as any)?.photoCid,
+            metadataCid: (err as any)?.metadataCid,
+          });
+          setPendingCount(loadQueue().length);
+          const queuedMessage = `Upload failed, saved for later: ${message}`;
+          setError(queuedMessage);
+          setProgress('failed');
+          return { status: 'queued', error: queuedMessage };
+        } catch (queueError) {
+          const failureMessage =
+            (queueError as any)?.message ||
+            `Upload failed and could not be saved: ${message}`;
+          setError(failureMessage);
+          setProgress('failed');
+          return { status: 'failed', error: failureMessage };
+        }
       } finally {
         setIsSubmitting(false);
       }
