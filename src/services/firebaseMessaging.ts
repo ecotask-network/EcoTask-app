@@ -45,7 +45,6 @@ export function getMessaging(): FirebaseMessagingAdapter {
     // require() is used intentionally: it works in both the CommonJS Jest
     // transform and the Metro bundler, and it allows jest.mock() on this file
     // to intercept the call cleanly.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { default: messaging } = require('@react-native-firebase/messaging');
     const instance = messaging();
     return {
