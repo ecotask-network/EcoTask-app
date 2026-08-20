@@ -11,7 +11,6 @@ import {
   DIFFICULTY_CONFIG,
   Task,
 } from '../types';
-import { normalizeTaskStatus } from '../utils/sortTasks';
 
 type TaskDetailRoute = RouteProp<
   { TaskDetail: { taskId: string } },
@@ -34,11 +33,11 @@ export default function TaskDetailScreen() {
 
   async function loadTask() {
     setLoading(true);
+    setError(null);
     try {
-      const data = await fetchTaskById(taskId);
-      setTask({ ...data, status: normalizeTaskStatus(data.status) });
-    } catch (err: any) {
-      setError(err.message);
+      setTask(await fetchTaskById(taskId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load task');
     } finally {
       setLoading(false);
     }

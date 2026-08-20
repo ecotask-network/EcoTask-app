@@ -65,7 +65,7 @@ export function useProofSubmit() {
                 lat: opts?.lat,
                 lng: opts?.lng,
               }),
-              proofFileName(taskId, 'json'),
+              proofFileName(taskId, undefined, 'json'),
             );
             metadataCid = metadataRes.cid;
           }

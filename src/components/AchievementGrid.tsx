@@ -3,6 +3,7 @@ import { View, Text } from 'react-native';
 import { colors, spacing } from '../utils/theme';
 import {
   Achievement,
+  getAchievements,
   getEarnedCount,
   getNextAchievement,
   getAchievements,

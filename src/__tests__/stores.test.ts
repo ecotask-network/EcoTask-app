@@ -3,6 +3,7 @@ import { useWalletStore } from '../store/walletStore';
 import { useTaskStore } from '../store/taskStore';
 import { useUserStore } from '../store/userStore';
 import { useActivityStore } from '../store/activityStore';
+import { Task } from '../types';
 
 function makeJwt(exp: number): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256' })).toString(
@@ -19,6 +20,7 @@ describe('walletStore', () => {
       publicKey: null,
       balance: null,
       ecoBalance: null,
+      usdcBalance: null,
     });
   });
 
@@ -49,18 +51,26 @@ describe('walletStore', () => {
     expect(useWalletStore.getState().ecoBalance).toBe('500');
   });
 
+  it('sets USDC balance', () => {
+    const { setUsdcBalance } = useWalletStore.getState();
+    setUsdcBalance('25.50');
+    expect(useWalletStore.getState().usdcBalance).toBe('25.50');
+  });
+
   it('disconnects and clears all state', () => {
-    const { connect, setBalance, setEcoBalance, disconnect } =
+    const { connect, setBalance, setEcoBalance, setUsdcBalance, disconnect } =
       useWalletStore.getState();
     connect('GCXXYZ...');
     setBalance('10');
     setEcoBalance('20');
+    setUsdcBalance('5.00');
     disconnect();
     const state = useWalletStore.getState();
     expect(state.isConnected).toBe(false);
     expect(state.publicKey).toBeNull();
     expect(state.balance).toBeNull();
     expect(state.ecoBalance).toBeNull();
+    expect(state.usdcBalance).toBeNull();
   });
 });
 
@@ -86,12 +96,12 @@ describe('taskStore', () => {
   });
 
   it('sets tasks', () => {
-    const tasks = [
+    const tasks: Task[] = [
       {
         id: '1',
         title: 'Plant tree',
         description: 'Desc',
-        type: 'TREE_PLANTING',
+        type: 'TREE_PLANTING' as const,
         rewardAmount: 10,
         lat: 0,
         lng: 0,
@@ -100,16 +110,16 @@ describe('taskStore', () => {
     ];
     useTaskStore.getState().setTasks(tasks as any);
     expect(useTaskStore.getState().tasks).toHaveLength(1);
-    expect(useTaskStore.getState().tasks[0].title).toBe('Plant tree');
+    expect(useTaskStore.getState().tasks[0]!.title).toBe('Plant tree');
   });
 
   it('appends tasks', () => {
-    const tasks = [
+    const tasks: Task[] = [
       {
         id: '1',
         title: 'A',
         description: '',
-        type: 'TREE_PLANTING',
+        type: 'TREE_PLANTING' as const,
         rewardAmount: 10,
         lat: 0,
         lng: 0,
@@ -122,7 +132,7 @@ describe('taskStore', () => {
         id: '2',
         title: 'B',
         description: '',
-        type: 'TRASH_COLLECTION',
+        type: 'TRASH_COLLECTION' as const,
         rewardAmount: 20,
         lat: 1,
         lng: 1,
@@ -133,11 +143,11 @@ describe('taskStore', () => {
   });
 
   it('selects a task and stamps selectedAt', () => {
-    const task = {
+    const task: Task = {
       id: '1',
       title: 'Task',
       description: '',
-      type: 'OTHER',
+      type: 'OTHER' as const,
       rewardAmount: 5,
       lat: 0,
       lng: 0,
@@ -149,11 +159,11 @@ describe('taskStore', () => {
   });
 
   it('clears selectedAt when deselecting', () => {
-    const task = {
+    const task: Task = {
       id: '1',
       title: 'Task',
       description: '',
-      type: 'OTHER',
+      type: 'OTHER' as const,
       rewardAmount: 5,
       lat: 0,
       lng: 0,
@@ -287,7 +297,7 @@ describe('activityStore', () => {
     });
     const activities = useActivityStore.getState().activities;
     expect(activities).toHaveLength(2);
-    expect(activities[0].id).toBe('2');
+    expect(activities[0]!.id).toBe('2');
   });
 
   it('caps the feed at 20 activities', () => {

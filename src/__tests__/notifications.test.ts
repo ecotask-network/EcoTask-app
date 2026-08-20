@@ -228,7 +228,9 @@ describe('listenForTokenRefresh', () => {
 
     listenForTokenRefresh(t => received.push(t));
 
-    (capturedHandler as any)?.('rotated-token-xyz');
+    if (capturedHandler) {
+      (capturedHandler as (token: string) => void)('rotated-token-xyz');
+    }
     expect(received).toContain('rotated-token-xyz');
   });
 
@@ -286,7 +288,7 @@ describe('scheduleLocalNotification', () => {
     });
 
     expect(received.length).toBe(1);
-    expect(received[0].title).toBe('Hello');
+    expect(received[0]!.title).toBe('Hello');
     unsub();
   });
 
@@ -333,7 +335,7 @@ describe('scheduleLocalNotification', () => {
       },
     });
 
-    expect(received[0]).toMatchObject({
+    expect(received[0]!).toMatchObject({
       title: 'Reward confirmed! 🎉',
       body: expect.stringContaining('50 ECO'),
       data: expect.objectContaining({
@@ -361,7 +363,7 @@ describe('scheduleDailyStreakReminder', () => {
       id: 'a1',
       taskId: 't1',
       taskTitle: 'Test',
-      taskType: 'TREE_PLANTING',
+      taskType: 'TRASH_COLLECTION',
       rewardAmount: 10,
       rewardToken: 'ECO',
       completedAt: new Date().toISOString(),
@@ -405,7 +407,7 @@ describe('scheduleDailyStreakReminder', () => {
       id: 'a2',
       taskId: 't2',
       taskTitle: 'Old task',
-      taskType: 'TREE_PLANTING',
+      taskType: 'TRASH_COLLECTION',
       rewardAmount: 5,
       rewardToken: 'ECO',
       completedAt: yesterday.toISOString(),
@@ -416,8 +418,8 @@ describe('scheduleDailyStreakReminder', () => {
     const unsub = onNotificationReceived(p => received.push(p));
     await scheduleDailyStreakReminder();
     expect(received.length).toBe(1);
-    expect(received[0].data?.type).toBe(NOTIFICATION_TYPES.STREAK_REMINDER);
-    expect(received[0].data?.deepLink).toBe('ecotask://tasks');
+    expect(received[0]!.data?.type).toBe(NOTIFICATION_TYPES.STREAK_REMINDER);
+    expect(received[0]!.data?.deepLink).toBe('ecotask://tasks');
     unsub();
   });
 
@@ -441,9 +443,9 @@ describe('scheduleDailyStreakReminder', () => {
     await scheduleDailyStreakReminder();
 
     if (streak > 0) {
-      expect(received[0].title).toContain(`${streak}-day streak`);
+      expect(received[0]!.title).toContain(`${streak}-day streak`);
     } else {
-      expect(received[0].title).toContain('waiting');
+      expect(received[0]!.title).toContain('waiting');
     }
     unsub();
   });
@@ -453,7 +455,7 @@ describe('scheduleDailyStreakReminder', () => {
     const received: NotificationPayload[] = [];
     const unsub = onNotificationReceived(p => received.push(p));
     await scheduleDailyStreakReminder();
-    expect(received[0].body).toContain('climate-action task');
+    expect(received[0]!.body).toContain('climate-action task');
     unsub();
   });
 });

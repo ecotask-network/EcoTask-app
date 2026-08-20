@@ -1,7 +1,7 @@
 import './__mocks__/setup';
 import React from 'react';
 import renderer, { act } from 'react-test-renderer';
-import { TouchableOpacity } from 'react-native';
+import { TouchableOpacity, Text } from 'react-native';
 import SubmitScreen from '../screens/SubmitScreen';
 import { useTaskStore } from '../store/taskStore';
 import { Task } from '../types';
@@ -41,7 +41,7 @@ describe('SubmitScreen', () => {
 
   it('shows the "Choose a task" fallback when nothing is selected', () => {
     tree = renderer.create(<SubmitScreen />);
-    const texts = tree.root.findAllByType('Text' as any);
+    const texts = tree.root.findAllByType(Text);
     expect(texts.some(t => t.props.children === 'Choose a task')).toBe(true);
     expect(mockNavigate).not.toHaveBeenCalled();
   });
@@ -50,7 +50,7 @@ describe('SubmitScreen', () => {
     tree = renderer.create(<SubmitScreen />);
     const button = tree.root.findAllByType(TouchableOpacity)[0];
     act(() => {
-      button.props.onPress();
+      button?.props.onPress();
     });
     expect(mockNavigate).toHaveBeenCalledWith('Tasks');
   });

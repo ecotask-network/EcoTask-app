@@ -238,7 +238,7 @@ describe('MapScreen — with location and tasks', () => {
     );
     expect(markerNode.length).toBeGreaterThan(0);
     act(() => {
-      markerNode[0].props.onCalloutPress?.();
+      markerNode[0]!.props.onCalloutPress?.();
     });
 
     expect(mockNavigate).toHaveBeenCalledWith('TaskDetail', {

@@ -60,12 +60,12 @@ describe('groupByTaskType', () => {
     ];
     const groups = groupByTaskType(activities);
     expect(groups).toHaveLength(2);
-    expect(groups[0].type).toBe('TRASH_COLLECTION');
-    expect(groups[0].count).toBe(1);
-    expect(groups[0].total).toBe(50);
-    expect(groups[1].type).toBe('TREE_PLANTING');
-    expect(groups[1].count).toBe(2);
-    expect(groups[1].total).toBe(20);
+    expect(groups[0]!.type).toBe('TRASH_COLLECTION');
+    expect(groups[0]!.count).toBe(1);
+    expect(groups[0]!.total).toBe(50);
+    expect(groups[1]!.type).toBe('TREE_PLANTING');
+    expect(groups[1]!.count).toBe(2);
+    expect(groups[1]!.total).toBe(20);
   });
 
   it('computes the share of each type', () => {
@@ -74,8 +74,8 @@ describe('groupByTaskType', () => {
       makeActivity('2', 'TRASH_COLLECTION', 75, '2026-08-02'),
     ];
     const groups = groupByTaskType(activities);
-    expect(groups[0].share).toBeCloseTo(0.75);
-    expect(groups[1].share).toBeCloseTo(0.25);
+    expect(groups[0]!.share).toBeCloseTo(0.75);
+    expect(groups[1]!.share).toBeCloseTo(0.25);
   });
 });
 
@@ -90,10 +90,10 @@ describe('computeWeeklySeries', () => {
     ];
     const series = computeWeeklySeries(activities, 4, now);
     expect(series).toHaveLength(4);
-    expect(series[0].earned).toBe(30);
-    expect(series[1].earned).toBe(0);
-    expect(series[2].earned).toBe(20);
-    expect(series[3].earned).toBe(10);
+    expect(series[0]!.earned).toBe(30);
+    expect(series[1]!.earned).toBe(0);
+    expect(series[2]!.earned).toBe(20);
+    expect(series[3]!.earned).toBe(10);
   });
 
   it('excludes pending activities', () => {
@@ -101,7 +101,7 @@ describe('computeWeeklySeries', () => {
       makeActivity('1', 'OTHER', 10, '2026-08-11T10:00:00', 'pending'),
     ];
     const series = computeWeeklySeries(activities, 1, now);
-    expect(series[0].earned).toBe(0);
+    expect(series[0]!.earned).toBe(0);
   });
 
   it('orders buckets oldest to newest', () => {
@@ -110,7 +110,7 @@ describe('computeWeeklySeries', () => {
       makeActivity('2', 'OTHER', 5, '2026-08-04T10:00:00'),
     ];
     const series = computeWeeklySeries(activities, 2, now);
-    expect(series[0].earned).toBe(5);
-    expect(series[1].earned).toBe(5);
+    expect(series[0]!.earned).toBe(5);
+    expect(series[1]!.earned).toBe(5);
   });
 });

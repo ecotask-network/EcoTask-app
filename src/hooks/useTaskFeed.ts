@@ -58,14 +58,16 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
         }
 
         const loc = locationRef.current;
-        const withLocation = loc.lat !== undefined && loc.lng !== undefined;
-        if (withLocation) {
-          params.lat = loc.lat;
-          params.lng = loc.lng;
+        const lat = loc.lat;
+        const lng = loc.lng;
+        const withLocation = lat !== undefined && lng !== undefined;
+        if (withLocation && lat !== undefined && lng !== undefined) {
+          params.lat = lat;
+          params.lng = lng;
           if (serverParams.radius !== undefined) {
             params.radius = serverParams.radius;
           }
-          lastFetchLocationRef.current = { lat: loc.lat as number, lng: loc.lng as number };
+          lastFetchLocationRef.current = { lat, lng };
         } else {
           lastFetchLocationRef.current = null;
         }
@@ -77,7 +79,7 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
             ...task,
             status: normalizeTaskStatus(task.status),
           }));
-          if (withLocation) {
+          if (withLocation && loc.lat !== undefined && loc.lng !== undefined) {
             return enrichTasksWithDistance(withStatus, loc.lat, loc.lng);
           }
           return withStatus;

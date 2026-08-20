@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { Platform } from 'react-native';
 import { useUserStore } from '../store/userStore';
 import { useWalletStore } from '../store/walletStore';
 import {
@@ -46,7 +45,9 @@ export function useAuth() {
           signature = await openLobstrForSigning(challenge, publicKey);
         } else {
           const freighter = (
-            Platform.OS === 'web' ? (globalThis as any).window : ({} as FreighterWindow)
+            typeof (globalThis as any).window !== 'undefined'
+              ? (globalThis as any).window
+              : ({} as FreighterWindow)
           ).freighter;
 
           if (freighter?.signTransaction) {

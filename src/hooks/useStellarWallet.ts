@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Platform } from 'react-native';
 import Config from 'react-native-config';
 import { useWalletStore } from '../store/walletStore';
 import * as stellar from '../services/stellar';
@@ -24,6 +23,7 @@ export function useStellarWallet() {
     disconnect,
     setBalance,
     setEcoBalance,
+    setUsdcBalance,
     publicKey,
     isConnected,
     walletType,
@@ -48,6 +48,22 @@ export function useStellarWallet() {
     [publicKey, setEcoBalance],
   );
 
+  const refreshUsdcBalance = useCallback(
+    async (pk?: string) => {
+      const key = pk || publicKey;
+      const usdcIssuer = Config.USDC_ISSUER;
+      if (key && usdcIssuer) {
+        const usdcBalance = await stellar.getTokenBalance(
+          key,
+          'USDC',
+          usdcIssuer,
+        );
+        setUsdcBalance(usdcBalance);
+      }
+    },
+    [publicKey, setUsdcBalance],
+  );
+
   const connectAccount = useCallback(
     async (
       key: string,
@@ -61,8 +77,9 @@ export function useStellarWallet() {
       const balance = await stellar.getBalance(key);
       setBalance(balance);
       await refreshEcoBalance(key);
+      await refreshUsdcBalance(key);
     },
-    [connect, setBalance, refreshEcoBalance],
+    [connect, setBalance, refreshEcoBalance, refreshUsdcBalance],
   );
 
   const connectFreighter = useCallback(async () => {
@@ -70,7 +87,9 @@ export function useStellarWallet() {
     setError(null);
     try {
       const freighter = (
-        Platform.OS === 'web' ? (globalThis as any).window : ({} as FreighterWindow)
+        typeof (globalThis as any).window !== 'undefined'
+          ? (globalThis as any).window
+          : ({} as FreighterWindow)
       ).freighter;
       if (!freighter) {
         throw new Error('Freighter extension not detected');
@@ -148,7 +167,8 @@ export function useStellarWallet() {
 
       // Extract the user's real public key from the signed transaction source.
       const parsed = TransactionBuilder.fromXDR(signedXDR, NETWORK);
-      const lobstrPublicKey = (parsed as any).source;
+      const lobstrPublicKey =
+        'source' in parsed ? parsed.source : parsed.feeSource;
 
       await connectAccount(lobstrPublicKey, undefined, 'lobstr');
     } catch (err: any) {
@@ -213,8 +233,15 @@ export function useStellarWallet() {
     if (isConnected && publicKey) {
       refreshBalance();
       refreshEcoBalance();
+      refreshUsdcBalance();
     }
-  }, [isConnected, publicKey, refreshBalance, refreshEcoBalance]);
+  }, [
+    isConnected,
+    publicKey,
+    refreshBalance,
+    refreshEcoBalance,
+    refreshUsdcBalance,
+  ]);
 
   return {
     isConnecting,
@@ -229,5 +256,6 @@ export function useStellarWallet() {
     disconnectWallet,
     refreshBalance,
     refreshEcoBalance,
+    refreshUsdcBalance,
   };
 }

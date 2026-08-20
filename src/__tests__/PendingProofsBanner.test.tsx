@@ -2,7 +2,7 @@ import './__mocks__/rn-modules';
 
 import React from 'react';
 import renderer, { act } from 'react-test-renderer';
-import { TouchableOpacity } from 'react-native';
+import { TouchableOpacity, Text } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import PendingProofsBanner from '../components/PendingProofsBanner';
 
@@ -45,7 +45,7 @@ describe('PendingProofsBanner', () => {
       );
     });
 
-    const texts = tree!.root.findAllByType('Text' as any);
+    const texts = tree!.root.findAllByType(Text);
     expect(
       texts.some(t => t.props.children === 'Checking your connection…'),
     ).toBe(true);
@@ -84,7 +84,7 @@ describe('PendingProofsBanner', () => {
       );
     });
 
-    const texts = tree!.root.findAllByType('Text' as any);
+    const texts = tree!.root.findAllByType(Text);
     expect(
       texts.some(
         t => t.props.children === "They will upload once you're back online",

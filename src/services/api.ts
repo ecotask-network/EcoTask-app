@@ -5,6 +5,8 @@ import { useUserStore } from '../store/userStore';
 import { useWalletStore } from '../store/walletStore';
 import { getInAppSecret } from './walletVault';
 import { signChallengeXDR } from './stellar';
+import { Task } from '../types';
+import { normalizeTaskStatus } from '../utils/sortTasks';
 
 declare module 'axios' {
   export interface AxiosRequestConfig {
@@ -181,9 +183,20 @@ export async function fetchTasks(params?: Record<string, any>) {
   return res.data;
 }
 
-export async function fetchTaskById(id: string) {
+/**
+ * Narrows a raw `/tasks` payload into a `Task`. The backend sends `status` as a
+ * free-form string, so it is coerced to the `TaskStatus` union here — the one
+ * place the untyped network response enters the app — leaving every caller with
+ * a value the compiler can check.
+ */
+function toTask(raw: unknown): Task {
+  const data = (raw ?? {}) as Omit<Task, 'status'> & { status?: unknown };
+  return { ...data, status: normalizeTaskStatus(data.status) };
+}
+
+export async function fetchTaskById(id: string): Promise<Task> {
   const res = await api.get(`/tasks/${id}`);
-  return res.data;
+  return toTask(res.data);
 }
 
 export async function submitProof(formData: FormData) {

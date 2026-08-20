@@ -20,7 +20,7 @@ let onNotificationCallback: ((payload: NotificationPayload) => void) | null =
 export async function requestNotificationPermission(): Promise<boolean> {
   if (Platform.OS === 'android') {
     const granted = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS!,
     );
     return granted === PermissionsAndroid.RESULTS.GRANTED;
   }
@@ -129,7 +129,8 @@ export async function scheduleLocalNotification(
 
   // Best-effort: if notifee is available and payload requests scheduling, use it
   try {
-    const notifee = await import('@notifee/react-native');
+    const notifeeModule = await import('@notifee/react-native');
+    const notifee = notifeeModule.default || notifeeModule;
     // If payload contains a timestamp/data.trigger we could schedule; for now display immediately
     const notification = await (notifee as any).displayNotification({
       title: payload.title,

@@ -42,7 +42,7 @@ describe('signChallengeXDR', () => {
     const parsed = TransactionBuilder.fromXDR(signedXDR, Networks.TESTNET);
     expect(parsed.signatures).toHaveLength(1);
 
-    const hint = parsed.signatures[0].hint().toString('hex');
+    const hint = parsed.signatures[0]!.hint().toString('hex');
     const expectedHint = keypair.rawPublicKey().slice(-4).toString('hex');
     expect(hint).toBe(expectedHint);
   });

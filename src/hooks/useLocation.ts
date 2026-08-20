@@ -8,8 +8,6 @@ interface Location {
   lng: number;
 }
 
-const MOVEMENT_THRESHOLD_KM = 0.05; // 50 metres
-
 export function useLocation() {
   const [location, setLocation] = useState<Location | null>(null);
   const [permissionGranted, setPermissionGranted] = useState(false);
@@ -18,11 +16,38 @@ export function useLocation() {
   const lastAcceptedRef = useRef<Location | null>(null);
   const watchIdRef = useRef<number | null>(null);
 
-  const startWatch = useCallback(() => {
-    if (watchIdRef.current !== null) {
-      Geolocation.clearWatch(watchIdRef.current);
+  useEffect(() => {
+    requestPermission();
+
+    return () => {
+      // Acceptance: clear watcher on unmount
+      if (watchIdRef.current !== null) {
+        Geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function requestPermission() {
+    try {
+      if (Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION!,
+        );
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          setError('Location permission denied');
+          return;
+        }
+      }
+      setPermissionGranted(true);
+      startWatch();
+    } catch (err: any) {
+      setError(err.message);
     }
 
+  function startWatch() {
+    // Continuous watch – low power with native 50m distanceFilter
     watchIdRef.current = Geolocation.watchPosition(
       pos => {
         const next = {
@@ -30,26 +55,14 @@ export function useLocation() {
           lng: pos.coords.longitude,
         };
 
-        if (lastAcceptedRef.current !== null) {
-          const distanceKm = haversineDistance(
-            lastAcceptedRef.current.lat,
-            lastAcceptedRef.current.lng,
-            next.lat,
-            next.lng,
-          );
-          if (distanceKm < MOVEMENT_THRESHOLD_KM) {
-            return;
-          }
-        }
-
         lastAcceptedRef.current = next;
         setLocation(next);
         setError(null);
       },
       err => setError(err.message),
       {
-        enableHighAccuracy: false,
-        distanceFilter: 0,
+        enableHighAccuracy: false, // battery-friendly continuous watch
+        distanceFilter: 50, // delegate 50m movement filtering to native GPS pipeline
         timeout: 15000,
         maximumAge: 10000,
       },
