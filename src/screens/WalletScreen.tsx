@@ -156,6 +156,8 @@ export default function WalletScreen() {
 
       <TouchableOpacity
         onPress={() => navigation.navigate('SendTokens')}
+        accessibilityRole="button"
+        accessibilityLabel="Send Tokens"
         style={{
           marginTop: spacing.xl,
           padding: spacing.md,
@@ -169,6 +171,8 @@ export default function WalletScreen() {
 
       <TouchableOpacity
         onPress={disconnectWallet}
+        accessibilityRole="button"
+        accessibilityLabel="Disconnect Wallet"
         style={{
           marginTop: spacing.md,
           marginBottom: spacing.xl,

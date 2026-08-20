@@ -69,7 +69,14 @@ export default function OnboardingScreen() {
         }}
       >
         <View style={{ alignItems: 'center', marginBottom: spacing.xl * 2 }}>
-          <Text style={{ fontSize: 48, color: colors.primary }}>🌱</Text>
+          <Text 
+            style={{ fontSize: 48, color: colors.primary }}
+            accessible={true}
+            accessibilityLabel="Seedling"
+            accessibilityRole="image"
+          >
+            🌱
+          </Text>
           <Text
             style={{
               fontSize: 32,
@@ -98,6 +105,7 @@ export default function OnboardingScreen() {
               textAlign: 'center',
               marginBottom: spacing.md,
             }}
+            accessibilityLiveRegion="polite"
           >
             {error}
           </Text>
@@ -106,6 +114,8 @@ export default function OnboardingScreen() {
         <TouchableOpacity
           onPress={connectFreighter}
           disabled={busy}
+          accessibilityLabel="Connect Freighter wallet"
+          accessibilityRole="button"
           style={{
             padding: spacing.md,
             backgroundColor: colors.primary,
@@ -127,6 +137,8 @@ export default function OnboardingScreen() {
         <TouchableOpacity
           onPress={connectLobstr}
           disabled={busy}
+          accessibilityLabel="Connect Lobstr wallet"
+          accessibilityRole="button"
           style={{
             padding: spacing.md,
             backgroundColor: colors.surface,
@@ -146,6 +158,8 @@ export default function OnboardingScreen() {
         <TouchableOpacity
           onPress={handleCreateWallet}
           disabled={busy}
+          accessibilityLabel="Create Test Wallet"
+          accessibilityRole="button"
           style={{
             padding: spacing.md,
             backgroundColor: colors.surface,
@@ -164,6 +178,8 @@ export default function OnboardingScreen() {
         <TouchableOpacity
           onPress={() => setShowImport(v => !v)}
           disabled={busy}
+          accessibilityLabel={showImport ? 'Cancel Import' : 'Import Existing Wallet'}
+          accessibilityRole="button"
           style={{
             padding: spacing.md,
             backgroundColor: colors.surface,
@@ -185,6 +201,7 @@ export default function OnboardingScreen() {
               onChangeText={setSecretKey}
               placeholder="Paste your secret key (S...)"
               placeholderTextColor={colors.textSecondary}
+              accessibilityLabel="Secret Key Input"
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
@@ -202,6 +219,8 @@ export default function OnboardingScreen() {
             <TouchableOpacity
               onPress={handleImport}
               disabled={busy || !secretKey.trim()}
+              accessibilityLabel="Import Wallet"
+              accessibilityRole="button"
               style={{
                 padding: spacing.md,
                 backgroundColor: colors.primary,

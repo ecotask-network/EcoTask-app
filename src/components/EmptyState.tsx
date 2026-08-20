@@ -21,7 +21,7 @@ export default function EmptyState({
         marginTop: spacing.xl * 2,
       }}
     >
-      <Text style={{ fontSize: 64 }}>{icon}</Text>
+      <Text accessible={true} accessibilityRole="image" accessibilityLabel="Empty state icon" style={{ fontSize: 64 }}>{icon}</Text>
       <Text
         style={{
           color: colors.text,

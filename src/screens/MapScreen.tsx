@@ -220,8 +220,14 @@ export default function MapScreen() {
 
       {/* ── Header ── */}
       <View style={styles.header} pointerEvents="box-none">
-        <View style={styles.headerCard}>
-          <Text style={styles.headerTitle}>🗺️ Discover Tasks</Text>
+        <View style={styles.headerCard} accessibilityLiveRegion="polite">
+          <Text 
+            style={styles.headerTitle}
+            accessible={true}
+            accessibilityLabel="Discover Tasks Map"
+          >
+            🗺️ Discover Tasks
+          </Text>
           {isLoading && (
             <ActivityIndicator
               size="small"
@@ -230,7 +236,12 @@ export default function MapScreen() {
             />
           )}
           {error != null && (
-            <TouchableOpacity onPress={refresh} style={styles.retryBtn}>
+            <TouchableOpacity 
+              onPress={refresh} 
+              style={styles.retryBtn}
+              accessibilityLabel="Retry loading tasks"
+              accessibilityRole="button"
+            >
               <Text style={styles.retryText}>Retry</Text>
             </TouchableOpacity>
           )}
@@ -245,6 +256,8 @@ export default function MapScreen() {
               key={km}
               testID={`radius-btn-${km}`}
               onPress={() => setRadiusKm(km)}
+              accessibilityLabel={`Set radius to ${km} kilometers`}
+              accessibilityRole="button"
               style={[
                 styles.radiusOpt,
                 radiusKm === km && styles.radiusOptActive,
@@ -268,6 +281,8 @@ export default function MapScreen() {
         <TouchableOpacity
           testID="recenter-btn"
           style={styles.recenterBtn}
+          accessibilityLabel="Recenter map on your location"
+          accessibilityRole="button"
           onPress={() => {
             mapRef.current?.animateToRegion(
               {
@@ -280,14 +295,26 @@ export default function MapScreen() {
             );
           }}
         >
-          <Text style={styles.recenterIcon}>◎</Text>
+          <Text 
+            style={styles.recenterIcon}
+            accessible={true}
+            accessibilityLabel="Recenter map"
+            accessibilityRole="image"
+          >
+            ◎
+          </Text>
         </TouchableOpacity>
       )}
 
       {/* ── No-location fallback notice ── */}
       {!location && (
         <View style={styles.noLocationBanner} pointerEvents="none">
-          <Text style={styles.noLocationText}>
+          <Text 
+            style={styles.noLocationText}
+            accessible={true}
+            accessibilityLabel="Enable location to see tasks near you"
+            accessibilityLiveRegion="polite"
+          >
             📍 Enable location to see tasks near you
           </Text>
         </View>

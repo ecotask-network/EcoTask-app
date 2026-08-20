@@ -122,8 +122,8 @@ export default function TaskListScreen() {
           alignItems: 'center',
         }}
       >
-        <Text style={{ color: colors.error }}>{error}</Text>
-        <TouchableOpacity onPress={refresh} style={{ marginTop: spacing.md }}>
+        <Text accessibilityLiveRegion="polite" style={{ color: colors.error }}>{error}</Text>
+        <TouchableOpacity onPress={refresh} accessibilityRole="button" accessibilityLabel="Retry" style={{ marginTop: spacing.md }}>
           <Text style={{ color: colors.primary }}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -159,6 +159,9 @@ export default function TaskListScreen() {
           <TouchableOpacity
             key={t.key}
             onPress={() => setActiveType(t.key)}
+            accessibilityRole="button"
+            accessibilityLabel={`Filter by ${t.label}`}
+            accessibilityState={{ selected: activeType === t.key }}
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -199,6 +202,9 @@ export default function TaskListScreen() {
           <TouchableOpacity
             key={s.key}
             onPress={() => setStatusFilter(s.key)}
+            accessibilityRole="button"
+            accessibilityLabel={`Filter by status ${s.label}`}
+            accessibilityState={{ selected: statusFilter === s.key }}
             style={{
               paddingHorizontal: spacing.md,
               paddingVertical: spacing.xs,
@@ -231,6 +237,7 @@ export default function TaskListScreen() {
           placeholderTextColor={colors.textSecondary}
           autoCapitalize="none"
           autoCorrect={false}
+          accessibilityLabel="Search tasks"
           style={{
             backgroundColor: colors.surface,
             borderRadius: 12,
@@ -256,6 +263,9 @@ export default function TaskListScreen() {
           <TouchableOpacity
             key={opt.key}
             onPress={() => setSortMode(opt.key)}
+            accessibilityRole="button"
+            accessibilityLabel={`Sort by ${opt.label}`}
+            accessibilityState={{ selected: sortMode === opt.key }}
             style={{
               paddingHorizontal: spacing.md,
               paddingVertical: spacing.xs,
@@ -289,6 +299,9 @@ export default function TaskListScreen() {
               <TouchableOpacity
                 key={km}
                 onPress={() => setRadiusKm(km)}
+                accessibilityRole="button"
+                accessibilityLabel={`Radius ${km} kilometers`}
+                accessibilityState={{ selected: radiusKm === km }}
                 style={{
                   paddingHorizontal: spacing.sm,
                   paddingVertical: spacing.xs,

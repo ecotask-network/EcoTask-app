@@ -157,7 +157,7 @@ export default function SendTokensScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={{ padding: spacing.lg, paddingTop: spacing.xl }}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Cancel">
           <Text style={{ color: colors.primary, fontSize: 16 }}>Cancel</Text>
         </TouchableOpacity>
         <Text
@@ -194,6 +194,7 @@ export default function SendTokensScreen() {
           placeholderTextColor={colors.textSecondary}
           autoCapitalize="none"
           autoCorrect={false}
+          accessibilityLabel="Destination Address"
           style={{
             backgroundColor: colors.surface,
             borderRadius: 12,
@@ -221,6 +222,7 @@ export default function SendTokensScreen() {
           placeholder="0.00"
           placeholderTextColor={colors.textSecondary}
           keyboardType="decimal-pad"
+          accessibilityLabel="Amount"
           style={{
             backgroundColor: colors.surface,
             borderRadius: 12,
@@ -252,6 +254,9 @@ export default function SendTokensScreen() {
             <TouchableOpacity
               key={a}
               onPress={() => setAsset(a)}
+              accessibilityRole="button"
+              accessibilityLabel={`Select asset ${a}`}
+              accessibilityState={{ selected: asset === a }}
               style={{
                 flex: 1,
                 padding: spacing.md,
@@ -277,6 +282,7 @@ export default function SendTokensScreen() {
 
         {error && (
           <Text
+            accessibilityLiveRegion="polite"
             style={{
               color: colors.error,
               textAlign: 'center',
@@ -291,6 +297,9 @@ export default function SendTokensScreen() {
         <TouchableOpacity
           onPress={handleSend}
           disabled={isSending}
+          accessibilityRole="button"
+          accessibilityLabel={isLobstr ? 'Send via Lobstr' : 'Send'}
+          accessibilityState={{ disabled: isSending }}
           style={{
             padding: spacing.md,
             backgroundColor: colors.primary,
