@@ -160,8 +160,16 @@ describe('useProofSubmit integration', () => {
     });
 
     await act(async () => {
-      const res = await ref.submit('task-3', '/p.jpg', CAPTURED_AT);
-      expect(res).toEqual({ status: 'success', result: submitResult });
+      const res = await ref.submit(
+        'task-3',
+        '/p.jpg',
+        '2026-01-01T00:00:00.000Z',
+      );
+      expect(res).toEqual({
+        status: 'success',
+        result: { ok: true },
+        ipfsPending: true,
+      });
       // Progress stays at 'verifying' — polling will drive to 'confirmed'.
       expect(ref.progress).toBe('verifying');
     });
