@@ -3,14 +3,25 @@ import './__mocks__/rn-modules';
 import React from 'react';
 import renderer, { act } from 'react-test-renderer';
 import NetInfo from '@react-native-community/netinfo';
-import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import {
+  useNetworkStatus,
+  NetworkStatusProvider,
+} from '../hooks/useNetworkStatus';
 
-function HookHarness({ onRef }: { onRef: (ref: any) => void }) {
+function HookHarnessInner({ onRef }: { onRef: (ref: any) => void }) {
   const status = useNetworkStatus();
   React.useEffect(() => {
     onRef(status);
   }, [status, onRef]);
   return null;
+}
+
+function HookHarness({ onRef }: { onRef: (ref: any) => void }) {
+  return (
+    <NetworkStatusProvider>
+      <HookHarnessInner onRef={onRef} />
+    </NetworkStatusProvider>
+  );
 }
 
 describe('useNetworkStatus', () => {

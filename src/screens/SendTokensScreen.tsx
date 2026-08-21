@@ -9,7 +9,6 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { colors, spacing } from '../utils/theme';
 import Config from 'react-native-config';
 import { useWalletStore } from '../store/walletStore';
@@ -24,11 +23,12 @@ import {
   openLobstrForPayment,
   LobstrNotInstalledError,
 } from '../services/lobstr';
+import { useRootNavigation } from '../navigation/useAppNavigation';
 
 type AssetChoice = 'native' | 'eco' | 'usdc';
 
 export default function SendTokensScreen() {
-  const navigation = useNavigation();
+  const navigation = useRootNavigation();
   const { publicKey, walletType } = useWalletStore();
   const { refreshBalance, refreshEcoBalance, refreshUsdcBalance } =
     useStellarWallet();

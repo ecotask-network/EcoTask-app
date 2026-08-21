@@ -39,7 +39,7 @@ describe('useLocation hook', () => {
     Platform.OS = 'android';
     jest
       .spyOn(PermissionsAndroid, 'request')
-      .mockResolvedValue(PermissionsAndroid.RESULTS.GRANTED);
+      .mockResolvedValue(PermissionsAndroid.RESULTS.GRANTED!);
 
     let watchCallback: ((pos: any) => void) | null = null;
     const watchPositionMock = jest
@@ -87,7 +87,7 @@ describe('useLocation hook', () => {
     Platform.OS = 'android';
     jest
       .spyOn(PermissionsAndroid, 'request')
-      .mockResolvedValue(PermissionsAndroid.RESULTS.DENIED);
+      .mockResolvedValue(PermissionsAndroid.RESULTS.DENIED!);
 
     await act(async () => {
       instance = renderer.create(<HookHarness onRef={r => (hookRef = r)} />);

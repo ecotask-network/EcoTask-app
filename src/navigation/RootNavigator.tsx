@@ -14,8 +14,9 @@ import NotificationPreferencesScreen from '../screens/NotificationPreferencesScr
 import TaskDetailScreen from '../screens/TaskDetailScreen';
 import SubmitProofScreen from '../screens/SubmitProofScreen';
 import SendTokensScreen from '../screens/SendTokensScreen';
-import { SubmitProofParams } from '../types';
 import { ECOTASK_SCHEME, resolveLobstrCallback } from '../services/lobstr';
+import type { RootStackParamList } from './types';
+import { parseDeepLink, navigateToTarget } from './deepLinks';
 import {
   registerForPushNotifications,
   sendTokenToServer,
@@ -25,54 +26,7 @@ import {
 } from '../services/notifications';
 import { getMessaging } from '../services/firebaseMessaging';
 
-export type RootStackParamList = {
-  Onboarding: undefined;
-  Main: undefined;
-  Profile: undefined;
-  EditProfile: undefined;
-  TaskDetail: { taskId: string };
-  SubmitProof: SubmitProofParams;
-  SendTokens: undefined;
-  NotificationPreferences: undefined;
-};
-
 const Stack = createNativeStackNavigator<RootStackParamList>();
-
-/**
- * Parse a deep-link string such as "ecotask://tasks" or
- * "ecotask://task/abc123" into a screen name + params understood by the
- * RootStack navigator.
- */
-function parseDeepLink(link: string | undefined): {
-  screen: keyof RootStackParamList;
-  params?: Record<string, unknown>;
-} | null {
-  if (!link) {
-    return null;
-  }
-  try {
-    const url = new URL(link);
-    const path = url.pathname.replace(/^\//, '') || url.host;
-    if (path === 'tasks') {
-      return { screen: 'Main' };
-    }
-    if (path.startsWith('task/')) {
-      const taskId = path.split('/')[1];
-      if (taskId) {
-        return { screen: 'TaskDetail', params: { taskId } };
-      }
-    }
-    if (path === 'wallet') {
-      return { screen: 'Main' };
-    }
-    if (path === 'notifications') {
-      return { screen: 'NotificationPreferences' };
-    }
-  } catch {
-    // Malformed URL — ignore.
-  }
-  return null;
-}
 
 /**
  * Linking configuration for the `ecotask://` deep-link scheme.
@@ -106,11 +60,7 @@ export default function RootNavigator() {
       pendingDeepLink.current = link ?? null;
       return;
     }
-    if (target.params) {
-      nav.navigate(target.screen as any, target.params as any);
-    } else {
-      nav.navigate(target.screen as any);
-    }
+    navigateToTarget(nav, target);
   }, []);
 
   useEffect(() => {
@@ -249,3 +199,4 @@ export default function RootNavigator() {
     </NavigationContainer>
   );
 }
+export type { RootStackParamList } from './types';

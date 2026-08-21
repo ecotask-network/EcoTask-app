@@ -166,7 +166,18 @@ export async function loginWithWallet(
 
 export async function fetchUserProfile() {
   const res = await api.get('/auth/me');
-  return res.data;
+  return res.data as {
+    id: string;
+    wallet: string;
+    name?: string;
+    bio?: string;
+    avatarUrl?: string;
+    stats?: {
+      treesPlanted: number;
+      plasticCollected: number;
+      co2Reduced: number;
+    };
+  };
 }
 
 export async function updateProfile(data: {

@@ -1,0 +1,3 @@
+# Keep patches byte-stable so `git apply` never fails due to
+# line-ending normalization on checkout.
+patches/*.patch -text

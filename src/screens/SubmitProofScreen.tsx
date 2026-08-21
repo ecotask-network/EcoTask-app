@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Image, Alert } from 'react-native';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import {
   useCameraPermission,
   useCameraDevice,
@@ -19,6 +19,7 @@ import {
   scheduleLocalNotification,
   NOTIFICATION_TYPES,
 } from '../services/notifications';
+import { useTaskStackNavigation } from '../navigation/useAppNavigation';
 
 type SubmitProofRoute = RouteProp<
   { SubmitProof: SubmitProofParams },
@@ -27,7 +28,7 @@ type SubmitProofRoute = RouteProp<
 
 export default function SubmitProofScreen() {
   const route = useRoute<SubmitProofRoute>();
-  const navigation = useNavigation();
+  const navigation = useTaskStackNavigation();
   const { taskId } = route.params;
   const cameraRef = useRef<Camera>(null);
 
@@ -79,14 +80,16 @@ export default function SubmitProofScreen() {
       Alert.alert('Error', 'Please take a photo first');
       return;
     }
-    const result = await submit(
+    const submission = await submit(
       taskId,
       photoUri,
       capturedAt,
       location?.lat,
       location?.lng,
     );
-    if (result) {
+
+    if (submission.status === 'success') {
+      const result = submission.result;
       // Store the activity immediately as 'pending'; useProofStatus will
       // patch it to 'confirmed' or 'failed' once the backend verifies.
       const newActivityId = Date.now().toString();
@@ -138,7 +141,13 @@ export default function SubmitProofScreen() {
           },
         });
       }
-    } else if (error) {
+
+      // The proof was submitted, but IPFS pinning failed (and retried) so it is
+      // not yet available on IPFS. Inform the user it will be retried.
+      if (submission.ipfsPending) {
+        Alert.alert('Proof saved', 'Proof saved, IPFS upload pending');
+      }
+    } else if (submission.status === 'queued') {
       // Offline / network failure: stored in the proof queue as pending.
       addActivity({
         id: Date.now().toString(),
@@ -150,6 +159,9 @@ export default function SubmitProofScreen() {
         completedAt: new Date().toISOString(),
         status: 'pending',
       });
+      Alert.alert('Proof queued', submission.error);
+    } else {
+      Alert.alert('Submission failed', submission.error);
     }
   }, [
     photoUri,
@@ -160,7 +172,6 @@ export default function SubmitProofScreen() {
     addActivity,
     updateActivityStatus,
     updateStats,
-    error,
     route.params,
   ]);
 
@@ -326,6 +337,11 @@ export default function SubmitProofScreen() {
               onPress={() => {
                 setPhotoUri(null);
                 setCapturedAt(null);
+                // Clear stale submission state so useProofStatus stops
+                // polling the old proof and no duplicate activity is
+                // created on recapture + resubmit.
+                setProofId(null);
+                setActivityId(null);
               }}
               disabled={isSubmitting}
               style={{

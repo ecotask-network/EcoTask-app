@@ -12,6 +12,119 @@ import {
 import { useProofSyncStore } from '../store/proofSyncStore';
 import { useNetworkStatus } from './useNetworkStatus';
 
+export type ProofSubmitResult =
+  | {
+      status: 'success';
+      result: Awaited<ReturnType<typeof submitProof>>;
+      /** true when IPFS pinning failed after retries but the submission still proceeded. */
+      ipfsPending?: boolean;
+    }
+  | {
+      status: 'queued';
+      error: string;
+      /** true when IPFS pinning failed after retries. */
+      ipfsPending?: boolean;
+    }
+  | {
+      status: 'failed';
+      error: string;
+      /** true when IPFS pinning failed after retries. */
+      ipfsPending?: boolean;
+    };
+
+// IPFS pinning resilience: retry a failed pin a small number of times with
+// exponential backoff before falling through (best-effort submission).
+const IPFS_MAX_ATTEMPTS = 2; // 1 initial attempt + 1 retry
+const IPFS_RETRY_BACKOFF_MS = 150;
+
+async function pinWithRetry<T>(
+  pin: () => Promise<T>,
+  label: string,
+  taskId: string,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= IPFS_MAX_ATTEMPTS; attempt++) {
+    try {
+      return await pin();
+    } catch (err) {
+      lastError = err;
+      console.warn(
+        `[useProofSubmit] IPFS pin attempt ${attempt}/${IPFS_MAX_ATTEMPTS} failed for ${label} (task ${taskId}):`,
+        err,
+      );
+      if (attempt < IPFS_MAX_ATTEMPTS) {
+        await new Promise<void>(resolve =>
+          setTimeout(() => resolve(), IPFS_RETRY_BACKOFF_MS * attempt),
+        );
+      }
+    }
+  }
+  console.warn(
+    `[useProofSubmit] IPFS pinning failed after ${IPFS_MAX_ATTEMPTS} attempts for ${label} (task ${taskId}); submission will proceed without a CID.`,
+    lastError,
+  );
+  throw lastError;
+}
+
+/**
+ * Attempt to pin the proof photo + metadata to IPFS, retrying each pin a small
+ * number of times. Returns the obtained CIDs (if any) and whether pinning
+ * ultimately failed (so the caller can inform the user / flag the submission).
+ */
+async function pinProofAssets(
+  taskId: string,
+  photoUri: string,
+  opts?: {
+    lat?: number;
+    lng?: number;
+    photoCid?: string;
+    metadataCid?: string;
+  },
+): Promise<{ photoCid?: string; metadataCid?: string; ipfsPending: boolean }> {
+  let photoCid = opts?.photoCid;
+  let metadataCid = opts?.metadataCid;
+  let ipfsPending = false;
+
+  if (!photoCid || !metadataCid) {
+    try {
+      if (!photoCid) {
+        const photoRes = await pinWithRetry(
+          () => pinFile(photoUri, proofFileName(taskId)),
+          'photo',
+          taskId,
+        );
+        photoCid = photoRes.cid;
+      }
+      if (photoCid && !metadataCid) {
+        const metaPhotoCid = photoCid;
+        const metadataRes = await pinWithRetry(
+          () =>
+            pinJSON(
+              buildProofMetadata({
+                taskId,
+                photoCid: metaPhotoCid,
+                lat: opts?.lat,
+                lng: opts?.lng,
+              }),
+              proofFileName(taskId, undefined, 'json'),
+            ),
+          'metadata',
+          taskId,
+        );
+        metadataCid = metadataRes.cid;
+      }
+    } catch (err) {
+      ipfsPending = true;
+      console.warn(
+        `[useProofSubmit] IPFS pinning failed for task ${taskId}; submitting without CIDs.`,
+        err,
+      );
+    }
+  }
+
+  return { photoCid, metadataCid, ipfsPending };
+}
+
 export function useProofSubmit() {
   const { isInitialised } = useNetworkStatus();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -19,6 +132,7 @@ export function useProofSubmit() {
     'idle' | 'uploading' | 'verifying' | 'confirmed' | 'failed'
   >('idle');
   const [error, setError] = useState<string | null>(null);
+  const [ipfsPending, setIpfsPending] = useState(false);
   const [pendingCount, setPendingCount] = useState(() => loadQueue().length);
 
   const submitProofAttempt = useCallback(
@@ -31,7 +145,16 @@ export function useProofSubmit() {
         photoCid?: string;
         metadataCid?: string;
       },
-    ) => {
+    ): Promise<{
+      result: Awaited<ReturnType<typeof submitProof>>;
+      ipfsPending: boolean;
+    }> => {
+      const { photoCid, metadataCid, ipfsPending } = await pinProofAssets(
+        taskId,
+        photoUri,
+        opts,
+      );
+
       const formData = new FormData();
       formData.append('taskId', taskId);
       if (opts?.lat !== undefined) {
@@ -47,33 +170,6 @@ export function useProofSubmit() {
         name: 'proof.jpg',
       } as any);
 
-      // reuse provided CIDs when available
-      let photoCid = opts?.photoCid;
-      let metadataCid = opts?.metadataCid;
-
-      if (!photoCid || !metadataCid) {
-        try {
-          if (!photoCid) {
-            const photoRes = await pinFile(photoUri, proofFileName(taskId, new Date().toISOString()));
-            photoCid = photoRes.cid;
-          }
-          if (photoCid && !metadataCid) {
-            const metadataRes = await pinJSON(
-              buildProofMetadata({
-                taskId,
-                photoCid,
-                lat: opts?.lat,
-                lng: opts?.lng,
-              }),
-              proofFileName(taskId, undefined, 'json'),
-            );
-            metadataCid = metadataRes.cid;
-          }
-        } catch {
-          // best-effort pinning; proceed to submit without cids if necessary
-        }
-      }
-
       if (photoCid) {
         formData.append('ipfsPhotoCid', photoCid);
       }
@@ -82,11 +178,13 @@ export function useProofSubmit() {
       }
 
       try {
-        return await submitProof(formData);
+        const result = await submitProof(formData);
+        return { result, ipfsPending };
       } catch (err) {
         // attach the generated cids so callers can persist them
         (err as any).photoCid = photoCid;
         (err as any).metadataCid = metadataCid;
+        (err as any).ipfsPending = ipfsPending;
         throw err;
       }
     },
@@ -100,36 +198,78 @@ export function useProofSubmit() {
       capturedAt: string,
       lat?: number,
       lng?: number,
-    ) => {
+    ): Promise<ProofSubmitResult> => {
       setIsSubmitting(true);
       setProgress('uploading');
       setError(null);
+      setIpfsPending(false);
 
       try {
         setProgress('verifying');
-        const result = await submitProofAttempt(taskId, photoUri, { lat, lng });
+        const { result, ipfsPending: attemptIpfsPending } =
+          await submitProofAttempt(taskId, photoUri, { lat, lng });
+        if (attemptIpfsPending) {
+          setIpfsPending(true);
+        }
         removeProofsForTask(taskId);
         setPendingCount(loadQueue().length);
         // Stay in 'verifying' — the caller mounts useProofStatus which drives
         // the transition to 'confirmed' or 'failed' once the backend responds.
         setProgress('verifying');
-        return result;
+        if (result === undefined || result === null) {
+          const message = 'Submission returned no result';
+          setError(message);
+          setProgress('failed');
+          return {
+            status: 'failed',
+            error: message,
+            ...(attemptIpfsPending ? { ipfsPending: true } : {}),
+          };
+        }
+        return {
+          status: 'success',
+          result,
+          ...(attemptIpfsPending ? { ipfsPending: true } : {}),
+        };
       } catch (err) {
-        enqueueProof({
-          id: `${Date.now()}`,
-          taskId,
-          photoPath: photoUri,
-          lat,
-          lng,
-          createdAt: new Date().toISOString(),
-          capturedAt,
-          photoCid: (err as any)?.photoCid,
-          metadataCid: (err as any)?.metadataCid,
-        });
-        setPendingCount(loadQueue().length);
-        setError((err as any).message || 'Upload failed, saved for later');
-        setProgress('failed');
-        return undefined;
+        const message = (err as any)?.message || 'Upload failed';
+        const ipfsPending = (err as any)?.ipfsPending || false;
+        try {
+          enqueueProof({
+            id: `${Date.now()}`,
+            taskId,
+            photoPath: photoUri,
+            lat,
+            lng,
+            createdAt: new Date().toISOString(),
+            capturedAt,
+            photoCid: (err as any)?.photoCid,
+            metadataCid: (err as any)?.metadataCid,
+          });
+          if (ipfsPending) {
+            setIpfsPending(true);
+          }
+          setPendingCount(loadQueue().length);
+          const queuedMessage = `Upload failed, saved for later: ${message}`;
+          setError(queuedMessage);
+          setProgress('failed');
+          return {
+            status: 'queued',
+            error: queuedMessage,
+            ...(ipfsPending ? { ipfsPending: true } : {}),
+          };
+        } catch (queueError) {
+          const failureMessage =
+            (queueError as any)?.message ||
+            `Upload failed and could not be saved: ${message}`;
+          setError(failureMessage);
+          setProgress('failed');
+          return {
+            status: 'failed',
+            error: failureMessage,
+            ...(ipfsPending ? { ipfsPending: true } : {}),
+          };
+        }
       } finally {
         setIsSubmitting(false);
       }
@@ -190,5 +330,6 @@ export function useProofSubmit() {
     isSubmitting,
     progress,
     error,
+    ipfsPending,
   };
 }

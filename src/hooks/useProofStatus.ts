@@ -9,6 +9,7 @@
  *  - Stops immediately on component unmount.
  *  - Pauses when the device goes offline; resumes automatically on reconnect.
  *  - Fires a local "Reward confirmed" notification on success.
+ *  - Fires a local timeout notification if verification exceeds 10 minutes.
  *  - Updates the activity store so HomeScreen reflects the real status.
  */
 import { useEffect, useRef, useCallback } from 'react';
@@ -104,6 +105,17 @@ export function useProofStatus(
         // Hard 10-minute timeout.
         if (Date.now() - startedAtRef.current >= TIMEOUT_MS) {
           updateActivityStatus(activityId, 'failed');
+          scheduleLocalNotification({
+            title: 'Proof verification timed out',
+            body: 'Proof verification timed out. Please check your submission status.',
+            type: NOTIFICATION_TYPES.PROOF_TIMEOUT,
+            data: {
+              type: NOTIFICATION_TYPES.PROOF_TIMEOUT,
+              proofId: currentProofId,
+              activityId,
+              deepLink: 'ecotask://wallet',
+            },
+          });
           stopPolling();
           return;
         }

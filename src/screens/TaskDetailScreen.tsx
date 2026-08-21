@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import { colors, spacing } from '../utils/theme';
 import { fetchTaskById } from '../services/api';
 import { TaskDetailSkeleton } from '../components/LoadingSkeleton';
@@ -11,6 +11,7 @@ import {
   DIFFICULTY_CONFIG,
   Task,
 } from '../types';
+import { useTaskStackNavigation } from '../navigation/useAppNavigation';
 
 type TaskDetailRoute = RouteProp<
   { TaskDetail: { taskId: string } },
@@ -19,7 +20,7 @@ type TaskDetailRoute = RouteProp<
 
 export default function TaskDetailScreen() {
   const route = useRoute<TaskDetailRoute>();
-  const navigation = useNavigation<any>();
+  const navigation = useTaskStackNavigation();
   const { taskId } = route.params;
   const selectTask = useTaskStore(s => s.selectTask);
 

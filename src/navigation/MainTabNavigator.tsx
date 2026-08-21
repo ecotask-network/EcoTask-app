@@ -7,14 +7,7 @@ import SubmitScreen from '../screens/SubmitScreen';
 import MapScreen from '../screens/MapScreen';
 import TabBarIcon from '../components/TabBarIcon';
 import { createSubmitTabPressHandler } from './submitTabPress';
-
-export type MainTabParamList = {
-  Home: undefined;
-  Tasks: undefined;
-  Map: undefined;
-  Submit: undefined;
-  Wallet: undefined;
-};
+import type { MainTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -79,3 +72,5 @@ export default function MainTabNavigator() {
     </Tab.Navigator>
   );
 }
+
+export type { MainTabParamList } from './types';
