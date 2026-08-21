@@ -86,9 +86,9 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
         };
 
         if (pageNum === 1) {
-          setTasks(normalize(result.tasks));
+          setTasks(normalize(result.tasks) as any);
         } else {
-          appendTasks(normalize(result.tasks));
+          appendTasks(normalize(result.tasks) as any);
         }
         setPage(pageNum);
         setHasMore(pageNum < result.totalPages);

@@ -132,7 +132,7 @@ export async function scheduleLocalNotification(
     const notifeeModule = await import('@notifee/react-native');
     const notifee = notifeeModule.default || notifeeModule;
     // If payload contains a timestamp/data.trigger we could schedule; for now display immediately
-    const notification = await notifee.displayNotification({
+    const notification = await (notifee as any).displayNotification({
       title: payload.title,
       body: payload.body,
       data: payload.data as any,

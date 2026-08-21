@@ -68,7 +68,7 @@ export const usePrefsStore = create<PrefsState>()(
                 const notifee = notifeeModule.default || notifeeModule;
                 await Promise.all(
                   ids.map(id =>
-                    notifee.cancelNotification(id).catch(() => null),
+                    (notifee as any).cancelNotification(id).catch(() => null),
                   ),
                 );
               } catch {

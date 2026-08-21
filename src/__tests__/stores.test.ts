@@ -126,7 +126,7 @@ describe('taskStore', () => {
         status: 'open',
       },
     ];
-    useTaskStore.getState().setTasks(tasks);
+    useTaskStore.getState().setTasks(tasks as any);
     expect(useTaskStore.getState().tasks).toHaveLength(1);
     expect(useTaskStore.getState().tasks[0]!.title).toBe('Plant tree');
   });
@@ -144,7 +144,7 @@ describe('taskStore', () => {
         status: 'open',
       },
     ];
-    useTaskStore.getState().setTasks(tasks);
+    useTaskStore.getState().setTasks(tasks as any);
     useTaskStore.getState().appendTasks([
       {
         id: '2',
@@ -171,7 +171,7 @@ describe('taskStore', () => {
       lng: 0,
       status: 'open',
     };
-    useTaskStore.getState().selectTask(task);
+    useTaskStore.getState().selectTask(task as any);
     expect(useTaskStore.getState().selectedTask?.id).toBe('1');
     expect(useTaskStore.getState().selectedAt).toEqual(expect.any(String));
   });
@@ -187,7 +187,7 @@ describe('taskStore', () => {
       lng: 0,
       status: 'open',
     };
-    useTaskStore.getState().selectTask(task);
+    useTaskStore.getState().selectTask(task as any);
     useTaskStore.getState().selectTask(null);
     expect(useTaskStore.getState().selectedTask).toBeNull();
     expect(useTaskStore.getState().selectedAt).toBeNull();

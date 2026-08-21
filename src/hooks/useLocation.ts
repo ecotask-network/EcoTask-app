@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Platform, PermissionsAndroid } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
+
 
 interface Location {
   lat: number;
@@ -15,38 +16,7 @@ export function useLocation() {
   const lastAcceptedRef = useRef<Location | null>(null);
   const watchIdRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    requestPermission();
-
-    return () => {
-      // Acceptance: clear watcher on unmount
-      if (watchIdRef.current !== null) {
-        Geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function requestPermission() {
-    try {
-      if (Platform.OS === 'android') {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION!,
-        );
-        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          setError('Location permission denied');
-          return;
-        }
-      }
-      setPermissionGranted(true);
-      startWatch();
-    } catch (err: any) {
-      setError(err.message);
-    }
-  }
-
-  function startWatch() {
+  const startWatch = useCallback(() => {
     // Continuous watch – low power with native 50m distanceFilter
     watchIdRef.current = Geolocation.watchPosition(
       pos => {
@@ -67,9 +37,37 @@ export function useLocation() {
         maximumAge: 10000,
       },
     );
-  }
+  }, []);
 
-  // On-demand high-accuracy single fix (acceptance criteria)
+  const requestPermission = useCallback(async () => {
+    try {
+      if (Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION!,
+        );
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          setError('Location permission denied');
+          return;
+        }
+      }
+      setPermissionGranted(true);
+      startWatch();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }, [startWatch]);
+
+  useEffect(() => {
+    requestPermission();
+
+    return () => {
+      if (watchIdRef.current !== null) {
+        Geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+    };
+  }, [requestPermission]);
+
   function refresh() {
     Geolocation.getCurrentPosition(
       pos => {
@@ -81,11 +79,12 @@ export function useLocation() {
         setLocation(next);
         setError(null);
       },
-      err => setError(err.message),
+      err => {
+        setError(err.message);
+      },
       { enableHighAccuracy: true, timeout: 15000 },
     );
   }
 
-  // Return shape is unchanged
   return { location, permissionGranted, error, refresh };
 }
