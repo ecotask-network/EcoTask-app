@@ -39,7 +39,16 @@ declare global {
 
   namespace NodeJS {
     interface CallSite {}
+
+    interface ProcessEnv {
+      [key: string]: string | undefined;
+    }
   }
+
+  /** Minimal process global used in test files (e.g. process.env.TZ). */
+  var process: {
+    env: NodeJS.ProcessEnv;
+  };
 
   /**
    * Minimal shape consumed by `@stellar/stellar-sdk`'s Horizon call builders.

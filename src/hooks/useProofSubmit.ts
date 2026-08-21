@@ -53,8 +53,8 @@ async function pinWithRetry<T>(
         err,
       );
       if (attempt < IPFS_MAX_ATTEMPTS) {
-        await new Promise(resolve =>
-          setTimeout(resolve, IPFS_RETRY_BACKOFF_MS * attempt),
+        await new Promise<void>(resolve =>
+          setTimeout(() => resolve(), IPFS_RETRY_BACKOFF_MS * attempt),
         );
       }
     }
