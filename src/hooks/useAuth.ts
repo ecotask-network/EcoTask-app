@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { Platform } from 'react-native';
 import { useUserStore } from '../store/userStore';
 import { useWalletStore } from '../store/walletStore';
 import {

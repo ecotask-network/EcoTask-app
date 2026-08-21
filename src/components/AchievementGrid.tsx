@@ -6,7 +6,6 @@ import {
   getAchievements,
   getEarnedCount,
   getNextAchievement,
-  getAchievements,
 } from '../utils/achievements';
 import { UserStats } from '../types';
 
