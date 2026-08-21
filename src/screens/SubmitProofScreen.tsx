@@ -141,6 +141,12 @@ export default function SubmitProofScreen() {
           },
         });
       }
+
+      // The proof was submitted, but IPFS pinning failed (and retried) so it is
+      // not yet available on IPFS. Inform the user it will be retried.
+      if (submission.ipfsPending) {
+        Alert.alert('Proof saved', 'Proof saved, IPFS upload pending');
+      }
     } else if (submission.status === 'queued') {
       // Offline / network failure: stored in the proof queue as pending.
       addActivity({

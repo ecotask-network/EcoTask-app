@@ -1,9 +1,27 @@
 import './__mocks__/setup';
 import { useWalletStore } from '../store/walletStore';
-import { useTaskStore } from '../store/taskStore';
+import {
+  useTaskStore,
+  partializeTaskState,
+  sanitizePersistedTaskState,
+  TASK_PAGE_SIZE,
+} from '../store/taskStore';
 import { useUserStore } from '../store/userStore';
 import { useActivityStore } from '../store/activityStore';
 import { Task } from '../types';
+
+function makeTask(id: string, title = `Task ${id}`): Task {
+  return {
+    id,
+    title,
+    description: '',
+    type: 'OTHER',
+    rewardAmount: 5,
+    lat: 0,
+    lng: 0,
+    status: 'open',
+  };
+}
 
 function makeJwt(exp: number): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256' })).toString(
@@ -197,6 +215,131 @@ describe('taskStore', () => {
     expect(state.error).toBeNull();
     expect(state.page).toBe(1);
     expect(state.hasMore).toBe(true);
+  });
+
+  it('partialize keeps selection and pagination, excludes isLoading and error', () => {
+    const task = makeTask('1');
+    const partial = partializeTaskState({
+      tasks: [task],
+      selectedTask: task,
+      selectedAt: '2026-01-01T12:00:00.000Z',
+      page: 2,
+      hasMore: false,
+    });
+    expect(partial).toEqual({
+      tasks: [task],
+      selectedTask: task,
+      selectedAt: '2026-01-01T12:00:00.000Z',
+      page: 2,
+      hasMore: false,
+    });
+    expect(partial).not.toHaveProperty('isLoading');
+    expect(partial).not.toHaveProperty('error');
+  });
+
+  it('restores selectedTask and selectedAt when the task is still present', () => {
+    const task = makeTask('1');
+    const restored = sanitizePersistedTaskState({
+      tasks: [task],
+      selectedTask: { ...task, title: 'Stale title' },
+      selectedAt: '2026-01-01T12:00:00.000Z',
+      page: 1,
+      hasMore: false,
+    });
+    expect(restored.selectedTask).toEqual(task);
+    expect(restored.selectedAt).toBe('2026-01-01T12:00:00.000Z');
+  });
+
+  it('clears selectedTask when its id is missing from tasks after rehydration', () => {
+    const restored = sanitizePersistedTaskState({
+      tasks: [makeTask('1')],
+      selectedTask: makeTask('gone'),
+      selectedAt: '2026-01-01T12:00:00.000Z',
+      page: 1,
+      hasMore: true,
+    });
+    expect(restored.selectedTask).toBeNull();
+    expect(restored.selectedAt).toBeNull();
+  });
+
+  it('validates stale page/hasMore against the persisted task count', () => {
+    const tasks = Array.from({ length: TASK_PAGE_SIZE + 5 }, (_, i) =>
+      makeTask(String(i + 1)),
+    );
+    const restored = sanitizePersistedTaskState({
+      tasks,
+      selectedTask: null,
+      selectedAt: null,
+      page: 9,
+      hasMore: true,
+    });
+    // 25 tasks => 2 pages; partial last page forces hasMore false.
+    expect(restored.page).toBe(2);
+    expect(restored.hasMore).toBe(false);
+  });
+
+  it('aligns page upward when more full pages of tasks are present than page claims', () => {
+    const tasks = Array.from({ length: TASK_PAGE_SIZE * 2 }, (_, i) =>
+      makeTask(String(i + 1)),
+    );
+    const restored = sanitizePersistedTaskState({
+      tasks,
+      selectedTask: null,
+      selectedAt: null,
+      page: 1,
+      hasMore: true,
+    });
+    expect(restored.page).toBe(2);
+    expect(restored.hasMore).toBe(true);
+  });
+
+  it('resets pagination when no tasks were persisted', () => {
+    const restored = sanitizePersistedTaskState({
+      tasks: [],
+      selectedTask: makeTask('1'),
+      selectedAt: '2026-01-01T12:00:00.000Z',
+      page: 4,
+      hasMore: false,
+    });
+    expect(restored).toEqual({
+      tasks: [],
+      selectedTask: null,
+      selectedAt: null,
+      page: 1,
+      hasMore: true,
+    });
+  });
+
+  it('applies sanitized persistence into the live store without restoring transients', () => {
+    const task = makeTask('1');
+    // Pollute transient fields as if a fetch were in flight before restart.
+    useTaskStore.setState({ isLoading: true, error: 'network' });
+
+    const partial = partializeTaskState({
+      tasks: [task],
+      selectedTask: task,
+      selectedAt: '2026-01-01T12:00:00.000Z',
+      page: 1,
+      hasMore: false,
+    });
+    expect(partial).not.toHaveProperty('isLoading');
+    expect(partial).not.toHaveProperty('error');
+
+    // Simulate persist merge: defaults for transients + sanitized slice.
+    useTaskStore.setState({
+      isLoading: false,
+      error: null,
+      ...sanitizePersistedTaskState(partial),
+    });
+
+    const state = useTaskStore.getState();
+    expect(state.tasks).toEqual([task]);
+    expect(state.selectedTask?.id).toBe('1');
+    expect(state.selectedAt).toBe('2026-01-01T12:00:00.000Z');
+    expect(state.page).toBe(1);
+    expect(state.hasMore).toBe(false);
+    expect(state.isLoading).toBe(false);
+    expect(state.error).toBeNull();
   });
 });
 
