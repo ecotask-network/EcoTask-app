@@ -290,6 +290,9 @@ The `ecotask://lobstr/callback` path is handled automatically by
 ## 🧪 Testing
 
 ```bash
+# Type-check the whole program, including dependency declarations
+npm run typecheck
+
 # Run unit tests (135 tests)
 npm test
 
@@ -299,6 +302,36 @@ npm test -- --coverage
 # Run integration tests (requires running backend)
 npm run test:integration
 ```
+
+### Type checking with skipLibCheck disabled
+
+`tsc --noEmit` runs with `skipLibCheck: false`, so type errors inside
+dependency `.d.ts` files fail the build just like errors in `src/`. CI runs
+`npm run typecheck` on every push and pull request.
+
+Because library declarations are now checked, three small, documented
+mechanisms keep known-broken third-party typings from failing the build:
+
+1. **`types-stubs/node/`** — `@stellar/stellar-base` hard-references node's
+   types (it needs `Buffer`), which drags all of `@types/node` into the
+   program. Its global fetch/web declarations collide with React Native's own
+   globals (`react-native/types/modules/globals.d.ts`). A minimal stub,
+   preferred via `typeRoots`, provides only what compiled code actually uses
+   (`Buffer`, re-typed from the `buffer` polyfill the app ships at runtime,
+   plus `NodeJS.CallSite` and `MessageEvent` used by `@stellar/stellar-sdk`).
+2. **`src/types/vendor.d.ts`** — declares the slice of DOM's `Window` that
+   `zustand`'s devtools middleware inspects; we do not include `lib.dom`
+   because it collides with React Native's globals.
+3. **`patches/`** — unified-diff fixes to genuinely broken dependency
+   declarations (currently `react-native-screens@3.37.0`, whose shipped types
+   target `@react-navigation` v7 generics while this repo pins v6). Applied
+   after every install by `scripts/apply-type-patches.js`; see
+   [patches/README.md](patches/README.md) for details and upstream references.
+
+The `lib` compiler option mirrors
+[`@react-native/typescript-config`](https://www.npmjs.com/package/@react-native/typescript-config)
+(`es2019` plus selected `es2020`–`es2022` features), matching what Hermes
+actually supports.
 
 ### Test Coverage
 
