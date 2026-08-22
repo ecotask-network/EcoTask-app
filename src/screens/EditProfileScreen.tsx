@@ -72,7 +72,17 @@ export default function EditProfileScreen() {
         >
           <TouchableOpacity
             onPress={() => navigation.goBack()}
-            style={{ marginBottom: spacing.md }}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel"
+            style={{
+              alignSelf: 'flex-start',
+              paddingVertical: spacing.sm,
+              paddingHorizontal: spacing.md,
+              marginLeft: -spacing.md,
+              marginBottom: spacing.md,
+              minHeight: 44,
+              justifyContent: 'center',
+            }}
           >
             <Text style={{ color: colors.primary, fontSize: 16 }}>Cancel</Text>
           </TouchableOpacity>

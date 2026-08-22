@@ -124,7 +124,14 @@ export default function TaskListScreen() {
         <Text style={{ color: colors.error }}>{error}</Text>
         <TouchableOpacity
           onPress={() => void refresh()}
-          style={{ marginTop: spacing.md }}
+          accessibilityRole="button"
+          style={{
+            marginTop: spacing.md,
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.md,
+            minHeight: 44,
+            justifyContent: 'center',
+          }}
         >
           <Text style={{ color: colors.primary }}>Retry</Text>
         </TouchableOpacity>
@@ -168,6 +175,7 @@ export default function TaskListScreen() {
               paddingVertical: spacing.sm,
               borderRadius: 20,
               marginRight: spacing.sm,
+              minHeight: 44,
               backgroundColor:
                 activeType === t.key ? colors.primary : colors.surface,
               borderWidth: 1,
@@ -206,6 +214,8 @@ export default function TaskListScreen() {
               paddingVertical: spacing.xs,
               borderRadius: 16,
               marginRight: spacing.sm,
+              minHeight: 44,
+              justifyContent: 'center',
               backgroundColor:
                 statusFilter === s.key ? colors.primary : colors.surface,
               borderWidth: 1,
@@ -263,6 +273,8 @@ export default function TaskListScreen() {
               paddingVertical: spacing.xs,
               borderRadius: 16,
               marginRight: spacing.sm,
+              minHeight: 44,
+              justifyContent: 'center',
               backgroundColor:
                 sortMode === opt.key ? colors.primary : colors.surface,
               borderWidth: 1,
@@ -296,6 +308,8 @@ export default function TaskListScreen() {
                   paddingVertical: spacing.xs,
                   borderRadius: 12,
                   marginLeft: spacing.xs,
+                  minHeight: 44,
+                  justifyContent: 'center',
                   backgroundColor:
                     radiusKm === km ? colors.primaryDark : colors.surface,
                 }}

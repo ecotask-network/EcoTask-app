@@ -65,7 +65,14 @@ export default function TaskDetailScreen() {
         <Text style={{ color: colors.error }}>{error || 'Task not found'}</Text>
         <TouchableOpacity
           onPress={() => void loadTask()}
-          style={{ marginTop: spacing.md }}
+          accessibilityRole="button"
+          style={{
+            marginTop: spacing.md,
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.md,
+            minHeight: 44,
+            justifyContent: 'center',
+          }}
         >
           <Text style={{ color: colors.primary }}>Try Again</Text>
         </TouchableOpacity>
@@ -83,7 +90,18 @@ export default function TaskDetailScreen() {
       <View style={{ padding: spacing.lg }}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={{ marginBottom: spacing.md, marginTop: spacing.xl }}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          style={{
+            alignSelf: 'flex-start',
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.md,
+            marginLeft: -spacing.md,
+            marginTop: spacing.xl,
+            marginBottom: spacing.md,
+            minHeight: 44,
+            justifyContent: 'center',
+          }}
         >
           <Text style={{ color: colors.primary, fontSize: 16 }}>
             {'\u2190'} Back

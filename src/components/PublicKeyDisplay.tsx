@@ -46,7 +46,7 @@ export default function PublicKeyDisplay({
         accessibilityRole="button"
         accessibilityLabel={`Wallet address ${publicKey}`}
         accessibilityHint="Double tap to toggle full address"
-        style={{ flexShrink: 1 }}
+        style={{ flexShrink: 1, minHeight: 44, justifyContent: 'center' }}
       >
         <Text
           style={[{ color: colors.textSecondary, fontSize: 12 }, textStyle]}
@@ -60,7 +60,14 @@ export default function PublicKeyDisplay({
         onPress={handleCopy}
         accessibilityRole="button"
         accessibilityLabel="Copy wallet address"
-        style={{ marginLeft: spacing.xs, padding: spacing.xs }}
+        style={{
+          marginLeft: spacing.xs,
+          padding: spacing.sm,
+          minWidth: 44,
+          minHeight: 44,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
       >
         <Text style={{ fontSize: 14 }}>{copied ? '✅' : '📋'}</Text>
       </TouchableOpacity>

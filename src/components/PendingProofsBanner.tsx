@@ -53,6 +53,9 @@ export default function PendingProofsBanner({
           paddingVertical: spacing.sm,
           borderRadius: 10,
           backgroundColor: '#000',
+          minHeight: 44,
+          justifyContent: 'center',
+          alignItems: 'center',
           opacity: canRetry ? 1 : 0.6,
         }}
       >

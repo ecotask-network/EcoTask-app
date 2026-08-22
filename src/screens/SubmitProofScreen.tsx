@@ -200,8 +200,22 @@ export default function SubmitProofScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ padding: spacing.lg, paddingTop: spacing.xl }}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={{ color: colors.primary, fontSize: 16 }}>Back</Text>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          style={{
+            alignSelf: 'flex-start',
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.md,
+            marginLeft: -spacing.md,
+            minHeight: 44,
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ color: colors.primary, fontSize: 16 }}>
+            {'\u2190'} Back
+          </Text>
         </TouchableOpacity>
         <Text
           style={{
@@ -253,7 +267,14 @@ export default function SubmitProofScreen() {
             {hasPermission === false && (
               <TouchableOpacity
                 onPress={() => void requestPermission()}
-                style={{ marginTop: spacing.md, padding: spacing.sm }}
+                accessibilityRole="button"
+                style={{
+                  marginTop: spacing.md,
+                  paddingVertical: spacing.sm,
+                  paddingHorizontal: spacing.md,
+                  minHeight: 44,
+                  justifyContent: 'center',
+                }}
               >
                 <Text style={{ color: colors.primary }}>Grant Permission</Text>
               </TouchableOpacity>

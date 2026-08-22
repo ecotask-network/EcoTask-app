@@ -154,7 +154,19 @@ export default function SendTokensScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={{ padding: spacing.lg, paddingTop: spacing.xl }}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
+          style={{
+            alignSelf: 'flex-start',
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.md,
+            marginLeft: -spacing.md,
+            minHeight: 44,
+            justifyContent: 'center',
+          }}
+        >
           <Text style={{ color: colors.primary, fontSize: 16 }}>Cancel</Text>
         </TouchableOpacity>
         <Text
