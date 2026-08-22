@@ -167,7 +167,7 @@ describe('useProofSubmit integration', () => {
       );
       expect(res).toEqual({
         status: 'success',
-        result: { ok: true },
+        result: { taskTitle: 'ok' },
         ipfsPending: true,
       });
       // Progress stays at 'verifying' — polling will drive to 'confirmed'.

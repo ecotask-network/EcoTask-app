@@ -28,7 +28,12 @@ describe('quiet hours', () => {
 });
 
 describe('quiet hours - timezone independence', () => {
-  const originalTZ = process.env.TZ;
+  const environment = (
+    globalThis as typeof globalThis & {
+      process: { env: Record<string, string | undefined> };
+    }
+  ).process.env;
+  const originalTZ = environment.TZ;
 
   const timezones = [
     'UTC', // UTC+0
@@ -37,13 +42,13 @@ describe('quiet hours - timezone independence', () => {
   ];
 
   afterEach(() => {
-    process.env.TZ = originalTZ;
+    environment.TZ = originalTZ;
   });
 
   test.each(timezones)(
     'quiet hours 22:00-07:00 suppress notifications at local midnight in %s',
     tz => {
-      process.env.TZ = tz;
+      environment.TZ = tz;
 
       // 00:00 local time, regardless of the process timezone.
       const midnightLocal = new Date(2020, 0, 1, 0, 0, 0);
@@ -55,7 +60,7 @@ describe('quiet hours - timezone independence', () => {
   test.each(timezones)(
     'quiet hours 22:00-07:00 do not suppress notifications at local noon in %s',
     tz => {
-      process.env.TZ = tz;
+      environment.TZ = tz;
 
       // 12:00 local time, regardless of the process timezone.
       const noonLocal = new Date(2020, 0, 1, 12, 0, 0);
@@ -67,7 +72,7 @@ describe('quiet hours - timezone independence', () => {
   test.each(timezones)(
     'a given local wall-clock time yields the same result independent of process timezone (%s)',
     tz => {
-      process.env.TZ = tz;
+      environment.TZ = tz;
 
       const insideWindow = new Date(2020, 0, 1, 23, 30, 0); // 23:30 local
       const outsideWindow = new Date(2020, 0, 1, 12, 0, 0); // 12:00 local

@@ -10,7 +10,19 @@ import * as ipfs from '../services/ipfs';
 import * as api from '../services/api';
 import { clearQueue, loadQueue } from '../services/proofQueue';
 
-function HookHarness({ onRef }: { onRef: (ref: any) => void }) {
+type UseProofSubmitResult = ReturnType<typeof useProofSubmit>;
+
+interface FormDataLike {
+  get?: (key: string) => unknown;
+  _parts?: [string, unknown][];
+  getParts?: () => { fieldName: string; string?: unknown }[];
+}
+
+function HookHarness({
+  onRef,
+}: {
+  onRef: (ref: UseProofSubmitResult) => void;
+}) {
   const hook = useProofSubmit();
   React.useEffect(() => {
     onRef(hook);
@@ -38,11 +50,16 @@ describe('useProofSubmit IPFS resilience', () => {
       .mockResolvedValueOnce({
         cid: 'QmRetry',
         url: 'https://ipfs.io/ipfs/QmRetry',
-      } as any);
-    jest.spyOn(ipfs, 'pinJSON').mockResolvedValue({ cid: 'QmMeta' } as any);
-    jest.spyOn(api, 'submitProof').mockResolvedValue({ success: true } as any);
+        size: 100,
+      });
+    jest.spyOn(ipfs, 'pinJSON').mockResolvedValue({
+      cid: 'QmMeta',
+      url: 'https://ipfs.io/ipfs/QmMeta',
+      size: 50,
+    });
+    jest.spyOn(api, 'submitProof').mockResolvedValue({ taskTitle: 'success' });
 
-    let ref: any;
+    let ref!: UseProofSubmitResult;
     await act(async () => {
       renderer.create(<HookHarness onRef={r => (ref = r)} />);
     });
@@ -55,7 +72,7 @@ describe('useProofSubmit IPFS resilience', () => {
       );
       // Submission succeeded and IPFS eventually pinned, so no ipfsPending flag.
       expect(res.status).toBe('success');
-      expect((res as any).ipfsPending).toBeFalsy();
+      expect(res.ipfsPending).toBeFalsy();
       expect(ref.ipfsPending).toBe(false);
     });
 
@@ -68,11 +85,12 @@ describe('useProofSubmit IPFS resilience', () => {
     );
 
     // The retried CID is what gets submitted.
-    const formDataArg = (api.submitProof as jest.Mock).mock.calls[0][0] as any;
+    const formDataArg = (api.submitProof as jest.Mock).mock
+      .calls[0]![0] as unknown as FormDataLike;
     const photoCid =
       typeof formDataArg.get === 'function'
         ? formDataArg.get('ipfsPhotoCid')
-        : formDataArg._parts?.find((p: any) => p[0] === 'ipfsPhotoCid')?.[1];
+        : formDataArg._parts?.find(p => p[0] === 'ipfsPhotoCid')?.[1];
     expect(photoCid).toBe('QmRetry');
   });
 
@@ -85,9 +103,9 @@ describe('useProofSubmit IPFS resilience', () => {
       .mockRejectedValue(new Error('ipfs down for good'));
     const submitProof = jest
       .spyOn(api, 'submitProof')
-      .mockResolvedValue({ ok: true } as any);
+      .mockResolvedValue({ taskTitle: 'ok' });
 
-    let ref: any;
+    let ref!: UseProofSubmitResult;
     await act(async () => {
       renderer.create(<HookHarness onRef={r => (ref = r)} />);
     });
@@ -106,11 +124,12 @@ describe('useProofSubmit IPFS resilience', () => {
     // 1 initial attempt + 1 retry.
     expect(ipfs.pinFile as jest.Mock).toHaveBeenCalledTimes(2);
     // Submission still proceeds (best-effort) without a photo CID.
-    const formDataArg = (submitProof as jest.Mock).mock.calls[0][0] as any;
+    const formDataArg = (submitProof as jest.Mock).mock
+      .calls[0]![0] as unknown as FormDataLike;
     const hasPhotoCid =
       typeof formDataArg.get === 'function'
         ? formDataArg.get('ipfsPhotoCid')
-        : formDataArg._parts?.some((p: any) => p[0] === 'ipfsPhotoCid');
+        : formDataArg._parts?.some(p => p[0] === 'ipfsPhotoCid');
     expect(hasPhotoCid).toBeFalsy();
     // The final failure is logged with the underlying error details.
     expect(warnSpy).toHaveBeenCalledWith(
@@ -126,12 +145,17 @@ describe('useProofSubmit IPFS resilience', () => {
       .mockResolvedValueOnce({
         cid: 'QmFromRetry',
         url: 'https://ipfs.io/ipfs/QmFromRetry',
-      } as any);
-    jest.spyOn(ipfs, 'pinJSON').mockResolvedValue({ cid: 'QmMeta' } as any);
+        size: 100,
+      });
+    jest.spyOn(ipfs, 'pinJSON').mockResolvedValue({
+      cid: 'QmMeta',
+      url: 'https://ipfs.io/ipfs/QmMeta',
+      size: 50,
+    });
     // Upload itself fails so the proof is queued.
     jest.spyOn(api, 'submitProof').mockRejectedValue(new Error('network'));
 
-    let ref: any;
+    let ref!: UseProofSubmitResult;
     await act(async () => {
       renderer.create(<HookHarness onRef={r => (ref = r)} />);
     });
