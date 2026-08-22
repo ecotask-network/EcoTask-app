@@ -1,11 +1,11 @@
-import axios from 'axios';
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { Task, SubmitProofResult } from '../types';
 import { Alert } from 'react-native';
 import Config from 'react-native-config';
 import { useUserStore } from '../store/userStore';
 import { useWalletStore } from '../store/walletStore';
 import { getInAppSecret } from './walletVault';
 import { signChallengeXDR } from './stellar';
-import { Task } from '../types';
 import { normalizeTaskStatus } from '../utils/sortTasks';
 
 declare module 'axios' {
@@ -116,13 +116,13 @@ api.interceptors.request.use(async config => {
 
 api.interceptors.response.use(
   response => response,
-  async error => {
-    const original = error.config;
+  async (error: AxiosError) => {
+    const original = error.config as InternalAxiosRequestConfig | undefined;
     if (
       error.response?.status === 401 &&
       original &&
-      !original._retry &&
-      !original.skipAuthRefresh
+      original._retry !== true &&
+      original.skipAuthRefresh !== true
     ) {
       original._retry = true;
       try {
@@ -166,19 +166,30 @@ export async function loginWithWallet(
 
 export async function fetchUserProfile() {
   const res = await api.get('/auth/me');
-  return res.data;
+  return res.data as {
+    id: string;
+    wallet: string;
+    name?: string;
+    bio?: string;
+    avatarUrl?: string;
+    stats?: {
+      treesPlanted: number;
+      plasticCollected: number;
+      co2Reduced: number;
+    };
+  };
 }
 
 export async function updateProfile(data: {
   name?: string;
   bio?: string;
   avatarUrl?: string;
-}) {
+}): Promise<{ name?: string; bio?: string; avatarUrl?: string }> {
   const res = await api.put('/auth/me', data);
   return res.data;
 }
 
-export async function fetchTasks(params?: Record<string, any>) {
+export async function fetchTasks(params?: Record<string, string | number>) {
   const res = await api.get('/tasks', { params });
   return res.data;
 }
@@ -199,11 +210,13 @@ export async function fetchTaskById(id: string): Promise<Task> {
   return toTask(res.data);
 }
 
-export async function submitProof(formData: FormData) {
+export async function submitProof(
+  formData: FormData,
+): Promise<SubmitProofResult> {
   const res = await api.post('/proofs', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
-  return res.data;
+  return res.data as SubmitProofResult;
 }
 
 export type ProofVerificationStatus = 'pending' | 'confirmed' | 'failed';

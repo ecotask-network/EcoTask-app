@@ -15,10 +15,17 @@ import renderer, { act } from 'react-test-renderer';
 import * as api from '../services/api';
 import { useTaskFeed } from '../hooks/useTaskFeed';
 import { useTaskStore } from '../store/taskStore';
+import { Task } from '../types';
 
 const EMPTY_PAGE = { tasks: [], totalPages: 0 };
 
-function HookHarness({ onRef, ...opts }: any) {
+type UseTaskFeedOptions = Parameters<typeof useTaskFeed>[0];
+type UseTaskFeedResult = ReturnType<typeof useTaskFeed>;
+
+function HookHarness({
+  onRef,
+  ...opts
+}: { onRef: (hook: UseTaskFeedResult) => void } & UseTaskFeedOptions) {
   const hook = useTaskFeed(opts);
   React.useEffect(() => {
     onRef(hook);
@@ -26,12 +33,25 @@ function HookHarness({ onRef, ...opts }: any) {
   return null;
 }
 
+function makeTask(id: string): Task {
+  return {
+    id,
+    title: `Task ${id}`,
+    description: '',
+    type: 'OTHER',
+    rewardAmount: 10,
+    lat: 0,
+    lng: 0,
+    status: 'open',
+  };
+}
+
 describe('useTaskFeed', () => {
-  let instance: any;
+  let instance: renderer.ReactTestRenderer | null = null;
 
   afterEach(() => {
     if (instance) {
-      act(() => instance.unmount());
+      void act(() => instance?.unmount());
       instance = null;
     }
   });
@@ -52,10 +72,10 @@ describe('useTaskFeed', () => {
   test('does NOT re-fetch on mount when tasks are already in the store', async () => {
     // Simulate a previous session that already populated the store.
     useTaskStore.setState({
-      tasks: [{ id: 'existing-1' } as any, { id: 'existing-2' } as any],
+      tasks: [makeTask('existing-1'), makeTask('existing-2')],
     });
 
-    let ref: any;
+    let ref!: UseTaskFeedResult;
     await act(async () => {
       instance = renderer.create(<HookHarness onRef={r => (ref = r)} />);
     });
@@ -71,7 +91,7 @@ describe('useTaskFeed', () => {
 
   test('re-fetches exactly once when the filter changes', async () => {
     await act(async () => {
-      renderer.create(<HookHarness onRef={() => {}} type="all" />);
+      renderer.create(<HookHarness onRef={() => undefined} type="all" />);
     });
 
     // Initial mount fetch should have happened once.
@@ -81,8 +101,8 @@ describe('useTaskFeed', () => {
       (api.fetchTasks as jest.Mock).mockClear();
       // Changing the filter triggers exactly one re-fetch.
       renderer
-        .create(<HookHarness onRef={() => {}} type="all" />)
-        .update(<HookHarness onRef={() => {}} type="open" />);
+        .create(<HookHarness onRef={() => undefined} type="all" />)
+        .update(<HookHarness onRef={() => undefined} type="open" />);
     });
 
     await act(async () => {
@@ -98,7 +118,7 @@ describe('useTaskFeed', () => {
     jest.useFakeTimers();
     await act(async () => {
       instance = renderer.create(
-        <HookHarness onRef={() => {}} lat={1} lng={1} radius={5} />,
+        <HookHarness onRef={() => undefined} lat={1} lng={1} radius={5} />,
       );
     });
 
@@ -107,9 +127,12 @@ describe('useTaskFeed', () => {
 
     await act(async () => {
       (api.fetchTasks as jest.Mock).mockClear();
-      instance = renderer
-        .create(<HookHarness onRef={() => {}} lat={1} lng={1} radius={5} />)
-        .update(<HookHarness onRef={() => {}} lat={2} lng={2} radius={5} />);
+      instance = renderer.create(
+        <HookHarness onRef={() => undefined} lat={1} lng={1} radius={5} />,
+      );
+      instance.update(
+        <HookHarness onRef={() => undefined} lat={2} lng={2} radius={5} />,
+      );
       jest.advanceTimersByTime(5000);
     });
 

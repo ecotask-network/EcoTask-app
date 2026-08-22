@@ -30,7 +30,7 @@ export default function OnboardingScreen() {
 
   useEffect(() => {
     if (isConnected && publicKey) {
-      authenticate(publicKey).catch(() => {});
+      authenticate(publicKey).catch(() => undefined);
     }
   }, [isConnected, publicKey, authenticate]);
 
@@ -112,7 +112,7 @@ export default function OnboardingScreen() {
         )}
 
         <TouchableOpacity
-          onPress={connectFreighter}
+          onPress={() => void connectFreighter()}
           disabled={busy}
           accessibilityLabel="Connect Freighter wallet"
           accessibilityRole="button"
@@ -135,7 +135,7 @@ export default function OnboardingScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={connectLobstr}
+          onPress={() => void connectLobstr()}
           disabled={busy}
           accessibilityLabel="Connect Lobstr wallet"
           accessibilityRole="button"
@@ -156,7 +156,7 @@ export default function OnboardingScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={handleCreateWallet}
+          onPress={() => void handleCreateWallet()}
           disabled={busy}
           accessibilityLabel="Create Test Wallet"
           accessibilityRole="button"
@@ -217,7 +217,7 @@ export default function OnboardingScreen() {
               }}
             />
             <TouchableOpacity
-              onPress={handleImport}
+              onPress={() => void handleImport()}
               disabled={busy || !secretKey.trim()}
               accessibilityLabel="Import Wallet"
               accessibilityRole="button"

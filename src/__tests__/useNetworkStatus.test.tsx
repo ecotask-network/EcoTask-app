@@ -6,9 +6,10 @@ import NetInfo from '@react-native-community/netinfo';
 import {
   useNetworkStatus,
   NetworkStatusProvider,
+  NetworkStatus,
 } from '../hooks/useNetworkStatus';
 
-function HookHarnessInner({ onRef }: { onRef: (ref: any) => void }) {
+function HookHarnessInner({ onRef }: { onRef: (ref: NetworkStatus) => void }) {
   const status = useNetworkStatus();
   React.useEffect(() => {
     onRef(status);
@@ -16,7 +17,7 @@ function HookHarnessInner({ onRef }: { onRef: (ref: any) => void }) {
   return null;
 }
 
-function HookHarness({ onRef }: { onRef: (ref: any) => void }) {
+function HookHarness({ onRef }: { onRef: (ref: NetworkStatus) => void }) {
   return (
     <NetworkStatusProvider>
       <HookHarnessInner onRef={onRef} />
@@ -31,15 +32,16 @@ describe('useNetworkStatus', () => {
   });
 
   it('does not report initialised until NetInfo.fetch resolves', async () => {
-    let resolveFetch: (value: any) => void = () => {};
+    let resolveFetch: (value: { isConnected: boolean }) => void = () =>
+      undefined;
     (NetInfo.fetch as jest.Mock).mockReturnValue(
       new Promise(resolve => {
         resolveFetch = resolve;
       }),
     );
 
-    let ref: any;
-    act(() => {
+    let ref!: NetworkStatus;
+    void act(() => {
       renderer.create(<HookHarness onRef={r => (ref = r)} />);
     });
 
@@ -58,7 +60,7 @@ describe('useNetworkStatus', () => {
     (NetInfo.fetch as jest.Mock).mockResolvedValue({ isConnected: true });
 
     await act(async () => {
-      renderer.create(<HookHarness onRef={() => {}} />);
+      renderer.create(<HookHarness onRef={() => undefined} />);
     });
 
     expect(NetInfo.fetch).toHaveBeenCalledTimes(1);
@@ -67,7 +69,7 @@ describe('useNetworkStatus', () => {
   it('returns isConnected false when NetInfo.fetch resolves as disconnected on mount', async () => {
     (NetInfo.fetch as jest.Mock).mockResolvedValue({ isConnected: false });
 
-    let ref: any;
+    let ref!: NetworkStatus;
     await act(async () => {
       renderer.create(<HookHarness onRef={r => (ref = r)} />);
     });
@@ -78,20 +80,20 @@ describe('useNetworkStatus', () => {
 
   it('updates isConnected when NetInfo emits a later connectivity change', async () => {
     (NetInfo.fetch as jest.Mock).mockResolvedValue({ isConnected: true });
-    let listener: (state: any) => void = () => {};
+    let listener: (state: { isConnected: boolean }) => void = () => undefined;
     (NetInfo.addEventListener as jest.Mock).mockImplementation(cb => {
       listener = cb;
       return jest.fn();
     });
 
-    let ref: any;
+    let ref!: NetworkStatus;
     await act(async () => {
       renderer.create(<HookHarness onRef={r => (ref = r)} />);
     });
 
     expect(ref.isConnected).toBe(true);
 
-    act(() => {
+    void act(() => {
       listener({ isConnected: false });
     });
 
@@ -105,10 +107,10 @@ describe('useNetworkStatus', () => {
 
     let tree: renderer.ReactTestRenderer | undefined;
     await act(async () => {
-      tree = renderer.create(<HookHarness onRef={() => {}} />);
+      tree = renderer.create(<HookHarness onRef={() => undefined} />);
     });
 
-    act(() => {
+    void act(() => {
       tree?.unmount();
     });
 

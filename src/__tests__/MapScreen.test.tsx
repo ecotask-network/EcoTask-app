@@ -9,28 +9,43 @@
  *  5. callout press on a single-task marker navigates to TaskDetail
  */
 
-import React from 'react';
+import React, {
+  forwardRef as mockForwardRef,
+  useImperativeHandle as mockUseImperativeHandle,
+} from 'react';
+import { View as MockView } from 'react-native';
 import renderer, { act } from 'react-test-renderer';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-// react-native-maps has native code; swap every export for a plain View/mock.
-jest.mock('react-native-maps', () => {
-  const MockReact = require('react');
-  const { View } = require('react-native');
+interface MockMapViewRef {
+  animateToRegion: (region: unknown, duration?: number) => void;
+}
 
-  const MapView = MockReact.forwardRef(
-    (
-      props: { children?: React.ReactNode; testID?: string },
-      ref: React.Ref<any>,
-    ) => {
-      // Expose animateToRegion on the ref so the component doesn't crash
-      MockReact.useImperativeHandle(ref, () => ({
-        animateToRegion: jest.fn(),
-      }));
-      return <View testID={props.testID ?? 'map-view'}>{props.children}</View>;
-    },
-  );
+interface MockMarkerProps {
+  children?: React.ReactNode;
+  testID?: string;
+  title?: string;
+  description?: string;
+  onCalloutPress?: () => void;
+}
+
+// react-native-maps has native code; swap every export for a plain View/mock.
+// (`mock`-prefixed imports rather than plain ones: jest.mock factories may
+// only reference out-of-scope variables whose name starts with "mock".)
+jest.mock('react-native-maps', () => {
+  const MapView = mockForwardRef<
+    MockMapViewRef,
+    { children?: React.ReactNode; testID?: string }
+  >((props, ref) => {
+    // Expose animateToRegion on the ref so the component doesn't crash
+    mockUseImperativeHandle(ref, () => ({
+      animateToRegion: jest.fn(),
+    }));
+    return (
+      <MockView testID={props.testID ?? 'map-view'}>{props.children}</MockView>
+    );
+  });
 
   const Marker = ({
     children,
@@ -38,11 +53,11 @@ jest.mock('react-native-maps', () => {
     title,
     description,
     onCalloutPress,
-  }: any) => (
-    <View testID={testID}>
+  }: MockMarkerProps) => (
+    <MockView testID={testID}>
       {children}
       {/* Simulate a "callout press" button so tests can trigger it */}
-      <View
+      <MockView
         testID={`callout-${testID}`}
         accessible
         accessibilityRole="button"
@@ -52,12 +67,14 @@ jest.mock('react-native-maps', () => {
           return false;
         }}
       />
-      <View testID={`callout-title-${testID}`}>{title}</View>
-      <View testID={`callout-desc-${testID}`}>{description}</View>
-    </View>
+      <MockView testID={`callout-title-${testID}`}>{title}</MockView>
+      <MockView testID={`callout-desc-${testID}`}>{description}</MockView>
+    </MockView>
   );
 
-  const Circle = ({ testID }: any) => <View testID={testID ?? 'circle'} />;
+  const Circle = ({ testID }: { testID?: string }) => (
+    <MockView testID={testID ?? 'circle'} />
+  );
 
   return {
     __esModule: true,
@@ -136,7 +153,7 @@ describe('MapScreen — no location', () => {
 
   it('renders the map view', () => {
     let tree: renderer.ReactTestRenderer;
-    act(() => {
+    void act(() => {
       tree = renderer.create(<MapScreen />);
     });
     const json = tree!.toJSON();
@@ -145,7 +162,7 @@ describe('MapScreen — no location', () => {
 
   it('shows the no-location banner', () => {
     let tree: renderer.ReactTestRenderer;
-    act(() => {
+    void act(() => {
       tree = renderer.create(<MapScreen />);
     });
     const json = JSON.stringify(tree!.toJSON());
@@ -154,7 +171,7 @@ describe('MapScreen — no location', () => {
 
   it('does NOT render a radius circle', () => {
     let tree: renderer.ReactTestRenderer;
-    act(() => {
+    void act(() => {
       tree = renderer.create(<MapScreen />);
     });
     const json = JSON.stringify(tree!.toJSON());
@@ -178,7 +195,7 @@ describe('MapScreen — with location and tasks', () => {
   it('renders a radius circle matching the active filter', () => {
     defaultFeed([]);
     let tree: renderer.ReactTestRenderer;
-    act(() => {
+    void act(() => {
       tree = renderer.create(<MapScreen />);
     });
     const json = JSON.stringify(tree!.toJSON());
@@ -189,7 +206,7 @@ describe('MapScreen — with location and tasks', () => {
     const tasks = [makeTask('a', 51.5, -0.1), makeTask('b', 51.6, -0.2)];
     defaultFeed(tasks);
     let tree: renderer.ReactTestRenderer;
-    act(() => {
+    void act(() => {
       tree = renderer.create(<MapScreen />);
     });
     const json = JSON.stringify(tree!.toJSON());
@@ -200,7 +217,7 @@ describe('MapScreen — with location and tasks', () => {
   it('does NOT show the no-location banner', () => {
     defaultFeed([]);
     let tree: renderer.ReactTestRenderer;
-    act(() => {
+    void act(() => {
       tree = renderer.create(<MapScreen />);
     });
     const json = JSON.stringify(tree!.toJSON());
@@ -214,7 +231,7 @@ describe('MapScreen — with location and tasks', () => {
     );
     defaultFeed(clusteredTasks);
     let tree: renderer.ReactTestRenderer;
-    act(() => {
+    void act(() => {
       tree = renderer.create(<MapScreen />);
     });
     const json = JSON.stringify(tree!.toJSON());
@@ -228,7 +245,7 @@ describe('MapScreen — with location and tasks', () => {
     const task = makeTask('task-1', 51.5, -0.1);
     defaultFeed([task]);
     let tree: renderer.ReactTestRenderer;
-    act(() => {
+    void act(() => {
       tree = renderer.create(<MapScreen />);
     });
 
@@ -237,7 +254,7 @@ describe('MapScreen — with location and tasks', () => {
       n => n.props.testID === 'marker-task-1',
     );
     expect(markerNode.length).toBeGreaterThan(0);
-    act(() => {
+    void act(() => {
       markerNode[0]!.props.onCalloutPress?.();
     });
 

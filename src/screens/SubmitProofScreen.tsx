@@ -56,7 +56,7 @@ export default function SubmitProofScreen() {
 
   useEffect(() => {
     if (!hasPermission) {
-      requestPermission();
+      void requestPermission();
     }
   }, [hasPermission, requestPermission]);
 
@@ -70,8 +70,11 @@ export default function SubmitProofScreen() {
       });
       setPhotoUri(`file://${photo.path}`);
       setCapturedAt(new Date().toISOString());
-    } catch (err: any) {
-      Alert.alert('Camera Error', err.message || 'Failed to capture photo');
+    } catch (err) {
+      Alert.alert(
+        'Camera Error',
+        err instanceof Error ? err.message : 'Failed to capture photo',
+      );
     }
   }, []);
 
@@ -130,7 +133,7 @@ export default function SubmitProofScreen() {
         const token = result.rewardToken || route.params.rewardToken || 'ECO';
         const title =
           result.taskTitle || route.params.taskTitle || 'Task Completed';
-        scheduleLocalNotification({
+        void scheduleLocalNotification({
           title: 'Reward confirmed! 🎉',
           body: `You earned ${amount} ${token} for "${title}".`,
           type: NOTIFICATION_TYPES.REWARD_CONFIRMED,
@@ -140,6 +143,12 @@ export default function SubmitProofScreen() {
             deepLink: 'ecotask://wallet',
           },
         });
+      }
+
+      // The proof was submitted, but IPFS pinning failed (and retried) so it is
+      // not yet available on IPFS. Inform the user it will be retried.
+      if (submission.ipfsPending) {
+        Alert.alert('Proof saved', 'Proof saved, IPFS upload pending');
       }
     } else if (submission.status === 'queued') {
       // Offline / network failure: stored in the proof queue as pending.
@@ -315,7 +324,7 @@ export default function SubmitProofScreen() {
       >
         {!photoUri ? (
           <TouchableOpacity
-            onPress={handleCapture}
+            onPress={() => void handleCapture()}
             disabled={isSubmitting}
             accessibilityRole="button"
             accessibilityLabel="Take Photo"
@@ -361,7 +370,7 @@ export default function SubmitProofScreen() {
               <Text style={{ color: colors.text }}>Retake</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={handleSubmit}
+              onPress={() => void handleSubmit()}
               disabled={isSubmitting}
               accessibilityRole="button"
               accessibilityLabel="Submit Proof"

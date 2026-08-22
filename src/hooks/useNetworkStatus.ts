@@ -23,7 +23,7 @@ export function NetworkStatusProvider({
   useEffect(() => {
     let cancelled = false;
 
-    NetInfo.fetch().then(state => {
+    void NetInfo.fetch().then(state => {
       if (cancelled) {
         return;
       }
@@ -62,7 +62,7 @@ export function useNetworkStatus(): NetworkStatus {
 
     let cancelled = false;
 
-    NetInfo.fetch().then(state => {
+    void NetInfo.fetch().then(state => {
       if (cancelled) {
         return;
       }

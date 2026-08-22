@@ -2,7 +2,7 @@
  * Tests for useProofStatus:
  *  - Resolves to 'confirmed' and fires a local notification
  *  - Resolves to 'failed' and does NOT fire a notification
- *  - Times out after 10 minutes and marks the activity 'failed'
+ *  - Times out after 10 minutes, marks the activity 'failed', and fires a timeout notification
  *  - Pauses polling while offline and resumes on reconnect
  */
 
@@ -31,6 +31,7 @@ import * as api from '../services/api';
 import * as notifications from '../services/notifications';
 import { useProofStatus } from '../hooks/useProofStatus';
 import { useActivityStore } from '../store/activityStore';
+import { NOTIFICATION_TYPES } from '../constants/notificationTypes';
 
 // ─── constants mirrored from the hook ────────────────────────────────────────
 const INITIAL_INTERVAL_MS = 5_000;
@@ -61,7 +62,7 @@ function mountHook(
     return null;
   }
   let tree: renderer.ReactTestRenderer;
-  act(() => {
+  void act(() => {
     tree = renderer.create(<TestComponent />);
   });
   return {
@@ -186,7 +187,19 @@ describe('useProofStatus', () => {
       .activities.find(a => a.id === 'act-1');
 
     expect(activity?.status).toBe('failed');
-    expect(notifications.scheduleLocalNotification).not.toHaveBeenCalled();
+    expect(notifications.scheduleLocalNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Proof verification timed out',
+        body: 'Proof verification timed out. Please check your submission status.',
+        type: NOTIFICATION_TYPES.PROOF_TIMEOUT,
+        data: expect.objectContaining({
+          type: NOTIFICATION_TYPES.PROOF_TIMEOUT,
+          proofId: 'proof-1',
+          activityId: 'act-1',
+          deepLink: 'ecotask://wallet',
+        }),
+      }),
+    );
   });
 
   it('does not poll when proofId is null', async () => {
@@ -207,7 +220,8 @@ describe('useProofStatus', () => {
   it('pauses polling while offline and resumes on reconnect', async () => {
     // Start offline — NetInfo.fetch resolves immediately as disconnected.
     (NetInfo.fetch as jest.Mock).mockResolvedValue({ isConnected: false });
-    let netInfoListener: ((state: any) => void) | null = null;
+    let netInfoListener: ((state: { isConnected: boolean }) => void) | null =
+      null;
     (NetInfo.addEventListener as jest.Mock).mockImplementation(cb => {
       cb({ isConnected: false });
       netInfoListener = cb;
@@ -276,7 +290,7 @@ describe('useProofStatus', () => {
       rewardToken: 'ECO',
     });
 
-    unmount();
+    void unmount();
 
     // After unmount, advancing timers should not trigger further API calls.
     await act(async () => {

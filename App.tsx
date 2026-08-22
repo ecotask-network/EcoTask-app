@@ -16,16 +16,16 @@ function AppSync() {
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
       if (state === 'active') {
-        syncPendingProofs();
+        void syncPendingProofs();
       }
     });
     return () => sub.remove();
   }, [syncPendingProofs]);
 
   useEffect(() => {
-    registerForPushNotifications().then(token => {
+    void registerForPushNotifications().then(token => {
       if (token) {
-        sendTokenToServer(token);
+        void sendTokenToServer(token);
       }
     });
   }, []);

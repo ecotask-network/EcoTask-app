@@ -44,8 +44,11 @@ export default function EditProfileScreen() {
       }
 
       navigation.goBack();
-    } catch (err: any) {
-      Alert.alert('Save Failed', err.message || 'Could not update profile');
+    } catch (err) {
+      Alert.alert(
+        'Save Failed',
+        err instanceof Error ? err.message : 'Could not update profile',
+      );
     } finally {
       setIsSaving(false);
     }
@@ -146,7 +149,7 @@ export default function EditProfileScreen() {
           />
 
           <TouchableOpacity
-            onPress={handleSave}
+            onPress={() => void handleSave()}
             disabled={isSaving}
             accessibilityLabel="Save Changes"
             accessibilityRole="button"

@@ -38,12 +38,18 @@ export async function pinFile(
     throw new Error('IPFS API key not configured. Set IPFS_API_KEY in .env');
   }
 
+  interface ReactNativeFilePart {
+    uri: string;
+    type: string;
+    name: string;
+  }
+
   const formData = new FormData();
   formData.append('file', {
     uri: filePath.startsWith('file://') ? filePath : `file://${filePath}`,
     type: 'image/jpeg',
     name: fileName,
-  } as any);
+  } as ReactNativeFilePart as unknown as Blob);
 
   formData.append(
     'pinataMetadata',

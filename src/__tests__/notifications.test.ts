@@ -68,7 +68,7 @@ jest.mock('react-native', () => {
   };
   const Platform = {
     OS: 'android' as const,
-    select: (obj: any) => obj.android ?? obj.default,
+    select: <T>(obj: Record<string, T>) => obj.android ?? obj.default,
   };
   return {
     __esModule: true,
@@ -135,7 +135,7 @@ function resetPrefs() {
   usePrefsStore.setState({
     notificationPrefs: defaults,
     quietHours: { from: '00:00', to: '00:00' },
-  } as any);
+  });
 }
 
 function resetActivity() {
@@ -228,7 +228,7 @@ describe('listenForTokenRefresh', () => {
 
     listenForTokenRefresh(t => received.push(t));
 
-    if (capturedHandler) {
+    if (capturedHandler != null) {
       (capturedHandler as (token: string) => void)('rotated-token-xyz');
     }
     expect(received).toContain('rotated-token-xyz');

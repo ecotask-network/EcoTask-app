@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-
 import { useWalletStore } from '../store/walletStore';
 import { useStellarWallet } from '../hooks/useStellarWallet';
 import { colors, spacing } from '../utils/theme';
 import EmptyState from '../components/EmptyState';
 import Skeleton from '../components/LoadingSkeleton';
 import TransactionHistory from '../components/TransactionHistory';
+import PublicKeyDisplay from '../components/PublicKeyDisplay';
 import { useTabNavigation } from '../navigation/useAppNavigation';
 
 export default function WalletScreen() {
@@ -17,7 +17,7 @@ export default function WalletScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    refreshBalance().finally(() => setLoading(false));
+    void refreshBalance().finally(() => setLoading(false));
   }, [refreshBalance]);
 
   if (!isConnected) {
@@ -139,16 +139,9 @@ export default function WalletScreen() {
         </View>
 
         {publicKey && (
-          <Text
-            style={{
-              color: colors.textSecondary,
-              fontSize: 12,
-              marginTop: spacing.md,
-            }}
-            numberOfLines={1}
-          >
-            {publicKey}
-          </Text>
+          <View style={{ marginTop: spacing.md }}>
+            <PublicKeyDisplay publicKey={publicKey} chars={6} />
+          </View>
         )}
       </View>
 

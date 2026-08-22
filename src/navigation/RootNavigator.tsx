@@ -72,15 +72,15 @@ export default function RootNavigator() {
         await sendTokenToServer(token);
       }
 
-      stopTokenRefresh = listenForTokenRefresh(async (newToken: string) => {
-        await sendTokenToServer(newToken);
+      stopTokenRefresh = listenForTokenRefresh(newToken => {
+        void sendTokenToServer(newToken);
       });
 
       const messaging = getMessaging();
 
       const initialNotification = await messaging.getInitialNotification();
-      if (initialNotification?.data?.deepLink) {
-        pendingDeepLink.current = initialNotification.data.deepLink as string;
+      if (typeof initialNotification?.data?.deepLink === 'string') {
+        pendingDeepLink.current = initialNotification.data.deepLink;
       }
 
       const unsubForeground = messaging.onMessage(async remoteMessage => {
@@ -110,7 +110,7 @@ export default function RootNavigator() {
 
     return () => {
       stopTokenRefresh?.();
-      cleanupPromise.then(cleanup => cleanup?.());
+      void cleanupPromise.then(cleanup => cleanup?.());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -140,7 +140,7 @@ export default function RootNavigator() {
 
     const subscription = Linking.addEventListener('url', handleUrl);
 
-    Linking.getInitialURL().then(url => {
+    void Linking.getInitialURL().then(url => {
       if (url) {
         handleUrl({ url });
       }

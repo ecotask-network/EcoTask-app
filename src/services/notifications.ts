@@ -114,44 +114,30 @@ export async function scheduleLocalNotification(
 
   const type =
     payload.type || payload.data?.type || payload.data?.notificationType;
-  if (
-    type &&
-    prefs.notificationPrefs &&
-    prefs.notificationPrefs[type] === false
-  ) {
+  if (type && prefs.notificationPrefs[type] === false) {
     return;
   }
 
-  const { from, to } = prefs.quietHours || { from: '00:00', to: '00:00' };
+  const { from, to } = prefs.quietHours;
   if (isNowInQuietHours(from, to)) {
     return;
   }
 
   // Best-effort: if notifee is available and payload requests scheduling, use it
   try {
-    const notifeeModule = await import('@notifee/react-native');
-    const notifee = notifeeModule.default || notifeeModule;
+    const { default: notifee } = await import('@notifee/react-native');
     // If payload contains a timestamp/data.trigger we could schedule; for now display immediately
-    const notification = await notifee.displayNotification({
+    const notificationId = await notifee.displayNotification({
       title: payload.title,
       body: payload.body,
-      data: payload.data as any,
-    } as any);
-    // notifee.displayNotification may return an id in some setups; store it if present
-    if (notification && (notification as any).id) {
-      usePrefsStore
-        .getState()
-        .addScheduledId(type || 'unknown', (notification as any).id);
-    }
-    if (onNotificationCallback) {
-      onNotificationCallback(payload);
-    }
+      data: payload.data,
+    });
+    usePrefsStore.getState().addScheduledId(type || 'unknown', notificationId);
+    onNotificationCallback?.(payload);
     return;
   } catch {
     // fallback to local callback
-    if (onNotificationCallback) {
-      onNotificationCallback(payload);
-    }
+    onNotificationCallback?.(payload);
   }
 }
 

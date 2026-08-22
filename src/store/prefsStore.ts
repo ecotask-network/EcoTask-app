@@ -10,7 +10,10 @@ const zustandMMKVStorage = {
   removeItem: (name: string) => storage.delete(name),
 };
 
-type QuietHours = { from: string; to: string };
+interface QuietHours {
+  from: string;
+  to: string;
+}
 
 // Create default notification preferences with all types enabled
 function makeDefaultNotificationPrefs() {
@@ -35,7 +38,7 @@ interface PrefsState {
   allEnabled: boolean;
   notificationPrefs: Record<string, boolean>;
   quietHours: QuietHours;
-  scheduledNotificationIds: Record<string, string[]>; // type -> ids
+  scheduledNotificationIds: Record<string, string[] | undefined>; // type -> ids
   toggleType: (type: string, enabled: boolean) => void;
   setAllEnabled: (enabled: boolean) => void;
   setQuietHours: (from: string, to: string) => void;
@@ -59,13 +62,13 @@ export const usePrefsStore = create<PrefsState>()(
 
         // if disabling, cancel any scheduled notifications asynchronously
         if (!enabled) {
-          (async () => {
+          void (async () => {
             const ids =
               usePrefsStore.getState().scheduledNotificationIds[type] || [];
             if (ids.length > 0) {
               try {
-                const notifeeModule = await import('@notifee/react-native');
-                const notifee = notifeeModule.default || notifeeModule;
+                const { default: notifee } =
+                  await import('@notifee/react-native');
                 await Promise.all(
                   ids.map(id =>
                     notifee.cancelNotification(id).catch(() => null),
@@ -75,15 +78,12 @@ export const usePrefsStore = create<PrefsState>()(
                 // notifee not available or cancel failed; best-effort
               }
             }
-            usePrefsStore.setState(
-              s =>
-                ({
-                  scheduledNotificationIds: {
-                    ...s.scheduledNotificationIds,
-                    [type]: [],
-                  },
-                }) as any,
-            );
+            usePrefsStore.setState(s => ({
+              scheduledNotificationIds: {
+                ...s.scheduledNotificationIds,
+                [type]: [],
+              },
+            }));
           })();
         }
       },
@@ -109,22 +109,17 @@ export const usePrefsStore = create<PrefsState>()(
     {
       name: 'prefs-storage',
       storage: createJSONStorage(() => zustandMMKVStorage),
-      onRehydrateStorage: () => () => {
-        return (persisted?: unknown) => {
-          if (
-            persisted &&
-            typeof persisted === 'object' &&
-            'notificationPrefs' in persisted
-          ) {
-            const p = persisted as {
-              notificationPrefs?: Record<string, boolean>;
-            };
-            if (p.notificationPrefs) {
-              const merged = mergeNotificationDefaults(p.notificationPrefs);
-              usePrefsStore.setState({ notificationPrefs: merged });
-            }
-          }
-        };
+      // zustand's persist option calls this once with the pre-hydration
+      // state and expects the *return value* to be the post-hydration
+      // callback `(state?, error?) => void` — it does not call a further
+      // nested function, so any extra level of wrapping here is dead code
+      // that silently never runs.
+      onRehydrateStorage: () => (persisted, error) => {
+        if (error != null || !persisted) {
+          return;
+        }
+        const merged = mergeNotificationDefaults(persisted.notificationPrefs);
+        usePrefsStore.setState({ notificationPrefs: merged });
       },
     },
   ),

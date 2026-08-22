@@ -62,7 +62,7 @@ jest.mock(
       ),
       getGenericPassword: jest.fn(async (opts?: { service?: string }) => {
         const key = opts?.service || 'default';
-        return store[key] || false;
+        return key in store ? store[key] : false;
       }),
       resetGenericPassword: jest.fn(async (opts?: { service?: string }) => {
         const key = opts?.service || 'default';

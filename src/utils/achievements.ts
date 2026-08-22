@@ -132,9 +132,8 @@ export function getEarnedCount(stats: UserStats): number {
 }
 
 export function getNextAchievement(stats: UserStats): Achievement | null {
-  const unlocked = getAchievements(stats);
-  return (
-    unlocked.filter(a => !a.earned).sort((a, b) => a.target - b.target)[0] ||
-    null
-  );
+  const remaining = getAchievements(stats)
+    .filter(a => !a.earned)
+    .sort((a, b) => a.target - b.target);
+  return remaining[0] ?? null;
 }

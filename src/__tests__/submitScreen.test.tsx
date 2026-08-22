@@ -1,5 +1,5 @@
 import './__mocks__/setup';
-import React from 'react';
+import React, { useEffect as mockUseEffect } from 'react';
 import renderer, { act } from 'react-test-renderer';
 import { TouchableOpacity, Text } from 'react-native';
 import SubmitScreen from '../screens/SubmitScreen';
@@ -11,7 +11,9 @@ const mockNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: mockNavigate }),
   // Run the focus effect like a normal effect for testing purposes.
-  useFocusEffect: (cb: () => void) => require('react').useEffect(cb, [cb]),
+  // (`mockUseEffect` rather than a plain import: jest.mock factories may
+  // only reference out-of-scope variables whose name starts with "mock".)
+  useFocusEffect: (cb: () => void) => mockUseEffect(cb, [cb]),
 }));
 
 const task: Task = {
@@ -49,7 +51,7 @@ describe('SubmitScreen', () => {
   it('navigates to Tasks when "Browse Tasks" is pressed', () => {
     tree = renderer.create(<SubmitScreen />);
     const button = tree.root.findAllByType(TouchableOpacity)[0];
-    act(() => {
+    void act(() => {
       button?.props.onPress();
     });
     expect(mockNavigate).toHaveBeenCalledWith('Tasks');
@@ -57,7 +59,7 @@ describe('SubmitScreen', () => {
 
   it('auto-redirects to SubmitProof on focus when a fresh task is selected', () => {
     useTaskStore.getState().selectTask(task);
-    act(() => {
+    void act(() => {
       tree = renderer.create(<SubmitScreen />);
     });
     expect(mockNavigate).toHaveBeenCalledWith('SubmitProof', {

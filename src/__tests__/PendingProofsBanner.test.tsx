@@ -31,7 +31,8 @@ describe('PendingProofsBanner', () => {
   });
 
   it('disables Retry and shows a neutral message before initialisation completes', async () => {
-    let resolveFetch: (value: any) => void = () => {};
+    let resolveFetch: (value: { isConnected: boolean }) => void = () =>
+      undefined;
     (NetInfo.fetch as jest.Mock).mockReturnValue(
       new Promise(resolve => {
         resolveFetch = resolve;
@@ -39,7 +40,7 @@ describe('PendingProofsBanner', () => {
     );
 
     let tree: renderer.ReactTestRenderer;
-    act(() => {
+    void act(() => {
       tree = renderer.create(
         <PendingProofsBanner count={2} onRetry={jest.fn()} />,
       );

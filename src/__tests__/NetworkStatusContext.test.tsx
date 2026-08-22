@@ -6,9 +6,14 @@ import NetInfo from '@react-native-community/netinfo';
 import {
   NetworkStatusProvider,
   useNetworkStatus,
+  NetworkStatus,
 } from '../hooks/useNetworkStatus';
 
-function HookConsumer({ onStatus }: { onStatus: (status: any) => void }) {
+function HookConsumer({
+  onStatus,
+}: {
+  onStatus: (status: NetworkStatus) => void;
+}) {
   const status = useNetworkStatus();
   React.useEffect(() => {
     onStatus(status);
@@ -28,9 +33,9 @@ describe('NetworkStatusProvider and Context', () => {
     await act(async () => {
       renderer.create(
         <NetworkStatusProvider>
-          <HookConsumer onStatus={() => {}} />
-          <HookConsumer onStatus={() => {}} />
-          <HookConsumer onStatus={() => {}} />
+          <HookConsumer onStatus={() => undefined} />
+          <HookConsumer onStatus={() => undefined} />
+          <HookConsumer onStatus={() => undefined} />
         </NetworkStatusProvider>,
       );
     });
@@ -42,14 +47,14 @@ describe('NetworkStatusProvider and Context', () => {
   it('propagates state changes to all components in the context tree', async () => {
     (NetInfo.fetch as jest.Mock).mockResolvedValue({ isConnected: true });
 
-    let listener: (state: any) => void = () => {};
+    let listener: (state: { isConnected: boolean }) => void = () => undefined;
     (NetInfo.addEventListener as jest.Mock).mockImplementation(cb => {
       listener = cb;
       return jest.fn();
     });
 
-    let status1: any;
-    let status2: any;
+    let status1!: NetworkStatus;
+    let status2!: NetworkStatus;
 
     await act(async () => {
       renderer.create(
@@ -63,7 +68,7 @@ describe('NetworkStatusProvider and Context', () => {
     expect(status1.isConnected).toBe(true);
     expect(status2.isConnected).toBe(true);
 
-    act(() => {
+    void act(() => {
       listener({ isConnected: false });
     });
 
@@ -72,16 +77,17 @@ describe('NetworkStatusProvider and Context', () => {
   });
 
   it('handles initialisation state correctly during NetInfo.fetch delay', async () => {
-    let resolveFetch: (value: any) => void = () => {};
+    let resolveFetch: (value: { isConnected: boolean }) => void = () =>
+      undefined;
     (NetInfo.fetch as jest.Mock).mockReturnValue(
       new Promise(resolve => {
         resolveFetch = resolve;
       }),
     );
 
-    let status: any;
+    let status!: NetworkStatus;
 
-    act(() => {
+    void act(() => {
       renderer.create(
         <NetworkStatusProvider>
           <HookConsumer onStatus={s => (status = s)} />

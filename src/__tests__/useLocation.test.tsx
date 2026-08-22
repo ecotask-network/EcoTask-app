@@ -6,6 +6,28 @@ import renderer, { act } from 'react-test-renderer';
 import Geolocation from '@react-native-community/geolocation';
 import { useLocation } from '../hooks/useLocation';
 
+type GeolocationPosition = Parameters<
+  Parameters<typeof Geolocation.watchPosition>[0]
+>[0];
+
+function makePosition(
+  latitude: number,
+  longitude: number,
+): GeolocationPosition {
+  return {
+    coords: {
+      latitude,
+      longitude,
+      altitude: null,
+      accuracy: 0,
+      altitudeAccuracy: null,
+      heading: null,
+      speed: null,
+    },
+    timestamp: Date.now(),
+  };
+}
+
 function HookHarness({
   onRef,
 }: {
@@ -28,7 +50,7 @@ describe('useLocation hook', () => {
 
   afterEach(() => {
     if (instance) {
-      act(() => {
+      void act(() => {
         instance?.unmount();
       });
       instance = null;
@@ -41,13 +63,13 @@ describe('useLocation hook', () => {
       .spyOn(PermissionsAndroid, 'request')
       .mockResolvedValue(PermissionsAndroid.RESULTS.GRANTED!);
 
-    let watchCallback: ((pos: any) => void) | null = null;
+    let watchCallback: ((pos: GeolocationPosition) => void) | null = null;
     const watchPositionMock = jest
       .spyOn(Geolocation, 'watchPosition')
-      .mockImplementation(((success: (pos: any) => void) => {
+      .mockImplementation(success => {
         watchCallback = success;
         return 123;
-      }) as any);
+      });
 
     await act(async () => {
       instance = renderer.create(<HookHarness onRef={r => (hookRef = r)} />);
@@ -68,11 +90,9 @@ describe('useLocation hook', () => {
     expect(hookRef.permissionGranted).toBe(true);
 
     // Simulate position update
-    act(() => {
+    void act(() => {
       if (watchCallback) {
-        watchCallback({
-          coords: { latitude: 37.7749, longitude: -122.4194 },
-        });
+        watchCallback(makePosition(37.7749, -122.4194));
       }
     });
 
@@ -100,18 +120,18 @@ describe('useLocation hook', () => {
 
   it('performs high-accuracy single fix on refresh()', async () => {
     Platform.OS = 'ios';
-    let getCallback: ((pos: any) => void) | null = null;
+    let getCallback: ((pos: GeolocationPosition) => void) | null = null;
     const getCurrentPositionMock = jest
       .spyOn(Geolocation, 'getCurrentPosition')
-      .mockImplementation(((success: (pos: any) => void) => {
+      .mockImplementation(success => {
         getCallback = success;
-      }) as any);
+      });
 
     await act(async () => {
       instance = renderer.create(<HookHarness onRef={r => (hookRef = r)} />);
     });
 
-    act(() => {
+    void act(() => {
       hookRef.refresh();
     });
 
@@ -124,11 +144,9 @@ describe('useLocation hook', () => {
       }),
     );
 
-    act(() => {
+    void act(() => {
       if (getCallback) {
-        getCallback({
-          coords: { latitude: 40.7128, longitude: -74.006 },
-        });
+        getCallback(makePosition(40.7128, -74.006));
       }
     });
 
@@ -142,14 +160,14 @@ describe('useLocation hook', () => {
     Platform.OS = 'ios';
     const clearWatchMock = jest
       .spyOn(Geolocation, 'clearWatch')
-      .mockImplementation(() => {});
-    jest.spyOn(Geolocation, 'watchPosition').mockReturnValue(456 as any);
+      .mockImplementation(() => undefined);
+    jest.spyOn(Geolocation, 'watchPosition').mockReturnValue(456);
 
     await act(async () => {
       instance = renderer.create(<HookHarness onRef={r => (hookRef = r)} />);
     });
 
-    act(() => {
+    void act(() => {
       instance?.unmount();
       instance = null;
     });

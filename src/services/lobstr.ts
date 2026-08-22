@@ -49,8 +49,8 @@ export function resolveLobstrCallback(url: string): void {
   try {
     const signedXDR = parseLobstrCallbackUrl(url);
     _pendingResolve(signedXDR);
-  } catch (err: any) {
-    _pendingReject(err);
+  } catch (err) {
+    _pendingReject(err instanceof Error ? err : new Error(String(err)));
   } finally {
     _pendingResolve = null;
     _pendingReject = null;

@@ -43,7 +43,23 @@ function makeJwt(exp: number): string {
   return `${header}.${payload}.signature`;
 }
 
-function successResponse(data: unknown, config: unknown) {
+interface MockAxiosConfig {
+  url?: string;
+  headers?: Record<string, string>;
+  [key: string]: unknown;
+}
+
+interface MockAxiosError extends Error {
+  config?: MockAxiosConfig;
+  response?: {
+    status: number;
+    statusText: string;
+    data: unknown;
+    headers: Record<string, unknown>;
+  };
+}
+
+function successResponse(data: unknown, config: MockAxiosConfig) {
   return {
     data,
     status: 200,
@@ -53,8 +69,10 @@ function successResponse(data: unknown, config: unknown) {
   };
 }
 
-function unauthorizedError(config: unknown) {
-  const error: any = new Error('Request failed with status code 401');
+function unauthorizedError(config: MockAxiosConfig) {
+  const error: MockAxiosError = new Error(
+    'Request failed with status code 401',
+  );
   error.config = config;
   error.response = {
     status: 401,
@@ -66,7 +84,7 @@ function unauthorizedError(config: unknown) {
 }
 
 function mockAuthEndpoints(adapter: jest.Mock): void {
-  adapter.mockImplementation(async (config: any) => {
+  adapter.mockImplementation(async (config: MockAxiosConfig) => {
     if (config.url === '/auth/challenge') {
       return successResponse({ challenge: 'challenge-xdr' }, config);
     }
@@ -78,7 +96,7 @@ function mockAuthEndpoints(adapter: jest.Mock): void {
 }
 
 const adapter = jest.fn();
-api.defaults.adapter = adapter as any;
+api.defaults.adapter = adapter as unknown as typeof api.defaults.adapter;
 
 beforeEach(() => {
   useUserStore.setState({ profile: null, token: null, tokenExpiresAt: null });
@@ -160,9 +178,9 @@ describe('request interceptor', () => {
       .getState()
       .setToken(makeJwt(Math.floor(Date.now() / 1000) - 60));
 
-    adapter.mockImplementationOnce(async (config: any) => {
+    adapter.mockImplementationOnce(async (config: MockAxiosConfig) => {
       if (config.url === '/tasks') {
-        expect(config.headers.Authorization).toBe(`Bearer ${NEW_TOKEN}`);
+        expect(config.headers?.Authorization).toBe(`Bearer ${NEW_TOKEN}`);
       }
       return successResponse({ tasks: [] }, config);
     });
@@ -181,9 +199,11 @@ describe('response interceptor', () => {
     useWalletStore.getState().connect('GCKEY');
     useUserStore.getState().setToken(makeJwt(EXP));
     mockedGetInAppSecret.mockReturnValue(null); // no signing key => refresh fails
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const alertSpy = jest
+      .spyOn(Alert, 'alert')
+      .mockImplementation(() => undefined);
 
-    adapter.mockImplementation(async (config: any) => {
+    adapter.mockImplementation(async (config: MockAxiosConfig) => {
       if (config.url === '/auth/challenge') {
         return successResponse({ challenge: 'challenge-xdr' }, config);
       }
@@ -208,7 +228,7 @@ describe('response interceptor', () => {
     mockedSignChallengeXDR.mockReturnValue('signed-xdr');
 
     let taskRequests = 0;
-    adapter.mockImplementation(async (config: any) => {
+    adapter.mockImplementation(async (config: MockAxiosConfig) => {
       if (config.url === '/auth/challenge') {
         return successResponse({ challenge: 'challenge-xdr' }, config);
       }
@@ -223,13 +243,13 @@ describe('response interceptor', () => {
         if (taskRequests === 1) {
           return unauthorizedError(config);
         }
-        expect(config.headers.Authorization).toBe(`Bearer ${NEW_TOKEN}`);
+        expect(config.headers?.Authorization).toBe(`Bearer ${NEW_TOKEN}`);
         return successResponse({ tasks: [{ id: 't1' }] }, config);
       }
       return successResponse({}, config);
     });
 
-    const result: any = await api.get('/tasks');
+    const result = await api.get<{ tasks: { id: string }[] }>('/tasks');
 
     expect(result.data.tasks).toEqual([{ id: 't1' }]);
     expect(taskRequests).toBe(2);

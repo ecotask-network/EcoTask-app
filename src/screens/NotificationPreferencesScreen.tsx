@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, Switch, TouchableOpacity, ScrollView } from 'react-native';
-
 import { colors, spacing } from '../utils/theme';
 import { NOTIFICATION_TYPES } from '../services/notifications';
 import usePrefsStore from '../store/prefsStore';

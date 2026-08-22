@@ -8,7 +8,6 @@ import {
   ScrollView,
   TextInput,
 } from 'react-native';
-
 import { colors, spacing } from '../utils/theme';
 import { useTaskFeed } from '../hooks/useTaskFeed';
 import { useLocation } from '../hooks/useLocation';
@@ -347,7 +346,7 @@ export default function TaskListScreen() {
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         refreshing={isLoading && tasks.length > 0}
-        onRefresh={refresh}
+        onRefresh={() => void refresh()}
         ListEmptyComponent={
           !isLoading ? (
             <EmptyState

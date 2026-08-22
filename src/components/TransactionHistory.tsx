@@ -55,7 +55,7 @@ export default function TransactionHistory({
   }, [publicKey]);
 
   useEffect(() => {
-    loadPayments();
+    void loadPayments();
   }, [loadPayments]);
 
   if (loading) {

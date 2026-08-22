@@ -1,4 +1,5 @@
 import './__mocks__/setup';
+import { MMKV } from 'react-native-mmkv';
 import {
   loadQueue,
   saveQueue,
@@ -114,7 +115,6 @@ describe('proofQueue', () => {
   });
 
   it('returns an empty array when storage is corrupted', () => {
-    const { MMKV } = require('react-native-mmkv');
     const instance = new MMKV();
     instance.set('pending_proofs', 'not-json{');
     expect(loadQueue()).toEqual([]);

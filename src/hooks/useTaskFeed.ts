@@ -48,26 +48,30 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
   );
 
   const loadTasks = useCallback(
-    async (pageNum: number = 1) => {
+    async (pageNum = 1) => {
       setLoading(true);
       setError(null);
       try {
-        const params: Record<string, any> = { page: pageNum, limit: 20 };
+        const params: Record<string, string | number> = {
+          page: pageNum,
+          limit: 20,
+        };
         if (serverParams.type) {
           params.type = serverParams.type;
         }
 
         const loc = locationRef.current;
-        const lat = loc.lat;
-        const lng = loc.lng;
-        const withLocation = lat !== undefined && lng !== undefined;
-        if (withLocation && lat !== undefined && lng !== undefined) {
-          params.lat = lat;
-          params.lng = lng;
+        const location =
+          loc.lat !== undefined && loc.lng !== undefined
+            ? { lat: loc.lat, lng: loc.lng }
+            : null;
+        if (location) {
+          params.lat = location.lat;
+          params.lng = location.lng;
           if (serverParams.radius !== undefined) {
             params.radius = serverParams.radius;
           }
-          lastFetchLocationRef.current = { lat, lng };
+          lastFetchLocationRef.current = location;
         } else {
           lastFetchLocationRef.current = null;
         }
@@ -79,10 +83,9 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
             ...task,
             status: normalizeTaskStatus(task.status),
           }));
-          if (withLocation && loc.lat !== undefined && loc.lng !== undefined) {
-            return enrichTasksWithDistance(withStatus, loc.lat, loc.lng);
-          }
-          return withStatus;
+          return location
+            ? enrichTasksWithDistance(withStatus, location.lat, location.lng)
+            : withStatus;
         };
 
         if (pageNum === 1) {
@@ -92,8 +95,8 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
         }
         setPage(pageNum);
         setHasMore(pageNum < result.totalPages);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load tasks');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load tasks');
       } finally {
         setLoading(false);
       }
@@ -112,7 +115,7 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
   const refresh = useCallback(() => loadTasks(1), [loadTasks]);
   const loadMore = useCallback(() => {
     if (!isLoading && hasMore) {
-      loadTasks(page + 1);
+      void loadTasks(page + 1);
     }
   }, [isLoading, hasMore, page, loadTasks]);
 
@@ -121,7 +124,7 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
   // don't burn a network request re-fetching data we already hold.
   useEffect(() => {
     if (tasksRef.current.length === 0) {
-      loadTasks(1);
+      void loadTasks(1);
     } else if (hasLocation) {
       // Tasks already present: record the current location as "already
       // fetched" so the debounced location effect doesn't immediately
@@ -140,7 +143,7 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
       skipFirstFilterRun.current = false;
       return;
     }
-    loadTasks(1);
+    void loadTasks(1);
   }, [serverParams, loadTasks]);
 
   const currentLocation = useMemo(
@@ -161,7 +164,7 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
       ) {
         return;
       }
-      loadTasks(1);
+      void loadTasks(1);
     }, LOCATION_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [currentLocation, loadTasks]);

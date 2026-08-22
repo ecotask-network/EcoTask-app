@@ -29,7 +29,7 @@ export default function TaskDetailScreen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadTask();
+    void loadTask();
   }, [taskId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadTask() {

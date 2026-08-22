@@ -29,10 +29,10 @@ export interface FirebaseMessagingAdapter {
 /** No-op adapter — used when Firebase native module is not available. */
 const nullAdapter: FirebaseMessagingAdapter = {
   getToken: async () => null,
-  onTokenRefresh: () => () => {},
+  onTokenRefresh: () => () => undefined,
   getInitialNotification: async () => null,
-  onMessage: () => () => {},
-  onNotificationOpenedApp: () => () => {},
+  onMessage: () => () => undefined,
+  onNotificationOpenedApp: () => () => undefined,
   requestPermission: async () => null,
 };
 

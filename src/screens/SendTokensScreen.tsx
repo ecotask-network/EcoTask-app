@@ -84,9 +84,9 @@ export default function SendTokensScreen() {
         // Lobstr submits the transaction; we can't await on-chain confirmation
         // here, so refresh balances after a short delay and inform the user.
         setTimeout(() => {
-          refreshBalance();
-          refreshEcoBalance();
-          refreshUsdcBalance();
+          void refreshBalance();
+          void refreshEcoBalance();
+          void refreshUsdcBalance();
         }, 3000);
         Alert.alert(
           'Payment opened in Lobstr',
@@ -113,27 +113,24 @@ export default function SendTokensScreen() {
         amount: amount.trim(),
         asset: assetParam,
       });
-      refreshBalance();
-      refreshEcoBalance();
-      refreshUsdcBalance();
+      void refreshBalance();
+      void refreshEcoBalance();
+      void refreshUsdcBalance();
       Alert.alert(
         'Payment sent',
         `Transaction ${result.hash.slice(0, 12)}… submitted to the network.`,
       );
       setDestination('');
       setAmount('');
-    } catch (err: any) {
+    } catch (err) {
       if (err instanceof LobstrNotInstalledError) {
         setError(err.message);
-      } else if (
-        typeof err.message === 'string' &&
-        err.message.includes('op_no_trust')
-      ) {
+      } else if (err instanceof Error && err.message.includes('op_no_trust')) {
         setError(
           'The destination account has no trustline for this asset. They must add a trustline before receiving it.',
         );
       } else {
-        setError(err.message || 'Failed to send payment');
+        setError(err instanceof Error ? err.message : 'Failed to send payment');
       }
     } finally {
       setIsSending(false);
@@ -295,7 +292,7 @@ export default function SendTokensScreen() {
         )}
 
         <TouchableOpacity
-          onPress={handleSend}
+          onPress={() => void handleSend()}
           disabled={isSending}
           accessibilityRole="button"
           accessibilityLabel={isLobstr ? 'Send via Lobstr' : 'Send'}

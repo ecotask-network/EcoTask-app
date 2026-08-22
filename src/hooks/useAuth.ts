@@ -17,6 +17,10 @@ interface FreighterWindow {
   };
 }
 
+// React Native has no DOM `window`; Freighter (browser extension) only
+// exists when this code happens to run in a web context.
+declare const window: FreighterWindow;
+
 export function useAuth() {
   const { setProfile, setToken, logout } = useUserStore();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -41,11 +45,11 @@ export function useAuth() {
           // Opens Lobstr; suspends until deep-link callback resolves.
           signature = await openLobstrForSigning(challenge, publicKey);
         } else {
-          const freighter = (
-            typeof (globalThis as any).window !== 'undefined'
-              ? (globalThis as any).window
-              : ({} as FreighterWindow)
-          ).freighter;
+          // `typeof window` is safe to reference even where no global
+          // `window` is declared (native platforms); a direct reference
+          // is not.
+          const freighter =
+            typeof window !== 'undefined' ? window.freighter : undefined;
 
           if (freighter?.signTransaction) {
             signature = await freighter.signTransaction(challenge);
@@ -60,25 +64,51 @@ export function useAuth() {
           challenge,
         );
 
+        // Set the token before fetching the profile so the request
+        // interceptor can attach it as the Authorization header.
+        setToken(token);
+
         const defaultStats: UserStats = {
           treesPlanted: 0,
           plasticCollected: 0,
           co2Reduced: 0,
         };
 
-        setProfile({
+        // The login response doesn't include stats, so chain an immediate
+        // profile fetch to get the server-authoritative values. Only fall
+        // back to zeros if the fetch itself fails (e.g. network hiccup) —
+        // a genuinely new user's stats already come back as zero from the
+        // server.
+        let profileStats = defaultStats;
+        let profileFields = {
           id: user.id,
-          wallet: publicKey,
           name: user.name,
           bio: user.bio,
           avatarUrl: user.avatarUrl,
-          stats: defaultStats,
+        };
+        try {
+          const profile = await fetchUserProfile();
+          profileStats = profile.stats || defaultStats;
+          profileFields = {
+            id: profile.id || user.id,
+            name: profile.name ?? user.name,
+            bio: profile.bio ?? user.bio,
+            avatarUrl: profile.avatarUrl ?? user.avatarUrl,
+          };
+        } catch {
+          // Best-effort: proceed with the login response and zero stats.
+          // syncProfile() will retry later.
+        }
+
+        setProfile({
+          ...profileFields,
+          wallet: publicKey,
+          stats: profileStats,
         });
-        setToken(token);
 
         return { token, user };
-      } catch (err: any) {
-        setError(err.message || 'Authentication failed');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Authentication failed');
         throw err;
       } finally {
         setIsAuthenticating(false);
@@ -97,11 +127,12 @@ export function useAuth() {
         name: profile.name,
         bio: profile.bio,
         avatarUrl: profile.avatarUrl,
-        stats: currentStats || {
-          treesPlanted: 0,
-          plasticCollected: 0,
-          co2Reduced: 0,
-        },
+        stats: profile.stats ||
+          currentStats || {
+            treesPlanted: 0,
+            plasticCollected: 0,
+            co2Reduced: 0,
+          },
       });
     } catch {
       // Silently fail - profile sync is best-effort
