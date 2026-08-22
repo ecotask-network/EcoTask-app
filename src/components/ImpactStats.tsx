@@ -39,7 +39,7 @@ function StatItem({
 }) {
   return (
     <View style={{ alignItems: 'center' }}>
-      <Text style={{ fontSize: 24 }}>{icon}</Text>
+      <Text accessible={true} accessibilityRole="image" accessibilityLabel={`${label} icon`} style={{ fontSize: 24 }}>{icon}</Text>
       <Text
         style={{
           color: colors.text,

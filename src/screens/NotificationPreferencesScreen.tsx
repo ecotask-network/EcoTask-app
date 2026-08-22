@@ -80,6 +80,8 @@ export default function NotificationPreferencesScreen() {
                   quietHours.to,
                 );
               }}
+              accessibilityLabel={`Cycle Quiet Hours Start Time, currently ${quietHours.from}`}
+              accessibilityRole="button"
               style={{
                 padding: spacing.md,
                 backgroundColor: colors.surface,
@@ -100,6 +102,8 @@ export default function NotificationPreferencesScreen() {
                   `${nh.toString().padStart(2, '0')}:${(m || 0).toString().padStart(2, '0')}`,
                 );
               }}
+              accessibilityLabel={`Cycle Quiet Hours End Time, currently ${quietHours.to}`}
+              accessibilityRole="button"
               style={{
                 padding: spacing.md,
                 backgroundColor: colors.surface,
@@ -113,6 +117,8 @@ export default function NotificationPreferencesScreen() {
 
         <TouchableOpacity
           onPress={() => navigation.goBack()}
+          accessibilityLabel="Done editing preferences"
+          accessibilityRole="button"
           style={{
             marginTop: spacing.lg,
             padding: spacing.md,

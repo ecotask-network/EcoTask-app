@@ -34,7 +34,7 @@ export default function StreakCard({ streak, bestStreak }: StreakCardProps) {
           marginRight: spacing.md,
         }}
       >
-        <Text style={{ fontSize: 28 }}>{streak > 0 ? '🔥' : '🧊'}</Text>
+        <Text style={{ fontSize: 28 }} accessible={true} accessibilityLabel={streak > 0 ? 'Fire' : 'Ice'}>{streak > 0 ? '🔥' : '🧊'}</Text>
       </View>
 
       <View style={{ flex: 1 }}>

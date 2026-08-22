@@ -20,6 +20,8 @@ export default function TabBarIcon({
         fontSize: size,
         opacity: focused ? 1 : 0.5,
       }}
+      accessible={true}
+      accessibilityLabel="Tab icon"
     >
       {emoji}
     </Text>

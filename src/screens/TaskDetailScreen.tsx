@@ -62,11 +62,8 @@ export default function TaskDetailScreen() {
           alignItems: 'center',
         }}
       >
-        <Text style={{ color: colors.error }}>{error || 'Task not found'}</Text>
-        <TouchableOpacity
-          onPress={() => void loadTask()}
-          style={{ marginTop: spacing.md }}
-        >
+        <Text accessibilityLiveRegion="polite" style={{ color: colors.error }}>{error || 'Task not found'}</Text>
+        <TouchableOpacity onPress={loadTask} accessibilityRole="button" accessibilityLabel="Try Again" style={{ marginTop: spacing.md }}>
           <Text style={{ color: colors.primary }}>Try Again</Text>
         </TouchableOpacity>
       </View>
@@ -83,6 +80,8 @@ export default function TaskDetailScreen() {
       <View style={{ padding: spacing.lg }}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
           style={{ marginBottom: spacing.md, marginTop: spacing.xl }}
         >
           <Text style={{ color: colors.primary, fontSize: 16 }}>
@@ -90,7 +89,7 @@ export default function TaskDetailScreen() {
           </Text>
         </TouchableOpacity>
 
-        <Text style={{ fontSize: 48, marginBottom: spacing.sm }}>
+        <Text accessible={true} accessibilityLabel="Task icon" style={{ fontSize: 48, marginBottom: spacing.sm }}>
           {TASK_TYPE_CONFIG[task.type]?.icon || '📍'}
         </Text>
         <Text style={{ color: colors.text, fontSize: 24, fontWeight: 'bold' }}>
@@ -195,6 +194,9 @@ export default function TaskDetailScreen() {
 
         <TouchableOpacity
           disabled={isClosed}
+          accessibilityRole="button"
+          accessibilityLabel={isClosed ? 'Task Closed' : 'Start Task'}
+          accessibilityState={{ disabled: isClosed }}
           onPress={() => {
             selectTask({ ...task, id: task.id || taskId });
             navigation.navigate('SubmitProof', {

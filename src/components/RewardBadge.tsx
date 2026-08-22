@@ -52,7 +52,7 @@ export default function RewardBadge({
         alignSelf: 'flex-start',
       }}
     >
-      <Text style={{ fontSize: s.icon, marginRight: s.badge / 4 }}>
+      <Text style={{ fontSize: s.icon, marginRight: s.badge / 4 }} accessible={true} accessibilityLabel={tier.label}>
         {tier.emoji}
       </Text>
       <Text

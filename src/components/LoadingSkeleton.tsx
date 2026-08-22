@@ -44,6 +44,9 @@ export default function Skeleton({
 
   return (
     <Animated.View
+      accessible={true}
+      accessibilityLabel="Loading..."
+      accessibilityLiveRegion="polite"
       style={[
         {
           width,
