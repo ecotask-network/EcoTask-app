@@ -260,6 +260,46 @@ describe('useStellarWallet connect flow', () => {
 
       expectConnected(IN_APP_PK, 'inapp', '5', '75', '25');
     });
+
+    it('Freighter: connects successfully and records the wallet type', async () => {
+      (globalThis as { window?: unknown }).window = {
+        freighter: {
+          isConnected: jest.fn().mockResolvedValue(true),
+          getPublicKey: jest.fn().mockResolvedValue(FREIGHTER_PK),
+          signTransaction: jest.fn(),
+        },
+      };
+      tree = await renderProbe();
+      await act(async () => {
+        await hook.connectFreighter();
+      });
+      expectConnected(FREIGHTER_PK, 'freighter', '123.45', '75', '25');
+      expect(hook.error).toBeNull();
+    });
+
+    it('Lobstr: connects successfully and extracts the key from the signed challenge', async () => {
+      tree = await renderProbe();
+      await act(async () => {
+        await hook.connectLobstr();
+      });
+      expect(openLobstrForSigning).toHaveBeenCalled();
+      expectConnected('GLOBSTRUSERKEY', 'lobstr', '123.45', '75', '25');
+      expect(hook.error).toBeNull();
+    });
+
+    it('import: valid secret key connects and persists to the vault', async () => {
+      tree = await renderProbe();
+      let result: { publicKey: string } | undefined;
+      await act(async () => {
+        result = await hook.importWallet('  SVALIDIMPORTSECRET  ');
+      });
+      expect(result).toEqual({ publicKey: IMPORT_PK });
+      // Secret is trimmed before validation/derivation.
+      expect(isValidSecretKey).toHaveBeenCalledWith('SVALIDIMPORTSECRET');
+      expectConnected(IMPORT_PK, 'inapp', '123.45', '75', '25');
+      expect(getInAppSecret(IMPORT_PK)).toBe('SVALIDIMPORTSECRET');
+      expect(hook.error).toBeNull();
+    });
   });
 
   describe('balance fetch failure rolls back (all wallet paths)', () => {
@@ -381,6 +421,90 @@ describe('useStellarWallet connect flow', () => {
     });
   });
 
+  describe('connection errors (per wallet path)', () => {
+    it('Freighter: reports when the extension is not detected', async () => {
+      delete (globalThis as { window?: unknown }).window;
+      tree = await renderProbe();
+      await act(async () => {
+        await hook.connectFreighter();
+      });
+      expect(hook.error).toBe('Freighter extension not detected');
+      expectDisconnected();
+    });
+
+    it('Freighter: asks the user to unlock the extension when not connected', async () => {
+      (globalThis as { window?: unknown }).window = {
+        freighter: {
+          isConnected: jest.fn().mockResolvedValue(false),
+          getPublicKey: jest.fn(),
+          signTransaction: jest.fn(),
+        },
+      };
+      tree = await renderProbe();
+      await act(async () => {
+        await hook.connectFreighter();
+      });
+      expect(hook.error).toBe('Please unlock Freighter first');
+      expect(getBalance).not.toHaveBeenCalled();
+      expectDisconnected();
+    });
+
+    it('Lobstr: surfaces a clear error when the app is not installed', async () => {
+      isLobstrInstalled.mockResolvedValue(false);
+      tree = await renderProbe();
+      await act(async () => {
+        await hook.connectLobstr();
+      });
+      expect(hook.error).toMatch(/Lobstr is not installed/i);
+      expect(openLobstrForSigning).not.toHaveBeenCalled();
+      expectDisconnected();
+    });
+
+    it('Lobstr: surfaces an error when signing is cancelled', async () => {
+      openLobstrForSigning.mockRejectedValue(
+        new Error('Lobstr signing was cancelled'),
+      );
+      tree = await renderProbe();
+      await act(async () => {
+        await hook.connectLobstr();
+      });
+      expect(hook.error).toBe('Lobstr signing was cancelled');
+      expect(getBalance).not.toHaveBeenCalled();
+      expectDisconnected();
+    });
+
+    it('import: invalid secret key is rejected without persisting', async () => {
+      isValidSecretKey.mockReturnValue(false);
+      tree = await renderProbe();
+      let result: { publicKey: string } | undefined;
+      await act(async () => {
+        result = await hook.importWallet('SBADKEY');
+      });
+      expect(result).toBeUndefined();
+      expect(hook.error).toBe('Invalid secret key');
+      expect(getPublicKeyFromSecret).not.toHaveBeenCalled();
+      expect(getBalance).not.toHaveBeenCalled();
+      expectDisconnected();
+      expect(getInAppSecret(IMPORT_PK)).toBeNull();
+    });
+  });
+
+  describe('disconnectWallet', () => {
+    it('clears the vault entry and resets the store', async () => {
+      tree = await renderProbe();
+      await act(async () => {
+        await hook.createInAppWallet();
+      });
+      expect(getInAppSecret(IN_APP_PK)).toBe(IN_APP_SECRET);
+
+      await act(async () => {
+        hook.disconnectWallet();
+      });
+      expect(getInAppSecret(IN_APP_PK)).toBeNull();
+      expectDisconnected();
+    });
+  });
+
   describe('refreshes after connect are fail-safe', () => {
     it('keeps the last known balance when a later refresh fails', async () => {
       tree = await renderProbe();
@@ -399,6 +523,54 @@ describe('useStellarWallet connect flow', () => {
       expect(useWalletStore.getState().balance).toBe('123.45');
       expect(useWalletStore.getState().isConnected).toBe(true);
       expect(hook.error).toBe('offline blip');
+    });
+
+    it('refreshBalance updates the store with a fresh balance', async () => {
+      tree = await renderProbe();
+      await act(async () => {
+        await hook.createInAppWallet();
+      });
+      expect(useWalletStore.getState().balance).toBe('123.45');
+
+      getBalance.mockResolvedValue('999.99');
+      await act(async () => {
+        await hook.refreshBalance();
+      });
+      expect(useWalletStore.getState().balance).toBe('999.99');
+      expect(hook.error).toBeNull();
+    });
+
+    it('refreshEcoBalance and refreshUsdcBalance update their token balances', async () => {
+      tree = await renderProbe();
+      await act(async () => {
+        await hook.createInAppWallet();
+      });
+
+      getTokenBalance.mockImplementation((_pk: string, assetCode: string) =>
+        Promise.resolve(assetCode === 'USDC' ? '42' : '13'),
+      );
+      await act(async () => {
+        await hook.refreshEcoBalance();
+        await hook.refreshUsdcBalance();
+      });
+      expect(useWalletStore.getState().ecoBalance).toBe('13');
+      expect(useWalletStore.getState().usdcBalance).toBe('42');
+      expect(hook.error).toBeNull();
+    });
+
+    it('keeps the last known token balance when a token refresh fails', async () => {
+      tree = await renderProbe();
+      await act(async () => {
+        await hook.createInAppWallet();
+      });
+      expect(useWalletStore.getState().ecoBalance).toBe('75');
+
+      getTokenBalance.mockRejectedValue(new Error('token horizon down'));
+      await act(async () => {
+        await hook.refreshEcoBalance();
+      });
+      expect(useWalletStore.getState().ecoBalance).toBe('75');
+      expect(hook.error).toBe('token horizon down');
     });
   });
 });
