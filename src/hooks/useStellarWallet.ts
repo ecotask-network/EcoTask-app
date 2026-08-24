@@ -298,16 +298,26 @@ export function useStellarWallet() {
     disconnect();
   }, [publicKey, disconnect]);
 
-  const refreshBalance = useCallback(async () => {
-    if (publicKey) {
-      try {
-        const balance = await stellar.getBalance(publicKey);
-        setBalance(balance);
-      } catch (err) {
-        // Keep the last known balance on refresh failure instead of
-        // rejecting into fire-and-forget call sites.
-        setError(toErrorMessage(err, 'Could not refresh balance'));
-      }
+  /**
+   * Refresh the native XLM balance.
+   *
+   * Resolves `true` on success and `false` on network/Horizon failure so
+   * screens can surface an error without this function ever rejecting —
+   * several call sites fire-and-forget (`void refreshBalance()`).
+   * A failed refresh keeps the last known balance in the store.
+   */
+  const refreshBalance = useCallback(async (): Promise<boolean> => {
+    if (!publicKey) {
+      return true;
+    }
+    try {
+      const balance = await stellar.getBalance(publicKey);
+      setBalance(balance);
+      setError(null);
+      return true;
+    } catch (err) {
+      setError(toErrorMessage(err, 'Could not refresh balance'));
+      return false;
     }
   }, [publicKey, setBalance]);
 

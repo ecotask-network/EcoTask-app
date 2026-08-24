@@ -1,5 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  RefreshControl,
+} from 'react-native';
 import { useWalletStore } from '../store/walletStore';
 import { useStellarWallet } from '../hooks/useStellarWallet';
 import { colors, spacing } from '../utils/theme';
@@ -9,16 +15,60 @@ import TransactionHistory from '../components/TransactionHistory';
 import PublicKeyDisplay from '../components/PublicKeyDisplay';
 import { useTabNavigation } from '../navigation/useAppNavigation';
 
+const REFRESH_CONTROL_COLORS = [colors.primary];
+
 export default function WalletScreen() {
   const navigation = useTabNavigation();
   const { balance, ecoBalance, usdcBalance, publicKey, isConnected } =
     useWalletStore();
   const { disconnectWallet, refreshBalance } = useStellarWallet();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [isBalanceStale, setIsBalanceStale] = useState(false);
+
+  const loadBalance = useCallback(
+    async (mode: 'initial' | 'retry') => {
+      if (mode === 'retry') {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      try {
+        const ok = await refreshBalance();
+        if (ok === false) {
+          setRefreshError('Failed to refresh balance');
+          setIsBalanceStale(true);
+        } else {
+          setRefreshError(null);
+          setIsBalanceStale(false);
+        }
+      } catch {
+        // refreshBalance is fail-safe and should not throw; still treat a
+        // rejection as a failed refresh so the UI never swallows it.
+        setRefreshError('Failed to refresh balance');
+        setIsBalanceStale(true);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [refreshBalance],
+  );
 
   useEffect(() => {
-    void refreshBalance().finally(() => setLoading(false));
-  }, [refreshBalance]);
+    if (!isConnected) {
+      setLoading(false);
+      setRefreshError(null);
+      setIsBalanceStale(false);
+      return;
+    }
+    void loadBalance('initial');
+  }, [isConnected, loadBalance]);
+
+  const handleRetry = useCallback(() => {
+    void loadBalance('retry');
+  }, [loadBalance]);
 
   if (!isConnected) {
     return (
@@ -62,10 +112,52 @@ export default function WalletScreen() {
         backgroundColor: colors.background,
         padding: spacing.lg,
       }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRetry}
+          tintColor={colors.primary}
+          colors={REFRESH_CONTROL_COLORS}
+        />
+      }
     >
       <Text style={{ color: colors.text, fontSize: 24, fontWeight: 'bold' }}>
         Wallet
       </Text>
+
+      {refreshError && (
+        <View
+          accessibilityRole="alert"
+          style={{
+            marginTop: spacing.md,
+            padding: spacing.md,
+            backgroundColor: colors.surface,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: colors.error,
+          }}
+        >
+          <Text style={{ color: colors.error, fontSize: 14 }}>
+            {refreshError}
+          </Text>
+          <TouchableOpacity
+            onPress={handleRetry}
+            accessibilityRole="button"
+            accessibilityLabel="Retry balance refresh"
+            disabled={refreshing}
+            style={{
+              marginTop: spacing.sm,
+              paddingVertical: spacing.sm,
+              minHeight: 44,
+              justifyContent: 'center',
+            }}
+          >
+            <Text style={{ color: colors.primary, fontWeight: '600' }}>
+              Retry
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <View
         style={{
@@ -84,11 +176,24 @@ export default function WalletScreen() {
             fontSize: 36,
             fontWeight: 'bold',
             marginTop: spacing.xs,
+            opacity: isBalanceStale ? 0.7 : 1,
           }}
         >
           {balance ?? '0'}{' '}
           <Text style={{ fontSize: 18, color: colors.primary }}>XLM</Text>
         </Text>
+        {isBalanceStale && (
+          <Text
+            accessibilityLabel="Balance may be out of date"
+            style={{
+              color: colors.warning,
+              fontSize: 13,
+              marginTop: spacing.xs,
+            }}
+          >
+            May be out of date
+          </Text>
+        )}
 
         <View
           style={{

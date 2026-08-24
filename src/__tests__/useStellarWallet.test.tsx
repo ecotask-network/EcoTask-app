@@ -392,13 +392,38 @@ describe('useStellarWallet connect flow', () => {
       // A later network blip during refresh must not reject into the
       // fire-and-forget call sites nor wipe the verified balance.
       getBalance.mockRejectedValue(new Error('offline blip'));
+      let refreshOk: boolean | undefined;
       await act(async () => {
-        await hook.refreshBalance();
+        refreshOk = await hook.refreshBalance();
       });
 
+      expect(refreshOk).toBe(false);
       expect(useWalletStore.getState().balance).toBe('123.45');
       expect(useWalletStore.getState().isConnected).toBe(true);
       expect(hook.error).toBe('offline blip');
+    });
+
+    it('returns true and clears the refresh error after a successful retry', async () => {
+      tree = await renderProbe();
+      await act(async () => {
+        await hook.createInAppWallet();
+      });
+
+      getBalance.mockRejectedValueOnce(new Error('offline blip'));
+      await act(async () => {
+        await hook.refreshBalance();
+      });
+      expect(hook.error).toBe('offline blip');
+
+      getBalance.mockResolvedValueOnce('123.45');
+      let refreshOk: boolean | undefined;
+      await act(async () => {
+        refreshOk = await hook.refreshBalance();
+      });
+
+      expect(refreshOk).toBe(true);
+      expect(hook.error).toBeNull();
+      expect(useWalletStore.getState().balance).toBe('123.45');
     });
   });
 });
