@@ -11,39 +11,107 @@ const zustandMMKVStorage = {
 
 export type WalletType = 'freighter' | 'inapp' | 'lobstr';
 
+/**
+ * Fine-grained connection lifecycle:
+ *  - 'disconnected': no wallet, or a connect attempt failed/was rolled back.
+ *  - 'connecting'  : a connect attempt is in flight (key known, balances not
+ *                    yet verified against Horizon). `isConnected` is still
+ *                    false so the app must not show the main screens yet.
+ *  - 'connected'   : balances were fetched successfully and the wallet is
+ *                    usable. This is the only state where `isConnected` is
+ *                    true.
+ */
+export type WalletStatus = 'disconnected' | 'connecting' | 'connected';
+
+/** Balances verified before the wallet is marked as connected. */
+export interface InitialBalances {
+  balance: string | null;
+  ecoBalance: string | null;
+  usdcBalance: string | null;
+}
+
 interface WalletState {
   isConnected: boolean;
+  status: WalletStatus;
+  /** Last connection failure, surfaced by the UI instead of a zero-balance main screen. */
+  connectError: string | null;
   publicKey: string | null;
   balance: string | null;
   ecoBalance: string | null;
   usdcBalance: string | null;
   walletType: WalletType | null;
-  connect: (publicKey: string, walletType?: WalletType) => void;
+  /** Enter the intermediate 'connecting' state. Does NOT flip isConnected. */
+  beginConnect: () => void;
+  /**
+   * Mark connected. Only called once balance data has been fetched, so a
+   * connected wallet always has verified balances (never null/unknown).
+   */
+  connect: (
+    publicKey: string,
+    walletType?: WalletType,
+    initialBalances?: InitialBalances,
+  ) => void;
+  /**
+   * Roll back a failed connect attempt: clears every wallet field and
+   * records why, so navigators render onboarding + an error instead of a
+   * half-connected main app.
+   */
+  connectFailed: (error: string) => void;
   disconnect: () => void;
   setBalance: (balance: string) => void;
   setEcoBalance: (ecoBalance: string) => void;
   setUsdcBalance: (usdcBalance: string) => void;
 }
 
+const clearedWalletFields = {
+  publicKey: null,
+  balance: null,
+  ecoBalance: null,
+  usdcBalance: null,
+  walletType: null,
+} satisfies Pick<
+  WalletState,
+  'publicKey' | 'balance' | 'ecoBalance' | 'usdcBalance' | 'walletType'
+>;
+
 export const useWalletStore = create<WalletState>()(
   persist(
     set => ({
       isConnected: false,
+      status: 'disconnected',
+      connectError: null,
       publicKey: null,
       balance: null,
       ecoBalance: null,
       usdcBalance: null,
       walletType: null,
-      connect: (publicKey, walletType = 'inapp') =>
-        set({ isConnected: true, publicKey, walletType }),
+      beginConnect: () =>
+        set({ status: 'connecting', isConnected: false, connectError: null }),
+      connect: (publicKey, walletType = 'inapp', initialBalances) =>
+        set({
+          isConnected: true,
+          status: 'connected',
+          connectError: null,
+          publicKey,
+          walletType,
+          // Applied atomically with isConnected so the wallet can never be
+          // observed as connected with a stale/null balance. Explicit nulls
+          // (asset not configured) reset any previous wallet's balances.
+          ...(initialBalances ?? {}),
+        }),
+      connectFailed: (error: string) =>
+        set({
+          isConnected: false,
+          status: 'disconnected',
+          connectError: error,
+          ...clearedWalletFields,
+        }),
       disconnect: () =>
         set({
           isConnected: false,
-          publicKey: null,
-          balance: null,
-          ecoBalance: null,
-          usdcBalance: null,
-          walletType: null,
+          status: 'disconnected',
+          connectError: null,
+          ...clearedWalletFields,
         }),
       setBalance: balance => set({ balance }),
       setEcoBalance: ecoBalance => set({ ecoBalance }),
@@ -52,6 +120,17 @@ export const useWalletStore = create<WalletState>()(
     {
       name: 'wallet-storage',
       storage: createJSONStorage(() => zustandMMKVStorage),
+      // Only durable data survives a restart. `status` and `connectError`
+      // are transient: a crash mid-connect must not restore a stuck
+      // 'connecting' status or a stale error banner.
+      partialize: state => ({
+        isConnected: state.isConnected,
+        publicKey: state.publicKey,
+        balance: state.balance,
+        ecoBalance: state.ecoBalance,
+        usdcBalance: state.usdcBalance,
+        walletType: state.walletType,
+      }),
     },
   ),
 );
