@@ -42,11 +42,7 @@ export function enrichTasksWithDistance<
     lng?: number;
     distance?: number;
   },
->(
-  tasks: T[],
-  userLat: number,
-  userLng: number,
-): Array<T & { distance?: number }> {
+>(tasks: T[], userLat: number, userLng: number): (T & { distance?: number })[] {
   return tasks
     .map(task => {
       if (

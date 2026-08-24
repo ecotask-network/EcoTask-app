@@ -94,6 +94,15 @@ export interface SubmitProofParams {
   rewardToken?: string;
 }
 
+export interface SubmitProofResult {
+  taskTitle?: string;
+  taskType?: TaskType;
+  rewardAmount?: number;
+  rewardToken?: string;
+  /** ID returned by the backend after a successful proof POST; used for status polling. */
+  proofId?: string;
+}
+
 export const TASK_TYPE_CONFIG: Record<
   TaskType,
   { icon: string; label: string }

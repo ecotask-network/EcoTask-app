@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import { colors, spacing } from '../utils/theme';
 import { fetchTaskById } from '../services/api';
 import { TaskDetailSkeleton } from '../components/LoadingSkeleton';
@@ -11,7 +11,7 @@ import {
   DIFFICULTY_CONFIG,
   Task,
 } from '../types';
-import { normalizeTaskStatus } from '../utils/sortTasks';
+import { useTaskStackNavigation } from '../navigation/useAppNavigation';
 
 type TaskDetailRoute = RouteProp<
   { TaskDetail: { taskId: string } },
@@ -20,7 +20,7 @@ type TaskDetailRoute = RouteProp<
 
 export default function TaskDetailScreen() {
   const route = useRoute<TaskDetailRoute>();
-  const navigation = useNavigation<any>();
+  const navigation = useTaskStackNavigation();
   const { taskId } = route.params;
   const selectTask = useTaskStore(s => s.selectTask);
 
@@ -29,16 +29,16 @@ export default function TaskDetailScreen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadTask();
+    void loadTask();
   }, [taskId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadTask() {
     setLoading(true);
+    setError(null);
     try {
-      const data = await fetchTaskById(taskId);
-      setTask({ ...data, status: normalizeTaskStatus(data.status) });
-    } catch (err: any) {
-      setError(err.message);
+      setTask(await fetchTaskById(taskId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load task');
     } finally {
       setLoading(false);
     }
@@ -63,7 +63,17 @@ export default function TaskDetailScreen() {
         }}
       >
         <Text style={{ color: colors.error }}>{error || 'Task not found'}</Text>
-        <TouchableOpacity onPress={loadTask} style={{ marginTop: spacing.md }}>
+        <TouchableOpacity
+          onPress={() => void loadTask()}
+          accessibilityRole="button"
+          style={{
+            marginTop: spacing.md,
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.md,
+            minHeight: 44,
+            justifyContent: 'center',
+          }}
+        >
           <Text style={{ color: colors.primary }}>Try Again</Text>
         </TouchableOpacity>
       </View>
@@ -80,7 +90,18 @@ export default function TaskDetailScreen() {
       <View style={{ padding: spacing.lg }}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={{ marginBottom: spacing.md, marginTop: spacing.xl }}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          style={{
+            alignSelf: 'flex-start',
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.md,
+            marginLeft: -spacing.md,
+            marginTop: spacing.xl,
+            marginBottom: spacing.md,
+            minHeight: 44,
+            justifyContent: 'center',
+          }}
         >
           <Text style={{ color: colors.primary, fontSize: 16 }}>
             {'\u2190'} Back

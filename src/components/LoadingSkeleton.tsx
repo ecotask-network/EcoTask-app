@@ -1,12 +1,18 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated } from 'react-native';
+import {
+  View,
+  Animated,
+  StyleProp,
+  ViewStyle,
+  DimensionValue,
+} from 'react-native';
 import { colors, spacing } from '../utils/theme';
 
 interface SkeletonProps {
-  width?: number | string;
+  width?: DimensionValue;
   height?: number;
   borderRadius?: number;
-  style?: any;
+  style?: StyleProp<ViewStyle>;
 }
 
 export default function Skeleton({

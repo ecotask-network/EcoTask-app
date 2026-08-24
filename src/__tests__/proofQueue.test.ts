@@ -1,4 +1,5 @@
 import './__mocks__/setup';
+import { MMKV } from 'react-native-mmkv';
 import {
   loadQueue,
   saveQueue,
@@ -59,9 +60,9 @@ describe('proofQueue', () => {
     };
     const queue = enqueueProof(retry);
     expect(queue).toHaveLength(1);
-    expect(queue[0].id).toBe('2');
-    expect(queue[0].photoCid).toBe('new-photo-cid');
-    expect(queue[0].metadataCid).toBe('new-meta-cid');
+    expect(queue[0]!.id).toBe('2');
+    expect(queue[0]!.photoCid).toBe('new-photo-cid');
+    expect(queue[0]!.metadataCid).toBe('new-meta-cid');
   });
 
   it('drops a true duplicate (same task, photo and timestamp) without replacing', () => {
@@ -71,7 +72,7 @@ describe('proofQueue', () => {
     expect(queue).toHaveLength(1);
     // The original entry (id '1') is preserved; the identical resubmission
     // is deduplicated rather than replacing the queued proof.
-    expect(queue[0].id).toBe('1');
+    expect(queue[0]!.id).toBe('1');
   });
 
   it('reports whether a task already has a queued proof', () => {
@@ -86,7 +87,7 @@ describe('proofQueue', () => {
     enqueueProof({ ...baseProof, id: '2', taskId: 't2' });
     const queue = removeProof('1');
     expect(queue).toHaveLength(1);
-    expect(queue[0].taskId).toBe('t2');
+    expect(queue[0]!.taskId).toBe('t2');
   });
 
   it('removes all proofs for a task', () => {
@@ -94,7 +95,7 @@ describe('proofQueue', () => {
     enqueueProof({ ...baseProof, id: '2', taskId: 't2' });
     const queue = removeProofsForTask('t1');
     expect(queue).toHaveLength(1);
-    expect(queue[0].taskId).toBe('t2');
+    expect(queue[0]!.taskId).toBe('t2');
   });
 
   it('clears the queue', () => {
@@ -110,11 +111,10 @@ describe('proofQueue', () => {
     ]);
     const queue = loadQueue();
     expect(queue).toHaveLength(2);
-    expect(queue[1].id).toBe('2');
+    expect(queue[1]!.id).toBe('2');
   });
 
   it('returns an empty array when storage is corrupted', () => {
-    const { MMKV } = require('react-native-mmkv');
     const instance = new MMKV();
     instance.set('pending_proofs', 'not-json{');
     expect(loadQueue()).toEqual([]);

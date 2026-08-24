@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { colors, spacing } from '../utils/theme';
 import ImpactStats from '../components/ImpactStats';
 import StreakCard from '../components/StreakCard';
@@ -11,7 +10,8 @@ import { useActivityStore } from '../store/activityStore';
 import { useWalletStore } from '../store/walletStore';
 import { useProofSubmit } from '../hooks/useProofSubmit';
 import { TASK_TYPE_CONFIG, TaskType } from '../types';
-import { truncatePublicKey } from '../utils/validation';
+import PublicKeyDisplay from '../components/PublicKeyDisplay';
+import { useTabNavigation } from '../navigation/useAppNavigation';
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -42,7 +42,7 @@ function getGreeting(): string {
 }
 
 export default function HomeScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useTabNavigation();
   const { profile } = useUserStore();
   const activities = useActivityStore(s => s.activities);
   const streak = useActivityStore(s => s.streak);
@@ -131,16 +131,14 @@ export default function HomeScreen() {
         )}
 
         {publicKey && (
-          <Text
-            style={{
-              color: colors.textSecondary,
-              fontSize: 11,
-              marginTop: spacing.sm,
-              textAlign: 'right',
-            }}
-          >
-            {truncatePublicKey(publicKey, 4)}
-          </Text>
+          <View style={{ marginTop: spacing.sm }}>
+            <PublicKeyDisplay
+              publicKey={publicKey}
+              chars={6}
+              align="right"
+              textStyle={{ fontSize: 11 }}
+            />
+          </View>
         )}
 
         <View
@@ -163,7 +161,7 @@ export default function HomeScreen() {
         <PendingProofsBanner
           count={pendingCount}
           isSyncing={isSubmitting}
-          onRetry={syncPendingProofs}
+          onRetry={() => void syncPendingProofs()}
         />
 
         <View style={{ marginTop: spacing.xl }}>

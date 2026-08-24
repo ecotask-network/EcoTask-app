@@ -25,7 +25,7 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      if (this.props.fallback) {
+      if (this.props.fallback != null) {
         return this.props.fallback;
       }
       return (

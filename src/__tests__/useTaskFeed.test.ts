@@ -14,13 +14,13 @@ import { fetchTasks } from '../services/api';
 
 const mockFetchTasks = fetchTasks as jest.MockedFunction<typeof fetchTasks>;
 
-type FeedOptions = {
+interface FeedOptions {
   type?: string;
   lat?: number;
   lng?: number;
   radius?: number;
   sort?: TaskSortMode;
-};
+}
 
 function makeTask(id: string): Task {
   return {
@@ -48,26 +48,26 @@ function createHarness(options: FeedOptions) {
 }
 
 async function flush() {
-  await renderer.act(async () => {});
+  await renderer.act(async () => undefined);
 }
 
 describe('useTaskFeed', () => {
   let tree: renderer.ReactTestRenderer | null = null;
 
   function renderFeed(options: FeedOptions) {
-    renderer.act(() => {
+    void renderer.act(() => {
       tree = renderer.create(createHarness(options));
     });
   }
 
   function updateFeed(options: FeedOptions) {
-    renderer.act(() => {
+    void renderer.act(() => {
       tree?.update(createHarness(options));
     });
   }
 
   function unmountFeed() {
-    renderer.act(() => {
+    void renderer.act(() => {
       tree?.unmount();
       tree = null;
     });
@@ -186,7 +186,7 @@ describe('useTaskFeed', () => {
     await flush();
     expect(useTaskStore.getState().tasks).toHaveLength(1);
 
-    renderer.act(() => {
+    void renderer.act(() => {
       feedRef.loadMore();
     });
     await flush();

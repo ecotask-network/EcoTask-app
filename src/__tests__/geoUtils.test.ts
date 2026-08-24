@@ -67,22 +67,22 @@ describe('enrichTasksWithDistance', () => {
       baseTask('near', 51.501, -0.1),
     ];
     const result = enrichTasksWithDistance(tasks, 51.5, -0.1);
-    expect(result[0].id).toBe('near');
-    expect(result[1].id).toBe('far');
-    expect(result[0].distance).toBeLessThan(1);
-    expect(result[1].distance).toBeGreaterThan(5000);
+    expect(result[0]!.id).toBe('near');
+    expect(result[1]!.id).toBe('far');
+    expect(result[0]!.distance).toBeLessThan(1);
+    expect(result[1]!.distance).toBeGreaterThan(5000);
   });
 
   it('keeps an already-computed distance', () => {
     const tasks = [{ ...baseTask('a', 0, 0), distance: 5 }];
     const result = enrichTasksWithDistance(tasks, 51.5, -0.1);
-    expect(result[0].distance).toBe(5);
+    expect(result[0]!.distance).toBe(5);
   });
 
   it('handles tasks without coordinates', () => {
     const tasks = [{ ...baseTask('a', 0, 0), lat: undefined, lng: undefined }];
     const result = enrichTasksWithDistance(tasks, 51.5, -0.1);
     expect(result).toHaveLength(1);
-    expect(result[0].distance).toBeUndefined();
+    expect(result[0]!.distance).toBeUndefined();
   });
 });

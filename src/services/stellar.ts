@@ -63,7 +63,7 @@ export async function getTokenBalance(
 
 export async function getPayments(
   publicKey: string,
-  limit: number = 10,
+  limit = 10,
 ): Promise<StellarPayment[]> {
   try {
     const page = await server

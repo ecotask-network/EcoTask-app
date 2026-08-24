@@ -8,7 +8,7 @@ export function isNowInQuietHours(
   to: string,
   now = new Date(),
 ): boolean {
-  const nowMin = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
   const f = parseTimeToMinutes(from);
   const tt = parseTimeToMinutes(to);
 

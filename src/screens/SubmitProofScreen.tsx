@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Image, Alert } from 'react-native';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import {
   useCameraPermission,
   useCameraDevice,
@@ -19,6 +19,7 @@ import {
   scheduleLocalNotification,
   NOTIFICATION_TYPES,
 } from '../services/notifications';
+import { useTaskStackNavigation } from '../navigation/useAppNavigation';
 
 type SubmitProofRoute = RouteProp<
   { SubmitProof: SubmitProofParams },
@@ -27,7 +28,7 @@ type SubmitProofRoute = RouteProp<
 
 export default function SubmitProofScreen() {
   const route = useRoute<SubmitProofRoute>();
-  const navigation = useNavigation();
+  const navigation = useTaskStackNavigation();
   const { taskId } = route.params;
   const cameraRef = useRef<Camera>(null);
 
@@ -55,7 +56,7 @@ export default function SubmitProofScreen() {
 
   useEffect(() => {
     if (!hasPermission) {
-      requestPermission();
+      void requestPermission();
     }
   }, [hasPermission, requestPermission]);
 
@@ -69,8 +70,11 @@ export default function SubmitProofScreen() {
       });
       setPhotoUri(`file://${photo.path}`);
       setCapturedAt(new Date().toISOString());
-    } catch (err: any) {
-      Alert.alert('Camera Error', err.message || 'Failed to capture photo');
+    } catch (err) {
+      Alert.alert(
+        'Camera Error',
+        err instanceof Error ? err.message : 'Failed to capture photo',
+      );
     }
   }, []);
 
@@ -79,14 +83,16 @@ export default function SubmitProofScreen() {
       Alert.alert('Error', 'Please take a photo first');
       return;
     }
-    const result = await submit(
+    const submission = await submit(
       taskId,
       photoUri,
       capturedAt,
       location?.lat,
       location?.lng,
     );
-    if (result) {
+
+    if (submission.status === 'success') {
+      const result = submission.result;
       // Store the activity immediately as 'pending'; useProofStatus will
       // patch it to 'confirmed' or 'failed' once the backend verifies.
       const newActivityId = Date.now().toString();
@@ -127,7 +133,7 @@ export default function SubmitProofScreen() {
         const token = result.rewardToken || route.params.rewardToken || 'ECO';
         const title =
           result.taskTitle || route.params.taskTitle || 'Task Completed';
-        scheduleLocalNotification({
+        void scheduleLocalNotification({
           title: 'Reward confirmed! 🎉',
           body: `You earned ${amount} ${token} for "${title}".`,
           type: NOTIFICATION_TYPES.REWARD_CONFIRMED,
@@ -138,7 +144,13 @@ export default function SubmitProofScreen() {
           },
         });
       }
-    } else if (error) {
+
+      // The proof was submitted, but IPFS pinning failed (and retried) so it is
+      // not yet available on IPFS. Inform the user it will be retried.
+      if (submission.ipfsPending) {
+        Alert.alert('Proof saved', 'Proof saved, IPFS upload pending');
+      }
+    } else if (submission.status === 'queued') {
       // Offline / network failure: stored in the proof queue as pending.
       addActivity({
         id: Date.now().toString(),
@@ -150,6 +162,9 @@ export default function SubmitProofScreen() {
         completedAt: new Date().toISOString(),
         status: 'pending',
       });
+      Alert.alert('Proof queued', submission.error);
+    } else {
+      Alert.alert('Submission failed', submission.error);
     }
   }, [
     photoUri,
@@ -160,7 +175,6 @@ export default function SubmitProofScreen() {
     addActivity,
     updateActivityStatus,
     updateStats,
-    error,
     route.params,
   ]);
 
@@ -186,8 +200,22 @@ export default function SubmitProofScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ padding: spacing.lg, paddingTop: spacing.xl }}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={{ color: colors.primary, fontSize: 16 }}>Back</Text>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          style={{
+            alignSelf: 'flex-start',
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.md,
+            marginLeft: -spacing.md,
+            minHeight: 44,
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ color: colors.primary, fontSize: 16 }}>
+            {'\u2190'} Back
+          </Text>
         </TouchableOpacity>
         <Text
           style={{
@@ -238,8 +266,15 @@ export default function SubmitProofScreen() {
             </Text>
             {hasPermission === false && (
               <TouchableOpacity
-                onPress={requestPermission}
-                style={{ marginTop: spacing.md, padding: spacing.sm }}
+                onPress={() => void requestPermission()}
+                accessibilityRole="button"
+                style={{
+                  marginTop: spacing.md,
+                  paddingVertical: spacing.sm,
+                  paddingHorizontal: spacing.md,
+                  minHeight: 44,
+                  justifyContent: 'center',
+                }}
               >
                 <Text style={{ color: colors.primary }}>Grant Permission</Text>
               </TouchableOpacity>
@@ -306,7 +341,7 @@ export default function SubmitProofScreen() {
       >
         {!photoUri ? (
           <TouchableOpacity
-            onPress={handleCapture}
+            onPress={() => void handleCapture()}
             disabled={isSubmitting}
             style={{
               flex: 1,
@@ -326,6 +361,11 @@ export default function SubmitProofScreen() {
               onPress={() => {
                 setPhotoUri(null);
                 setCapturedAt(null);
+                // Clear stale submission state so useProofStatus stops
+                // polling the old proof and no duplicate activity is
+                // created on recapture + resubmit.
+                setProofId(null);
+                setActivityId(null);
               }}
               disabled={isSubmitting}
               style={{
@@ -341,7 +381,7 @@ export default function SubmitProofScreen() {
               <Text style={{ color: colors.text }}>Retake</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={handleSubmit}
+              onPress={() => void handleSubmit()}
               disabled={isSubmitting}
               style={{
                 flex: 1,

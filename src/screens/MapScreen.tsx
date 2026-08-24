@@ -19,11 +19,12 @@ import MapView, {
   Region,
   PROVIDER_GOOGLE,
 } from 'react-native-maps';
-import { useNavigation } from '@react-navigation/native';
+
 import { useTaskFeed } from '../hooks/useTaskFeed';
 import { useLocation } from '../hooks/useLocation';
 import { Task, TASK_TYPE_CONFIG } from '../types';
 import { colors, spacing } from '../utils/theme';
+import { useTaskStackNavigation } from '../navigation/useAppNavigation';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -58,7 +59,7 @@ interface ClusterOrMarker {
  *  – groups within ~10 km at city zoom collapse into one pin
  *  – activated only when visible task count exceeds CLUSTER_THRESHOLD
  */
-function clusterTasks(tasks: Task[], region: Region | null): ClusterOrMarker[] {
+function clusterTasks(tasks: Task[], precision: number): ClusterOrMarker[] {
   if (tasks.length <= CLUSTER_THRESHOLD) {
     return tasks.map(t => ({
       id: t.id,
@@ -69,9 +70,6 @@ function clusterTasks(tasks: Task[], region: Region | null): ClusterOrMarker[] {
     }));
   }
 
-  // Grid precision scales with zoom: tighter zoom → finer grid
-  const delta = region?.latitudeDelta ?? DEFAULT_DELTA;
-  const precision = delta > 10 ? 0 : delta > 1 ? 1 : 2;
   const factor = Math.pow(10, precision);
 
   const buckets = new Map<string, Task[]>();
@@ -88,7 +86,7 @@ function clusterTasks(tasks: Task[], region: Region | null): ClusterOrMarker[] {
   return Array.from(buckets.values()).map(group => {
     const centroidLat = group.reduce((s, t) => s + t.lat, 0) / group.length;
     const centroidLng = group.reduce((s, t) => s + t.lng, 0) / group.length;
-    const representative = group[0];
+    const representative = group[0]!;
     return {
       id:
         group.length === 1
@@ -105,11 +103,47 @@ function clusterTasks(tasks: Task[], region: Region | null): ClusterOrMarker[] {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function MapScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useTaskStackNavigation();
   const { location } = useLocation();
   const [radiusKm, setRadiusKm] = useState(50);
   const [region, setRegion] = useState<Region | null>(null);
   const mapRef = useRef<MapView | null>(null);
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastUpdateRef = useRef<number>(0);
+  const pendingRegionRef = useRef<Region | null>(null);
+
+  const debouncedSetRegion = useCallback((nextRegion: Region) => {
+    pendingRegionRef.current = nextRegion;
+    const now = Date.now();
+    const timeSinceLastUpdate = now - lastUpdateRef.current;
+
+    if (timeSinceLastUpdate >= 300) {
+      setRegion(nextRegion);
+      lastUpdateRef.current = now;
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+        debounceTimeoutRef.current = null;
+      }
+    } else {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+      debounceTimeoutRef.current = setTimeout(() => {
+        if (pendingRegionRef.current) {
+          setRegion(pendingRegionRef.current);
+          lastUpdateRef.current = Date.now();
+        }
+      }, 300 - timeSinceLastUpdate);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const { tasks, isLoading, error, refresh } = useTaskFeed({
     ...(location
@@ -130,7 +164,15 @@ export default function MapScreen() {
     }
   }, [location]);
 
-  const clustered = useMemo(() => clusterTasks(tasks, region), [tasks, region]);
+  const precision = useMemo(() => {
+    const delta = region?.latitudeDelta ?? DEFAULT_DELTA;
+    return delta > 10 ? 0 : delta > 1 ? 1 : 2;
+  }, [region?.latitudeDelta]);
+
+  const clustered = useMemo(
+    () => clusterTasks(tasks, precision),
+    [tasks, precision],
+  );
 
   const handleCalloutPress = useCallback(
     (task: Task) => {
@@ -162,7 +204,7 @@ export default function MapScreen() {
         style={StyleSheet.absoluteFillObject}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={initialRegionRef.current}
-        onRegionChangeComplete={setRegion}
+        onRegionChangeComplete={debouncedSetRegion}
         showsUserLocation={!!location}
         showsMyLocationButton={false}
       >
@@ -181,9 +223,12 @@ export default function MapScreen() {
         {/* Task markers / cluster markers */}
         {clustered.map(item => {
           const isCluster = item.count !== null;
+          const firstTask = item.tasks[0];
           const label = isCluster
             ? String(item.count)
-            : (TASK_TYPE_CONFIG[item.tasks[0].type]?.icon ?? '📍');
+            : firstTask
+              ? (TASK_TYPE_CONFIG[firstTask.type]?.icon ?? '📍')
+              : '📍';
 
           return (
             <Marker
@@ -191,16 +236,20 @@ export default function MapScreen() {
               testID={isCluster ? `cluster-${item.id}` : `marker-${item.id}`}
               coordinate={{ latitude: item.lat, longitude: item.lng }}
               title={
-                isCluster ? `${item.count} tasks here` : item.tasks[0].title
+                isCluster
+                  ? `${item.count} tasks here`
+                  : (firstTask?.title ?? '')
               }
               description={
                 isCluster
                   ? 'Zoom in to see individual tasks'
-                  : `${item.tasks[0].rewardAmount} ${item.tasks[0].rewardToken ?? 'ECO'}`
+                  : firstTask
+                    ? `${firstTask.rewardAmount} ${firstTask.rewardToken ?? 'ECO'}`
+                    : ''
               }
               onCalloutPress={() => {
-                if (!isCluster) {
-                  handleCalloutPress(item.tasks[0]);
+                if (!isCluster && firstTask) {
+                  handleCalloutPress(firstTask);
                 }
               }}
             >
@@ -222,7 +271,10 @@ export default function MapScreen() {
             />
           )}
           {error != null && (
-            <TouchableOpacity onPress={refresh} style={styles.retryBtn}>
+            <TouchableOpacity
+              onPress={() => void refresh()}
+              style={styles.retryBtn}
+            >
               <Text style={styles.retryText}>Retry</Text>
             </TouchableOpacity>
           )}
@@ -342,6 +394,9 @@ const styles = StyleSheet.create({
   },
   retryBtn: {
     marginLeft: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   retryText: {
     color: colors.primary,
@@ -372,6 +427,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: 18,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   radiusOptActive: {
     backgroundColor: colors.primary,

@@ -2,7 +2,7 @@ import './__mocks__/rn-modules';
 
 import React from 'react';
 import renderer, { act } from 'react-test-renderer';
-import { TouchableOpacity } from 'react-native';
+import { TouchableOpacity, Text } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import PendingProofsBanner from '../components/PendingProofsBanner';
 
@@ -31,7 +31,8 @@ describe('PendingProofsBanner', () => {
   });
 
   it('disables Retry and shows a neutral message before initialisation completes', async () => {
-    let resolveFetch: (value: any) => void = () => {};
+    let resolveFetch: (value: { isConnected: boolean }) => void = () =>
+      undefined;
     (NetInfo.fetch as jest.Mock).mockReturnValue(
       new Promise(resolve => {
         resolveFetch = resolve;
@@ -39,13 +40,13 @@ describe('PendingProofsBanner', () => {
     );
 
     let tree: renderer.ReactTestRenderer;
-    act(() => {
+    void act(() => {
       tree = renderer.create(
         <PendingProofsBanner count={2} onRetry={jest.fn()} />,
       );
     });
 
-    const texts = tree!.root.findAllByType('Text');
+    const texts = tree!.root.findAllByType(Text);
     expect(
       texts.some(t => t.props.children === 'Checking your connection…'),
     ).toBe(true);
@@ -84,7 +85,7 @@ describe('PendingProofsBanner', () => {
       );
     });
 
-    const texts = tree!.root.findAllByType('Text');
+    const texts = tree!.root.findAllByType(Text);
     expect(
       texts.some(
         t => t.props.children === "They will upload once you're back online",

@@ -9,9 +9,19 @@ import { useProofSubmit } from '../hooks/useProofSubmit';
 import * as ipfs from '../services/ipfs';
 import * as api from '../services/api';
 import { clearQueue, loadQueue } from '../services/proofQueue';
+import * as proofQueueService from '../services/proofQueue';
 import { useProofSyncStore } from '../store/proofSyncStore';
+import { SubmitProofResult } from '../types';
 
-function HookHarness({ onRef }: any) {
+type UseProofSubmitResult = ReturnType<typeof useProofSubmit>;
+
+const CAPTURED_AT = '2026-01-01T00:00:00.000Z';
+
+function HookHarness({
+  onRef,
+}: {
+  onRef: (hook: UseProofSubmitResult) => void;
+}) {
   const hook = useProofSubmit();
   React.useEffect(() => {
     onRef(hook);
@@ -26,12 +36,21 @@ describe('useProofSubmit integration', () => {
   });
 
   test('online happy path', async () => {
-    const ipfsFile = { cid: 'Qm123', url: 'https://ipfs.io/ipfs/Qm123' };
-    jest.spyOn(ipfs, 'pinFile').mockResolvedValue(ipfsFile as any);
-    jest.spyOn(ipfs, 'pinJSON').mockResolvedValue({ cid: 'QmMeta' } as any);
-    jest.spyOn(api, 'submitProof').mockResolvedValue({ success: true } as any);
+    const ipfsFile = {
+      cid: 'Qm123',
+      url: 'https://ipfs.io/ipfs/Qm123',
+      size: 100,
+    };
+    jest.spyOn(ipfs, 'pinFile').mockResolvedValue(ipfsFile);
+    jest.spyOn(ipfs, 'pinJSON').mockResolvedValue({
+      cid: 'QmMeta',
+      url: 'https://ipfs.io/ipfs/QmMeta',
+      size: 50,
+    });
+    const submitResult: SubmitProofResult = { taskTitle: 'success' };
+    jest.spyOn(api, 'submitProof').mockResolvedValue(submitResult);
 
-    let ref: any;
+    let ref!: UseProofSubmitResult;
     await act(async () => {
       renderer.create(<HookHarness onRef={r => (ref = r)} />);
     });
@@ -40,11 +59,14 @@ describe('useProofSubmit integration', () => {
       const res = await ref.submit(
         'task-1',
         '/path/photo.jpg',
-        '2026-01-01T00:00:00.000Z',
+        CAPTURED_AT,
         1,
         2,
       );
-      expect(res).toEqual({ success: true });
+      expect(res).toEqual({
+        status: 'success',
+        result: submitResult,
+      });
       // After a successful POST the hook stays at 'verifying'; useProofStatus
       // drives the transition to 'confirmed' once the backend responds.
       expect(ref.progress).toBe('verifying');
@@ -52,26 +74,69 @@ describe('useProofSubmit integration', () => {
     });
   });
 
-  test('offline enqueue then sync', async () => {
-    jest.spyOn(ipfs, 'pinFile').mockResolvedValue({ cid: 'QmX' } as any);
-    jest.spyOn(ipfs, 'pinJSON').mockResolvedValue({ cid: 'QmMeta' } as any);
+  test('undefined API response returns an explicit failed result', async () => {
+    jest.spyOn(ipfs, 'pinFile').mockResolvedValue({
+      cid: 'QmX',
+      url: 'https://ipfs.io/ipfs/QmX',
+      size: 10,
+    });
+    jest.spyOn(ipfs, 'pinJSON').mockResolvedValue({
+      cid: 'QmMeta',
+      url: 'https://ipfs.io/ipfs/QmMeta',
+      size: 50,
+    });
     jest
       .spyOn(api, 'submitProof')
-      .mockRejectedValueOnce(new Error('network'))
-      .mockResolvedValueOnce({ ok: true } as any);
+      .mockResolvedValue(undefined as unknown as SubmitProofResult);
 
-    let ref: any;
+    let ref!: UseProofSubmitResult;
     await act(async () => {
       renderer.create(<HookHarness onRef={r => (ref = r)} />);
     });
 
     await act(async () => {
       const res = await ref.submit(
-        'task-2',
-        '/path/p.jpg',
+        'task-no-result',
+        '/path/no-result.jpg',
         '2026-01-01T00:00:00.000Z',
       );
-      expect(res).toBeUndefined();
+      expect(res).toEqual({
+        status: 'failed',
+        error: 'Submission returned no result',
+      });
+      expect(ref.error).toBe('Submission returned no result');
+      expect(ref.progress).toBe('failed');
+      expect(loadQueue()).toHaveLength(0);
+    });
+  });
+
+  test('offline enqueue then sync', async () => {
+    jest.spyOn(ipfs, 'pinFile').mockResolvedValue({
+      cid: 'QmX',
+      url: 'https://ipfs.io/ipfs/QmX',
+      size: 10,
+    });
+    jest.spyOn(ipfs, 'pinJSON').mockResolvedValue({
+      cid: 'QmMeta',
+      url: 'https://ipfs.io/ipfs/QmMeta',
+      size: 50,
+    });
+    jest
+      .spyOn(api, 'submitProof')
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValueOnce({ taskTitle: 'ok' });
+
+    let ref!: UseProofSubmitResult;
+    await act(async () => {
+      renderer.create(<HookHarness onRef={r => (ref = r)} />);
+    });
+
+    await act(async () => {
+      const res = await ref.submit('task-2', '/path/p.jpg', CAPTURED_AT);
+      expect(res).toEqual({
+        status: 'queued',
+        error: 'Upload failed, saved for later: network',
+      });
       expect(ref.progress).toBe('failed');
       expect(ref.pendingCount).toBeGreaterThan(0);
     });
@@ -86,9 +151,10 @@ describe('useProofSubmit integration', () => {
   test('ipfs failure handled (still attempts submit)', async () => {
     jest.spyOn(ipfs, 'pinFile').mockRejectedValue(new Error('ipfs down'));
     jest.spyOn(ipfs, 'pinJSON').mockRejectedValue(new Error('ipfs down'));
-    jest.spyOn(api, 'submitProof').mockResolvedValue({ ok: true } as any);
+    const submitResult: SubmitProofResult = { taskTitle: 'ok' };
+    jest.spyOn(api, 'submitProof').mockResolvedValue(submitResult);
 
-    let ref: any;
+    let ref!: UseProofSubmitResult;
     await act(async () => {
       renderer.create(<HookHarness onRef={r => (ref = r)} />);
     });
@@ -99,7 +165,11 @@ describe('useProofSubmit integration', () => {
         '/p.jpg',
         '2026-01-01T00:00:00.000Z',
       );
-      expect(res).toEqual({ ok: true });
+      expect(res).toEqual({
+        status: 'success',
+        result: { taskTitle: 'ok' },
+        ipfsPending: true,
+      });
       // Progress stays at 'verifying' — polling will drive to 'confirmed'.
       expect(ref.progress).toBe('verifying');
     });
@@ -110,9 +180,9 @@ describe('useProofSubmit integration', () => {
     jest
       .spyOn(api, 'submitProof')
       .mockRejectedValueOnce(new Error('fail1'))
-      .mockResolvedValueOnce({ ok: true } as any);
+      .mockResolvedValueOnce({ taskTitle: 'ok' });
     // enqueue two proofs manually via the submit failure path
-    let ref: any;
+    let ref!: UseProofSubmitResult;
     await act(async () => {
       renderer.create(<HookHarness onRef={r => (ref = r)} />);
     });
@@ -120,19 +190,19 @@ describe('useProofSubmit integration', () => {
     await act(async () => {
       // first submit fails and enqueues
       jest.spyOn(ipfs, 'pinFile').mockRejectedValue(new Error('ipfs'));
-      await ref.submit('task-A', '/a.jpg');
+      await ref.submit('task-A', '/a.jpg', CAPTURED_AT);
       // second submit fails and enqueues (simulate network)
       jest
         .spyOn(api, 'submitProof')
         .mockRejectedValueOnce(new Error('network'));
-      await ref.submit('task-B', '/b.jpg');
+      await ref.submit('task-B', '/b.jpg', CAPTURED_AT);
     });
 
     // now make next sync attempt: first will fail, second will succeed
     jest
       .spyOn(api, 'submitProof')
       .mockRejectedValueOnce(new Error('still-fail'))
-      .mockResolvedValueOnce({ ok: true } as any);
+      .mockResolvedValueOnce({ taskTitle: 'ok' });
 
     await act(async () => {
       await ref.syncPendingProofs();
@@ -141,6 +211,12 @@ describe('useProofSubmit integration', () => {
     });
   });
 });
+
+interface FormDataLike {
+  get?: (key: string) => unknown;
+  _parts?: [string, unknown][];
+  getParts?: () => { fieldName: string; string?: unknown }[];
+}
 
 describe('useProofSubmit retry logic', () => {
   beforeEach(() => {
@@ -153,10 +229,7 @@ describe('useProofSubmit retry logic', () => {
     const mockPinFile = jest.spyOn(ipfs, 'pinFile');
     const mockPinJSON = jest.spyOn(ipfs, 'pinJSON');
     const mockSubmitProof = jest.spyOn(api, 'submitProof');
-    const mockLoadQueue = jest.spyOn(
-      require('../services/proofQueue'),
-      'loadQueue',
-    );
+    const mockLoadQueue = jest.spyOn(proofQueueService, 'loadQueue');
 
     mockLoadQueue.mockReturnValue([
       {
@@ -168,10 +241,10 @@ describe('useProofSubmit retry logic', () => {
         photoCid: 'QmPhoto',
         metadataCid: 'QmMeta',
       },
-    ] as any);
-    mockSubmitProof.mockResolvedValue({} as any);
+    ]);
+    mockSubmitProof.mockResolvedValue({});
 
-    let hookResult: any;
+    let hookResult!: UseProofSubmitResult;
     function TestComponent() {
       hookResult = useProofSubmit();
       return null;
@@ -187,7 +260,8 @@ describe('useProofSubmit retry logic', () => {
 
     expect(mockPinFile).not.toHaveBeenCalled();
     expect(mockPinJSON).not.toHaveBeenCalled();
-    const formDataArg = (mockSubmitProof as jest.Mock).mock.calls[0][0] as any;
+    const formDataArg = mockSubmitProof.mock
+      .calls[0]![0] as unknown as FormDataLike;
 
     // Extract ipfs CIDs from FormData variations
     let photoCid;
@@ -197,18 +271,14 @@ describe('useProofSubmit retry logic', () => {
       photoCid = formDataArg.get('ipfsPhotoCid');
       metadataCid = formDataArg.get('ipfsMetadataCid');
     } else if (formDataArg._parts) {
-      photoCid = formDataArg._parts.find(
-        (p: any) => p[0] === 'ipfsPhotoCid',
-      )?.[1];
+      photoCid = formDataArg._parts.find(p => p[0] === 'ipfsPhotoCid')?.[1];
       metadataCid = formDataArg._parts.find(
-        (p: any) => p[0] === 'ipfsMetadataCid',
+        p => p[0] === 'ipfsMetadataCid',
       )?.[1];
     } else if (typeof formDataArg.getParts === 'function') {
       const parts = formDataArg.getParts();
-      photoCid = parts.find((p: any) => p.fieldName === 'ipfsPhotoCid')?.string;
-      metadataCid = parts.find(
-        (p: any) => p.fieldName === 'ipfsMetadataCid',
-      )?.string;
+      photoCid = parts.find(p => p.fieldName === 'ipfsPhotoCid')?.string;
+      metadataCid = parts.find(p => p.fieldName === 'ipfsMetadataCid')?.string;
     }
 
     expect(photoCid).toBe('QmPhoto');
@@ -245,7 +315,7 @@ describe('useProofSubmit retry logic', () => {
     mockLoadQueue.mockReturnValue(pendingProofs);
     mockSubmitProof.mockResolvedValue({});
 
-    let hookResult: any;
+    let hookResult!: UseProofSubmitResult;
     function TestComponent() {
       hookResult = useProofSubmit();
       return null;

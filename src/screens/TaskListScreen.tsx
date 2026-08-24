@@ -8,7 +8,6 @@ import {
   ScrollView,
   TextInput,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { colors, spacing } from '../utils/theme';
 import { useTaskFeed } from '../hooks/useTaskFeed';
 import { useLocation } from '../hooks/useLocation';
@@ -28,6 +27,7 @@ import {
   sortTasks,
   taskStatusLabel,
 } from '../utils/sortTasks';
+import { useTaskStackNavigation } from '../navigation/useAppNavigation';
 
 const TASK_TYPES = [
   { key: '', label: 'All', icon: '🌍' },
@@ -55,7 +55,7 @@ const SORT_OPTIONS: { key: TaskSortMode; label: string }[] = [
 const RADIUS_OPTIONS = [10, 25, 50, 100];
 
 export default function TaskListScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useTaskStackNavigation();
   const [activeType, setActiveType] = useState('');
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
   const [query, setQuery] = useState('');
@@ -122,7 +122,17 @@ export default function TaskListScreen() {
         }}
       >
         <Text style={{ color: colors.error }}>{error}</Text>
-        <TouchableOpacity onPress={refresh} style={{ marginTop: spacing.md }}>
+        <TouchableOpacity
+          onPress={() => void refresh()}
+          accessibilityRole="button"
+          style={{
+            marginTop: spacing.md,
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.md,
+            minHeight: 44,
+            justifyContent: 'center',
+          }}
+        >
           <Text style={{ color: colors.primary }}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -165,6 +175,7 @@ export default function TaskListScreen() {
               paddingVertical: spacing.sm,
               borderRadius: 20,
               marginRight: spacing.sm,
+              minHeight: 44,
               backgroundColor:
                 activeType === t.key ? colors.primary : colors.surface,
               borderWidth: 1,
@@ -203,6 +214,8 @@ export default function TaskListScreen() {
               paddingVertical: spacing.xs,
               borderRadius: 16,
               marginRight: spacing.sm,
+              minHeight: 44,
+              justifyContent: 'center',
               backgroundColor:
                 statusFilter === s.key ? colors.primary : colors.surface,
               borderWidth: 1,
@@ -260,6 +273,8 @@ export default function TaskListScreen() {
               paddingVertical: spacing.xs,
               borderRadius: 16,
               marginRight: spacing.sm,
+              minHeight: 44,
+              justifyContent: 'center',
               backgroundColor:
                 sortMode === opt.key ? colors.primary : colors.surface,
               borderWidth: 1,
@@ -293,6 +308,8 @@ export default function TaskListScreen() {
                   paddingVertical: spacing.xs,
                   borderRadius: 12,
                   marginLeft: spacing.xs,
+                  minHeight: 44,
+                  justifyContent: 'center',
                   backgroundColor:
                     radiusKm === km ? colors.primaryDark : colors.surface,
                 }}
@@ -333,7 +350,7 @@ export default function TaskListScreen() {
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         refreshing={isLoading && tasks.length > 0}
-        onRefresh={refresh}
+        onRefresh={() => void refresh()}
         ListEmptyComponent={
           !isLoading ? (
             <EmptyState

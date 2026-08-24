@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Platform } from 'react-native';
 import Config from 'react-native-config';
 import { useWalletStore } from '../store/walletStore';
 import * as stellar from '../services/stellar';
@@ -17,6 +16,10 @@ interface FreighterWindow {
     signTransaction: (xdr: string) => Promise<string>;
   };
 }
+
+// React Native has no DOM `window`; Freighter (browser extension) only
+// exists when this code happens to run in a web context.
+declare const window: FreighterWindow;
 
 export function useStellarWallet() {
   const {
@@ -87,9 +90,10 @@ export function useStellarWallet() {
     setIsConnecting(true);
     setError(null);
     try {
-      const freighter = (
-        Platform.OS === 'web' ? window : ({} as FreighterWindow)
-      ).freighter;
+      // `typeof window` is safe to reference even where no global `window`
+      // is declared (native platforms); a direct `window` reference is not.
+      const freighter =
+        typeof window !== 'undefined' ? window.freighter : undefined;
       if (!freighter) {
         throw new Error('Freighter extension not detected');
       }
@@ -99,8 +103,8 @@ export function useStellarWallet() {
       }
       const key = await freighter.getPublicKey();
       await connectAccount(key, undefined, 'freighter');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not connect');
     } finally {
       setIsConnecting(false);
     }
@@ -166,11 +170,12 @@ export function useStellarWallet() {
 
       // Extract the user's real public key from the signed transaction source.
       const parsed = TransactionBuilder.fromXDR(signedXDR, NETWORK);
-      const lobstrPublicKey = parsed.source;
+      const lobstrPublicKey =
+        'source' in parsed ? parsed.source : parsed.feeSource;
 
       await connectAccount(lobstrPublicKey, undefined, 'lobstr');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not connect');
     } finally {
       setIsConnecting(false);
     }
@@ -184,8 +189,8 @@ export function useStellarWallet() {
         await stellar.createTestnetAccount();
       await connectAccount(key, secretKey, 'inapp');
       return { publicKey: key, secretKey };
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create wallet');
     } finally {
       setIsConnecting(false);
     }
@@ -203,8 +208,10 @@ export function useStellarWallet() {
         const key = stellar.getPublicKeyFromSecret(trimmed);
         await connectAccount(key, trimmed, 'inapp');
         return { publicKey: key };
-      } catch (err: any) {
-        setError(err.message || 'Could not import wallet');
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : 'Could not import wallet',
+        );
         return undefined;
       } finally {
         setIsConnecting(false);
@@ -229,9 +236,9 @@ export function useStellarWallet() {
 
   useEffect(() => {
     if (isConnected && publicKey) {
-      refreshBalance();
-      refreshEcoBalance();
-      refreshUsdcBalance();
+      void refreshBalance();
+      void refreshEcoBalance();
+      void refreshUsdcBalance();
     }
   }, [
     isConnected,

@@ -17,7 +17,7 @@ const BADGE_TIERS = [
 ];
 
 function getTier(amount: number) {
-  let tier = BADGE_TIERS[0];
+  let tier = BADGE_TIERS[0]!;
   for (const t of BADGE_TIERS) {
     if (amount >= t.min) {
       tier = t;

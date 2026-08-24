@@ -5,7 +5,7 @@ describe('prefs defaults merge', () => {
   test('missing future type defaults to true', () => {
     const stored: Record<string, boolean> = {};
     // simulate stored only one existing type disabled
-    const existingType = Object.values(NOTIFICATION_TYPES)[0];
+    const existingType = Object.values(NOTIFICATION_TYPES)[0]!;
     stored[existingType] = false;
 
     const merged = mergeNotificationDefaults(stored);

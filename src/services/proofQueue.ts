@@ -34,6 +34,11 @@ export function enqueueProof(proof: PendingProof): PendingProof[] {
   // we still deduplicate. Otherwise replace it, so a retry with fresh
   // photo/CIDs (e.g. after an offline failure) is not silently dropped.
   const existing = queue[idx];
+  if (!existing) {
+    queue.push(proof);
+    saveQueue(queue);
+    return queue;
+  }
   const isTrueDuplicate =
     existing.createdAt === proof.createdAt &&
     existing.photoPath === proof.photoPath &&

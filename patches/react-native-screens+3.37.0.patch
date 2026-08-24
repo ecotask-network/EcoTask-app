@@ -1,0 +1,34 @@
+diff --git a/node_modules/react-native-screens/lib/typescript/fabric/SearchBarNativeComponent.d.ts b/node_modules/react-native-screens/lib/typescript/fabric/SearchBarNativeComponent.d.ts
+index 9343131..c1a4753 100644
+--- a/node_modules/react-native-screens/lib/typescript/fabric/SearchBarNativeComponent.d.ts
++++ b/node_modules/react-native-screens/lib/typescript/fabric/SearchBarNativeComponent.d.ts
+@@ -1,5 +1,4 @@
+ /// <reference types="react" />
+-/// <reference types="react-native/types/modules/Codegen" />
+ import type { ViewProps, ColorValue, HostComponent } from 'react-native';
+ import type { WithDefault, DirectEventHandler } from 'react-native/Libraries/Types/CodegenTypes';
+ export type SearchBarEvent = Readonly<{}>;
+diff --git a/node_modules/react-native-screens/lib/typescript/native-stack/types.d.ts b/node_modules/react-native-screens/lib/typescript/native-stack/types.d.ts
+index e996624..a530503 100644
+--- a/node_modules/react-native-screens/lib/typescript/native-stack/types.d.ts
++++ b/node_modules/react-native-screens/lib/typescript/native-stack/types.d.ts
+@@ -49,7 +49,7 @@ export type NativeStackNavigationEventMap = {
+         };
+     };
+ };
+-export type NativeStackNavigationProp<ParamList extends ParamListBase, RouteName extends keyof ParamList = string> = NavigationProp<ParamList, RouteName, StackNavigationState<ParamList>, NativeStackNavigationOptions, NativeStackNavigationEventMap> & StackActionHelpers<ParamList>;
++export type NativeStackNavigationProp<ParamList extends ParamListBase, RouteName extends keyof ParamList = string> = NavigationProp<ParamList, RouteName, string | undefined, StackNavigationState<ParamList>, NativeStackNavigationOptions, NativeStackNavigationEventMap> & StackActionHelpers<ParamList>;
+ export type NativeStackScreenProps<ParamList extends ParamListBase, RouteName extends keyof ParamList = string> = {
+     navigation: NativeStackNavigationProp<ParamList, RouteName>;
+     route: RouteProp<ParamList, RouteName>;
+@@ -463,8 +463,8 @@ export type NativeStackNavigationOptions = {
+     transitionAnimation?: AnimatedScreenTransition;
+     screenEdgeGesture?: boolean;
+ };
+-export type NativeStackNavigatorProps = DefaultNavigatorOptions<NativeStackNavigationOptions> & StackRouterOptions & NativeStackNavigationConfig;
+-export type NativeStackDescriptor = Descriptor<ParamListBase, string, StackNavigationState<ParamListBase>, NativeStackNavigationOptions>;
++export type NativeStackNavigatorProps = DefaultNavigatorOptions<ParamListBase, StackNavigationState<ParamListBase>, NativeStackNavigationOptions, NativeStackNavigationEventMap> & StackRouterOptions & NativeStackNavigationConfig;
++export type NativeStackDescriptor = Descriptor<NativeStackNavigationOptions, NavigationProp<ParamListBase, string, string | undefined, StackNavigationState<ParamListBase>, NativeStackNavigationOptions, NativeStackNavigationEventMap>, RouteProp<ParamListBase, string>>;
+ export type NativeStackDescriptorMap = {
+     [key: string]: NativeStackDescriptor;
+ };
