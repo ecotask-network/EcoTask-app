@@ -224,6 +224,25 @@ npm run android   # Android
 npm run ios       # iOS (Mac only)
 ```
 
+### CI Quality Gates
+
+Before opening a PR, run the full local quality gate to ensure CI will pass:
+
+```bash
+# 1. Type-check the entire codebase (must produce zero errors)
+npm run typecheck
+
+# 2. Run all unit tests with coverage enforcement
+#    Overall line/function/branch/statement coverage must stay >= 75%
+npm run test:coverage
+
+# 3. Lint
+npm run lint
+```
+
+> **Note:** `npm test` (used in CI) runs without the `--coverage` flag for speed.
+> Use `npm run test:coverage` locally to verify you have not dropped coverage below the 75% threshold.
+
 ### Environment Variables
 
 ```env
@@ -290,17 +309,24 @@ The `ecotask://lobstr/callback` path is handled automatically by
 ## 🧪 Testing
 
 ```bash
-# Run unit tests (135 tests)
+# Run unit tests (no --passWithNoTests — at least one test is required)
 npm test
 
-# Run with coverage
-npm test -- --coverage
+# Run tests with coverage enforcement (>= 75% lines/functions/branches/statements)
+npm run test:coverage
+
+# Type-check the entire codebase (zero TypeScript errors required)
+npm run typecheck
 
 # Run integration tests (requires running backend)
 npm run test:integration
 ```
 
 ### Test Coverage
+
+The project enforces a **75% minimum coverage threshold** across lines, functions,
+branches, and statements. Run `npm run test:coverage` before opening a PR to
+verify you have not regressed below the threshold.
 
 | Category            | Tests | Files                                                                                                       |
 | ------------------- | ----- | ----------------------------------------------------------------------------------------------------------- |

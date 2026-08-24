@@ -6,7 +6,9 @@
     "android": "react-native run-android",
     "ios": "react-native run-ios",
     "start": "react-native start",
-    "test": "jest --passWithNoTests --testPathIgnorePatterns='integration' --testPathIgnorePatterns='__mocks__'",
+    "test": "jest --testPathIgnorePatterns='integration' --testPathIgnorePatterns='__mocks__'",
+    "test:coverage": "jest --coverage --testPathIgnorePatterns='integration' --testPathIgnorePatterns='__mocks__'",
+    "typecheck": "tsc --noEmit",
     "test:integration": "jest --passWithNoTests --testMatch='**/__tests__/**/*.integration.*'",
     "lint": "eslint ."
   },
@@ -60,6 +62,14 @@
     ],
     "transformIgnorePatterns": [
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-navigation|react-native-maps)/)"
-    ]
+    ],
+    "coverageThreshold": {
+      "global": {
+        "lines": 75,
+        "functions": 75,
+        "branches": 75,
+        "statements": 75
+      }
+    }
   }
 }
