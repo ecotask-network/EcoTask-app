@@ -32,16 +32,33 @@ const HORIZON_URL =
 
 const server = new Horizon.Server(HORIZON_URL);
 
+/**
+ * Native XLM balance for an account.
+ *
+ * An unfunded account (NotFoundError) is a *valid* state and resolves to
+ * '0' — the wallet can connect with a zero balance. Any other failure
+ * (network down, Horizon error) rejects so callers can distinguish
+ * "no funds yet" from "could not verify the balance". This is what lets
+ * the connect flow refuse to mark a wallet as connected when the balance
+ * cannot be fetched.
+ */
 export async function getBalance(publicKey: string): Promise<string> {
   try {
     const account = await server.loadAccount(publicKey);
     const nativeBalance = account.balances.find(b => b.asset_type === 'native');
     return nativeBalance ? nativeBalance.balance : '0';
-  } catch {
-    return '0';
+  } catch (err) {
+    if (err instanceof NotFoundError) {
+      return '0';
+    }
+    throw err;
   }
 }
 
+/**
+ * Trustlined token balance (ECO/USDC/…). Same contract as getBalance:
+ * unfunded accounts resolve to '0'; infrastructure errors reject.
+ */
 export async function getTokenBalance(
   publicKey: string,
   assetCode: string,
@@ -56,8 +73,11 @@ export async function getTokenBalance(
         b.asset_issuer === issuer,
     );
     return tokenBalance ? tokenBalance.balance : '0';
-  } catch {
-    return '0';
+  } catch (err) {
+    if (err instanceof NotFoundError) {
+      return '0';
+    }
+    throw err;
   }
 }
 

@@ -9,7 +9,7 @@ export const SELECTION_FRESHNESS_MS = 24 * 60 * 60 * 1000;
  */
 export function isSelectionFresh(
   selectedAt: string | null,
-  now: number = Date.now(),
+  now = Date.now(),
 ): boolean {
   if (!selectedAt) {
     return false;

@@ -53,7 +53,7 @@ declare global {
   /**
    * Minimal shape consumed by `@stellar/stellar-sdk`'s Horizon call builders.
    */
-  interface MessageEvent<T = any> {
+  interface MessageEvent<T = unknown> {
     data: T;
   }
 }

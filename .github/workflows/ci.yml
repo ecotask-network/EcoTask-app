@@ -10,7 +10,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+      - run: npm ci --legacy-peer-deps
       - run: npx eslint src/
 
   typecheck:
@@ -32,7 +32,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+      - run: npm ci --legacy-peer-deps
       - run: npm test -- --passWithNoTests
 
   build:
@@ -43,6 +43,6 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+      - run: npm ci --legacy-peer-deps
       - run: npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output /tmp/android-bundle.js
       - run: npx react-native bundle --platform ios --dev false --entry-file index.js --bundle-output /tmp/ios-bundle.js

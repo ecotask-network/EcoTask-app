@@ -17,7 +17,6 @@ module.exports = {
       },
       extends: [
         'plugin:@typescript-eslint/recommended',
-        'plugin:@typescript-eslint/stylistic',
       ],
       rules: {
         '@typescript-eslint/no-floating-promises': 'warn',

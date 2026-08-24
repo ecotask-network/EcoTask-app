@@ -24,7 +24,7 @@ export default function OnboardingScreen() {
     error: walletError,
   } = useStellarWallet();
   const { authenticate, isAuthenticating, error: authError } = useAuth();
-  const { publicKey, isConnected } = useWalletStore();
+  const { publicKey, isConnected, connectError } = useWalletStore();
   const [showImport, setShowImport] = useState(false);
   const [secretKey, setSecretKey] = useState('');
 
@@ -53,7 +53,10 @@ export default function OnboardingScreen() {
     }
   };
 
-  const error = walletError || authError;
+  // Store-level connect errors survive hook remounts; local hook errors
+  // cover everything else. Either way the user sees why the connect failed
+  // instead of being dropped into a zero-balance main screen.
+  const error = walletError || connectError || authError;
   const busy = isConnecting || isAuthenticating;
 
   return (

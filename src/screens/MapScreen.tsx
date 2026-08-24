@@ -418,6 +418,9 @@ const styles = StyleSheet.create({
   },
   retryBtn: {
     marginLeft: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   retryText: {
     color: colors.primary,
@@ -448,6 +451,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: 18,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   radiusOptActive: {
     backgroundColor: colors.primary,

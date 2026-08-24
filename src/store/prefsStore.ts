@@ -71,7 +71,8 @@ export const usePrefsStore = create<PrefsState>()(
                   await import('@notifee/react-native');
                 await Promise.all(
                   ids.map(id =>
-                    notifee.cancelNotification(id).catch(() => null),
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (notifee as any).cancelNotification(id).catch(() => null),
                   ),
                 );
               } catch {
