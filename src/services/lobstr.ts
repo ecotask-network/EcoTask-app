@@ -27,6 +27,13 @@ export const LOBSTR_CALLBACK_PATH = '/lobstr/callback';
 /** Full deep-link base for auth callbacks. */
 export const LOBSTR_CALLBACK_URI = `${ECOTASK_SCHEME}://${LOBSTR_CALLBACK_PATH.slice(1)}`;
 
+/**
+ * Maximum time we wait for the user to complete signing in Lobstr before the
+ * pending promise is rejected. Covers the case where the user dismisses Lobstr
+ * (presses Back, declines to sign, switches apps) with no callback ever firing.
+ */
+export const LOBSTR_SIGNING_TIMEOUT_MS = 5 * 60 * 1000;
+
 // ---------------------------------------------------------------------------
 // Pending callback management
 // ---------------------------------------------------------------------------
@@ -36,6 +43,23 @@ type CallbackReject = (reason: Error) => void;
 
 let _pendingResolve: CallbackResolve | null = null;
 let _pendingReject: CallbackReject | null = null;
+let _pendingTimeout: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Clear the pending resolve/reject slots and any in-flight timeout.
+ *
+ * Must be called whenever the pending promise is settled (success, error,
+ * cancellation, or timeout) so a stray timer never rejects a promise that
+ * has already been consumed.
+ */
+function clearPendingLobstr(): void {
+  _pendingResolve = null;
+  _pendingReject = null;
+  if (_pendingTimeout !== null) {
+    clearTimeout(_pendingTimeout);
+    _pendingTimeout = null;
+  }
+}
 
 /**
  * Called by RootNavigator when an incoming deep link matches the Lobstr
@@ -52,8 +76,7 @@ export function resolveLobstrCallback(url: string): void {
   } catch (err) {
     _pendingReject(err instanceof Error ? err : new Error(String(err)));
   } finally {
-    _pendingResolve = null;
-    _pendingReject = null;
+    clearPendingLobstr();
   }
 }
 
@@ -63,9 +86,8 @@ export function resolveLobstrCallback(url: string): void {
 export function cancelLobstrCallback(): void {
   if (_pendingReject) {
     _pendingReject(new Error('Lobstr signing was cancelled'));
-    _pendingResolve = null;
-    _pendingReject = null;
   }
+  clearPendingLobstr();
 }
 
 // ---------------------------------------------------------------------------
@@ -185,6 +207,16 @@ export function openLobstrForSigning(
     _pendingResolve = resolve;
     _pendingReject = reject;
 
+    // Reject if the user never signs (e.g. they dismiss Lobstr). Without
+    // this the promise hangs forever and the caller is stuck loading.
+    _pendingTimeout = setTimeout(() => {
+      if (_pendingReject) {
+        const timedOut = _pendingReject;
+        clearPendingLobstr();
+        timedOut(new Error('Lobstr signing timed out'));
+      }
+    }, LOBSTR_SIGNING_TIMEOUT_MS);
+
     // Kick off async work; on any failure, reject through the registered slot.
     isLobstrInstalled()
       .then(installed => {
@@ -196,9 +228,9 @@ export function openLobstrForSigning(
       .catch(err => {
         // Only reject if the slot hasn't been consumed by a callback already.
         if (_pendingReject) {
-          _pendingResolve = null;
-          _pendingReject = null;
-          reject(
+          const failed = _pendingReject;
+          clearPendingLobstr();
+          failed(
             err instanceof LobstrNotInstalledError
               ? err
               : new Error(

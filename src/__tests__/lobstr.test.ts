@@ -30,6 +30,7 @@ import {
   LobstrNotInstalledError,
   LOBSTR_CALLBACK_URI,
   ECOTASK_SCHEME,
+  LOBSTR_SIGNING_TIMEOUT_MS,
 } from '../services/lobstr';
 
 // ---------------------------------------------------------------------------
@@ -256,6 +257,68 @@ describe('cancelLobstrCallback', () => {
 
   it('is a no-op when there is no pending promise', () => {
     expect(() => cancelLobstrCallback()).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// openLobstrForSigning — timeout
+// ---------------------------------------------------------------------------
+
+describe('openLobstrForSigning — timeout', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('rejects with "Lobstr signing timed out" after the timeout elapses', async () => {
+    const promise = openLobstrForSigning('XDR==', 'GPUBLICKEY');
+
+    // No callback ever arrives (user dismissed Lobstr). Advance past the
+    // configured timeout window.
+    jest.advanceTimersByTime(LOBSTR_SIGNING_TIMEOUT_MS);
+
+    await expect(promise).rejects.toThrow('Lobstr signing timed out');
+  });
+
+  it('does not reject before the timeout elapses', async () => {
+    const promise = openLobstrForSigning('XDR==', 'GPUBLICKEY');
+
+    jest.advanceTimersByTime(LOBSTR_SIGNING_TIMEOUT_MS - 1000);
+
+    // The promise should still be pending; give microtasks a chance to run
+    // and assert it has neither resolved nor rejected.
+    const settled = jest.fn();
+    promise.then(settled, settled);
+    await Promise.resolve();
+
+    expect(settled).not.toHaveBeenCalled();
+  });
+
+  it('clears the timeout when the callback resolves successfully', async () => {
+    const promise = openLobstrForSigning('ORIGINAL_XDR==', 'GPUBLICKEY');
+
+    resolveLobstrCallback(
+      `ecotask://lobstr/callback?xdr=${encodeURIComponent('SIGNED_XDR==')}`,
+    );
+    await expect(promise).resolves.toBe('SIGNED_XDR==');
+
+    // Even after advancing fully past the timeout, no error surfaces.
+    jest.advanceTimersByTime(LOBSTR_SIGNING_TIMEOUT_MS);
+    await Promise.resolve();
+  });
+
+  it('clears the timeout when cancelLobstrCallback is called', async () => {
+    const promise = openLobstrForSigning('XDR==', 'GPUBLICKEY');
+
+    cancelLobstrCallback();
+    await expect(promise).rejects.toThrow('cancelled');
+
+    // Advancing past the timeout must not cause a second, spurious rejection.
+    jest.advanceTimersByTime(LOBSTR_SIGNING_TIMEOUT_MS);
+    await Promise.resolve();
   });
 });
 
