@@ -32,6 +32,13 @@ interface TaskState {
   hasMore: boolean;
   setTasks: (tasks: Task[]) => void;
   appendTasks: (tasks: Task[]) => void;
+  /**
+   * Merges a single freshly-fetched task into `tasks` (used by TaskDetailScreen's
+   * background revalidation). Inserts it if absent. Never downgrades a task away
+   * from 'closed' — a stale/racy revalidation response must not reopen a task
+   * whose activity has already been confirmed locally.
+   */
+  updateTask: (task: Task) => void;
   selectTask: (task: Task | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -130,6 +137,21 @@ export const useTaskStore = create<TaskState>()(
             ),
           ],
         })),
+      updateTask: task =>
+        set(s => {
+          const existing = s.tasks.find(t => t.id === task.id);
+          if (!existing) {
+            return { tasks: [...s.tasks, task] };
+          }
+          if (existing.status === 'closed' && task.status !== 'closed') {
+            return {};
+          }
+          return {
+            tasks: s.tasks.map(t =>
+              t.id === task.id ? { ...existing, ...task } : t,
+            ),
+          };
+        }),
       selectTask: task =>
         set({
           selectedTask: task,
