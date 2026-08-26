@@ -23,7 +23,11 @@ import React from 'react';
 import renderer, { act } from 'react-test-renderer';
 import { useStellarWallet } from '../hooks/useStellarWallet';
 import { useWalletStore } from '../store/walletStore';
-import { getInAppSecret, clearInAppSecret } from '../services/walletVault';
+import {
+  getInAppSecret,
+  clearInAppSecret,
+  initWalletVault,
+} from '../services/walletVault';
 import * as stellarMock from '../services/stellar';
 import * as lobstrMock from '../services/lobstr';
 
@@ -168,9 +172,10 @@ async function renderProbe() {
 describe('useStellarWallet connect flow', () => {
   let tree: renderer.ReactTestRenderer | null = null;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     resetWalletStore();
+    await initWalletVault();
     // The MMKV mock store persists across tests in a file — clear vault
     // entries so secret-hygiene assertions start from a clean slate.
     clearInAppSecret(IN_APP_PK);

@@ -9,9 +9,14 @@ import {
   registerForPushNotifications,
   sendTokenToServer,
 } from './src/services/notifications';
+import { initWalletVault } from './src/services/walletVault';
 
 function AppSync() {
   const { syncPendingProofs } = useProofSubmit();
+
+  useEffect(() => {
+    void initWalletVault();
+  }, []);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state: AppStateStatus) => {

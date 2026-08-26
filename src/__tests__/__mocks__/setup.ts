@@ -1,18 +1,87 @@
-const __MMKV_STORE__: Record<string, string> = {};
+const mockMMKVInstances: Record<string, Record<string, string>> = {
+  default: {},
+};
+const mockMMKVDefaultId = 'default';
+
+function mockGetInstance(id: string | undefined) {
+  const instanceId = id ?? mockMMKVDefaultId;
+  let store = mockMMKVInstances[instanceId];
+  if (!store) {
+    store = {};
+    mockMMKVInstances[instanceId] = store;
+  }
+  const instanceStore: Record<string, string> = store;
+  return {
+    getString: (key: string) =>
+      key in instanceStore ? instanceStore[key] : null,
+    set: (key: string, value: string) => {
+      instanceStore[key] = value;
+    },
+    delete: (key: string) => {
+      delete instanceStore[key];
+    },
+    getAllKeys: () => Object.keys(instanceStore),
+    clear: () => {
+      for (const key of Object.keys(instanceStore)) {
+        delete instanceStore[key];
+      }
+    },
+  };
+}
 
 jest.mock('react-native-mmkv', () => {
+  const MMKV = jest
+    .fn()
+    .mockImplementation((options?: { id?: string }) =>
+      mockGetInstance(options?.id),
+    );
+  (MMKV as unknown as { removeMMKV: jest.Mock }).removeMMKV = jest.fn(
+    (id: string) => {
+      delete mockMMKVInstances[id];
+    },
+  );
   return {
-    MMKV: jest.fn().mockImplementation(() => ({
-      getString: (key: string) => __MMKV_STORE__[key] ?? null,
-      set: (key: string, value: string) => {
-        __MMKV_STORE__[key] = value;
-      },
-      delete: (key: string) => {
-        delete __MMKV_STORE__[key];
-      },
-    })),
+    MMKV,
+    removeMMKV: (MMKV as unknown as { removeMMKV: jest.Mock }).removeMMKV,
   };
 });
+
+jest.mock(
+  'react-native-keychain',
+  () => {
+    const store: Record<string, { username: string; password: string }> = {};
+    const serviceKey = (opts?: { service?: string }) =>
+      opts?.service || 'default';
+    return {
+      ACCESSIBLE: {
+        WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'AccessibleWhenUnlockedThisDeviceOnly',
+      },
+      SECURITY_LEVEL: {
+        SECURE_HARDWARE: 'secureHardware',
+        ANY: 'any',
+      },
+      setGenericPassword: jest.fn(
+        async (
+          username: string,
+          password: string,
+          opts?: { service?: string },
+        ) => {
+          store[serviceKey(opts)] = { username, password };
+          return true;
+        },
+      ),
+      getGenericPassword: jest.fn(async (opts?: { service?: string }) => {
+        const key = serviceKey(opts);
+        return key in store ? store[key] : false;
+      }),
+      resetGenericPassword: jest.fn(async (opts?: { service?: string }) => {
+        delete store[serviceKey(opts)];
+        return true;
+      }),
+    };
+  },
+  { virtual: true },
+);
 
 type ZustandSet = (...args: unknown[]) => void;
 type ZustandGet = (...args: unknown[]) => unknown;
@@ -52,14 +121,31 @@ jest.mock('zustand/middleware', () => {
         return config(set, get, api);
       };
     },
-    createJSONStorage: () => ({
-      getItem: (name: string) => __MMKV_STORE__[name] ?? null,
-      setItem: (name: string, value: string) => {
-        __MMKV_STORE__[name] = value;
-      },
-      removeItem: (name: string) => {
-        delete __MMKV_STORE__[name];
-      },
-    }),
+    createJSONStorage: (getStorage?: () => unknown) => {
+      const storage = (getStorage ? getStorage() : undefined) as
+        | {
+            getItem: (name: string) => string | null;
+            setItem: (name: string, value: string) => void;
+            removeItem: (name: string) => void;
+          }
+        | undefined;
+      if (!storage) {
+        const fallback = mockMMKVInstances[mockMMKVDefaultId]!;
+        return {
+          getItem: (name: string) => fallback[name] ?? null,
+          setItem: (name: string, value: string) => {
+            fallback[name] = value;
+          },
+          removeItem: (name: string) => {
+            delete fallback[name];
+          },
+        };
+      }
+      return {
+        getItem: (name: string) => storage.getItem(name) ?? null,
+        setItem: (name: string, value: string) => storage.setItem(name, value),
+        removeItem: (name: string) => storage.removeItem(name),
+      };
+    },
   };
 });
