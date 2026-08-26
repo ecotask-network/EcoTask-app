@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { colors, spacing } from '../utils/theme';
@@ -23,26 +23,69 @@ export default function TaskDetailScreen() {
   const navigation = useTaskStackNavigation();
   const { taskId } = route.params;
   const selectTask = useTaskStore(s => s.selectTask);
+  const updateTask = useTaskStore(s => s.updateTask);
 
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    void loadTask();
-  }, [taskId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Guards async fetches: only the effect run for the *current* taskId may
+  // apply its result, so a slow response for a task we've navigated away from
+  // can't clobber what's on screen now.
+  const latestTaskIdRef = useRef(taskId);
 
   async function loadTask() {
     setLoading(true);
     setError(null);
     try {
-      setTask(await fetchTaskById(taskId));
+      const fresh = await fetchTaskById(taskId);
+      if (latestTaskIdRef.current !== taskId) {
+        return;
+      }
+      updateTask(fresh);
+      setTask(fresh);
     } catch (err) {
+      if (latestTaskIdRef.current !== taskId) {
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Failed to load task');
     } finally {
-      setLoading(false);
+      if (latestTaskIdRef.current === taskId) {
+        setLoading(false);
+      }
     }
   }
+
+  useEffect(() => {
+    latestTaskIdRef.current = taskId;
+
+    const cached = useTaskStore.getState().tasks.find(t => t.id === taskId);
+    if (!cached) {
+      void loadTask();
+      return;
+    }
+
+    // Cache hit: show it immediately, no loading state, then revalidate in
+    // the background. A failed revalidation (e.g. offline) is silently
+    // ignored — the cached task is still valid to display.
+    setTask(cached);
+    setLoading(false);
+    setError(null);
+
+    void (async () => {
+      try {
+        const fresh = await fetchTaskById(taskId);
+        if (latestTaskIdRef.current !== taskId) {
+          return;
+        }
+        updateTask(fresh);
+        const merged = useTaskStore.getState().tasks.find(t => t.id === taskId);
+        setTask(merged ?? fresh);
+      } catch {
+        // Keep showing the cached task.
+      }
+    })();
+  }, [taskId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
