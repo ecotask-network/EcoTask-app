@@ -117,7 +117,8 @@ describe('buildSep7TxUri', () => {
       __esModule: true,
       default: { STELLAR_NETWORK: 'mainnet' },
     }));
-    const { buildSep7TxUri: buildMainnet } = require('../services/lobstr');
+    const { buildSep7TxUri: buildMainnet } =
+      jest.requireActual('../services/lobstr');
     const uri = buildMainnet(XDR, PUBLIC_KEY);
     const decoded = decodeURIComponent(uri).replace(/\+/g, ' ');
     expect(decoded).toContain('Public Global Stellar Network ; September 2015');
