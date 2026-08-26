@@ -15,6 +15,7 @@ import renderer, { act } from 'react-test-renderer';
 import { Text, TouchableOpacity } from 'react-native';
 import TaskDetailScreen from '../screens/TaskDetailScreen';
 import { fetchTaskById } from '../services/api';
+import { TaskDetailSkeleton } from '../components/LoadingSkeleton';
 import { useTaskStore } from '../store/taskStore';
 import { Task } from '../types';
 
@@ -93,7 +94,7 @@ describe('TaskDetailScreen', () => {
     mockNavigate.mockClear();
     mockGoBack.mockClear();
     mockFetchTaskById.mockReset();
-    useTaskStore.setState({ selectedTask: null, selectedAt: null });
+    useTaskStore.setState({ tasks: [], selectedTask: null, selectedAt: null });
   });
 
   afterEach(() => {
@@ -166,6 +167,67 @@ describe('TaskDetailScreen', () => {
       taskType: 'TREE_PLANTING',
       rewardAmount: 25,
       rewardToken: 'ECO',
+    });
+  });
+
+  describe('taskStore cache', () => {
+    it('renders a cached task immediately with zero loading delay', async () => {
+      useTaskStore.setState({ tasks: [task] });
+      // Never resolves during this test, proving the initial render does not
+      // wait on the network for a task that is already in the store.
+      mockFetchTaskById.mockReturnValue(new Promise<Task>(() => {}));
+
+      tree = await renderScreen();
+
+      expect(tree.root.findAllByType(TaskDetailSkeleton)).toHaveLength(0);
+      expect(textValues(tree)).toContain('Plant a tree');
+    });
+
+    it('revalidates a cache hit in the background and updates the view when the task changed', async () => {
+      useTaskStore.setState({ tasks: [task] });
+      let resolveFetch: (value: Task) => void = () => {};
+      const fetchPromise = new Promise<Task>(resolve => {
+        resolveFetch = resolve;
+      });
+      mockFetchTaskById.mockReturnValue(fetchPromise);
+
+      tree = await renderScreen();
+
+      // Cache hit renders instantly, before the background fetch resolves.
+      expect(textValues(tree)).toContain('Plant a tree');
+
+      const updated: Task = { ...task, title: 'Plant a whole forest' };
+      await act(async () => {
+        resolveFetch(updated);
+        await fetchPromise;
+      });
+
+      expect(textValues(tree)).toContain('Plant a whole forest');
+      expect(useTaskStore.getState().tasks).toContainEqual(updated);
+    });
+
+    it('keeps showing the cached task when the background revalidation fails offline', async () => {
+      useTaskStore.setState({ tasks: [task] });
+      mockFetchTaskById.mockRejectedValue(new Error('Network unreachable'));
+
+      tree = await renderScreen();
+      // Let the rejected background revalidation settle.
+      await act(async () => {
+        await Promise.resolve().then(() => Promise.resolve());
+      });
+
+      expect(textValues(tree)).toContain('Plant a tree');
+      expect(textValues(tree)).not.toContain('Network unreachable');
+    });
+
+    it('falls back to the loading skeleton and a full fetch when the store is empty', async () => {
+      useTaskStore.setState({ tasks: [] });
+      mockFetchTaskById.mockResolvedValue(task);
+
+      tree = await renderScreen();
+
+      expect(mockFetchTaskById).toHaveBeenCalledWith('t1');
+      expect(textValues(tree)).toContain('Plant a tree');
     });
   });
 });
