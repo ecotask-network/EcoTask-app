@@ -17,6 +17,7 @@
  */
 
 import { Linking } from 'react-native';
+import { STELLAR_NETWORK_PASSPHRASE } from './stellar';
 
 /** The URI scheme this app registers (see AndroidManifest / Info.plist). */
 export const ECOTASK_SCHEME = 'ecotask';
@@ -107,7 +108,7 @@ export function buildSep7TxUri(xdr: string, publicKey: string): string {
     pubkey: publicKey,
     // `url:` prefix tells Lobstr the callback is a URL deep link.
     callback: `url:${LOBSTR_CALLBACK_URI}`,
-    network_passphrase: 'Test SDF Network ; September 2015',
+    network_passphrase: STELLAR_NETWORK_PASSPHRASE,
   });
   return `web+stellar:tx?${params.toString()}`;
 }
