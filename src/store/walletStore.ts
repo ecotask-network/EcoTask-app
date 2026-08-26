@@ -74,6 +74,24 @@ const clearedWalletFields = {
   'publicKey' | 'balance' | 'ecoBalance' | 'usdcBalance' | 'walletType'
 >;
 
+/**
+ * Persisted slice of the wallet store. Only identity fields survive a
+ * restart; live balances are excluded so a cold start never serves a stale
+ * snapshot as current data (they are refreshed by useStellarWallet).
+ */
+export type WalletPersistedState = Pick<
+  WalletState,
+  'isConnected' | 'publicKey' | 'walletType'
+>;
+
+export const partializeWalletState = (
+  state: WalletState,
+): WalletPersistedState => ({
+  isConnected: state.isConnected,
+  publicKey: state.publicKey,
+  walletType: state.walletType,
+});
+
 export const useWalletStore = create<WalletState>()(
   persist(
     set => ({
@@ -123,14 +141,12 @@ export const useWalletStore = create<WalletState>()(
       // Only durable data survives a restart. `status` and `connectError`
       // are transient: a crash mid-connect must not restore a stuck
       // 'connecting' status or a stale error banner.
-      partialize: state => ({
-        isConnected: state.isConnected,
-        publicKey: state.publicKey,
-        balance: state.balance,
-        ecoBalance: state.ecoBalance,
-        usdcBalance: state.usdcBalance,
-        walletType: state.walletType,
-      }),
+      //
+      // Balances (balance/ecoBalance/usdcBalance) are live data and MUST
+      // NOT be persisted: a stale MMKV snapshot would be served as current
+      // on cold start. They are re-fetched by useStellarWallet's useEffect
+      // on rehydration. Keep this in sync when WalletState gains fields.
+      partialize: partializeWalletState,
     },
   ),
 );

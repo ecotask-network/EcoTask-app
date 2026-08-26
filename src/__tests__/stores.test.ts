@@ -1,5 +1,5 @@
 import './__mocks__/setup';
-import { useWalletStore } from '../store/walletStore';
+import { useWalletStore, partializeWalletState } from '../store/walletStore';
 import {
   useTaskStore,
   partializeTaskState,
@@ -86,6 +86,82 @@ describe('walletStore', () => {
     const state = useWalletStore.getState();
     expect(state.isConnected).toBe(false);
     expect(state.publicKey).toBeNull();
+    expect(state.balance).toBeNull();
+    expect(state.ecoBalance).toBeNull();
+    expect(state.usdcBalance).toBeNull();
+  });
+
+  it('partialize persists only identity fields, excluding live balances', () => {
+    const partial = partializeWalletState({
+      isConnected: true,
+      status: 'connected',
+      connectError: null,
+      publicKey: 'GCXXYZ...',
+      balance: '100.5',
+      ecoBalance: '500',
+      usdcBalance: '25.50',
+      walletType: 'inapp' as const,
+      beginConnect: () => {},
+      connect: () => {},
+      connectFailed: () => {},
+      disconnect: () => {},
+      setBalance: () => {},
+      setEcoBalance: () => {},
+      setUsdcBalance: () => {},
+    });
+    expect(partial).toEqual({
+      isConnected: true,
+      publicKey: 'GCXXYZ...',
+      walletType: 'inapp',
+    });
+    expect(partial).not.toHaveProperty('balance');
+    expect(partial).not.toHaveProperty('ecoBalance');
+    expect(partial).not.toHaveProperty('usdcBalance');
+    expect(partial).not.toHaveProperty('status');
+    expect(partial).not.toHaveProperty('connectError');
+  });
+
+  it('rehydrated store starts with null balances (stale MMKV snapshot excluded)', () => {
+    // Simulate what a legacy build persisted: identity PLUS stale balances.
+    const legacyPersisted = {
+      isConnected: true,
+      publicKey: 'GCXXYZ...',
+      walletType: 'inapp' as const,
+      balance: '999',
+      ecoBalance: '888',
+      usdcBalance: '77.7',
+    };
+
+    // The new partialize drops the stale balance fields, so merging the
+    // persisted payload back into the live store cannot restore them.
+    const persisted = partializeWalletState({
+      ...legacyPersisted,
+      status: 'connected',
+      connectError: null,
+      beginConnect: () => {},
+      connect: () => {},
+      connectFailed: () => {},
+      disconnect: () => {},
+      setBalance: () => {},
+      setEcoBalance: () => {},
+      setUsdcBalance: () => {},
+    });
+
+    // Simulate cold-start rehydration: defaults + persisted slice only.
+    useWalletStore.setState({
+      isConnected: false,
+      publicKey: null,
+      balance: null,
+      ecoBalance: null,
+      usdcBalance: null,
+    });
+    useWalletStore.setState({ ...persisted });
+
+    const state = useWalletStore.getState();
+    expect(state.isConnected).toBe(true);
+    expect(state.publicKey).toBe('GCXXYZ...');
+    expect(state.walletType).toBe('inapp');
+    // Balances must be null on cold start — useStellarWallet re-fetches them.
     expect(state.balance).toBeNull();
     expect(state.ecoBalance).toBeNull();
     expect(state.usdcBalance).toBeNull();
