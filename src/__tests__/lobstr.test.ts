@@ -18,6 +18,12 @@ jest.mock('react-native', () => ({
   },
 }));
 
+// Mock react-native-config so the network passphrase can be controlled per test.
+jest.mock('react-native-config', () => ({
+  __esModule: true,
+  default: { STELLAR_NETWORK: 'testnet' },
+}));
+
 import { Linking } from 'react-native';
 import {
   buildSep7TxUri,
@@ -101,6 +107,21 @@ describe('buildSep7TxUri', () => {
     // URLSearchParams encodes spaces as '+'; decode both forms.
     const decoded = decodeURIComponent(uri).replace(/\+/g, ' ');
     expect(decoded).toContain('Test SDF Network');
+  });
+
+  it('uses the public network passphrase when configured for mainnet', () => {
+    // Reload the modules with the runtime config switched to mainnet so the
+    // shared passphrase constant is recomputed.
+    jest.resetModules();
+    jest.doMock('react-native-config', () => ({
+      __esModule: true,
+      default: { STELLAR_NETWORK: 'mainnet' },
+    }));
+    const { buildSep7TxUri: buildMainnet } = require('../services/lobstr');
+    const uri = buildMainnet(XDR, PUBLIC_KEY);
+    const decoded = decodeURIComponent(uri).replace(/\+/g, ' ');
+    expect(decoded).toContain('Public Global Stellar Network ; September 2015');
+    expect(decoded).not.toContain('Test SDF Network');
   });
 });
 

@@ -25,6 +25,7 @@ export interface StellarPayment {
 
 const NETWORK =
   Config.STELLAR_NETWORK === 'testnet' ? Networks.TESTNET : Networks.PUBLIC;
+const STELLAR_NETWORK_PASSPHRASE = NETWORK;
 const HORIZON_URL =
   NETWORK === Networks.TESTNET
     ? 'https://horizon-testnet.stellar.org'
@@ -226,3 +227,5 @@ export {
   Asset,
   BASE_FEE,
 };
+
+export { STELLAR_NETWORK_PASSPHRASE };
