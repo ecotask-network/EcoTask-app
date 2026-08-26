@@ -27,6 +27,7 @@ import {
   openLobstrForPayment,
   resolveLobstrCallback,
   cancelLobstrCallback,
+  pendingSigningIds,
   LobstrNotInstalledError,
   LOBSTR_CALLBACK_URI,
   ECOTASK_SCHEME,
@@ -284,5 +285,139 @@ describe('openLobstrForPayment', () => {
     });
     const uri = mockOpenURL.mock.calls[0][0] as string;
     expect(uri).toContain('asset_code=ECO');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Concurrent signing requests / keyed callback registry (issue #130)
+// ---------------------------------------------------------------------------
+
+describe('concurrent signing requests (issue #130)', () => {
+  const XDR = 'AAAAAQAAAA==';
+  const KEY = 'GBILLBOARDPUBLICKEY';
+
+  /**
+   * Mark a promise as handled at creation so a later settleEntry can never
+   * surface as an unhandled rejection between test statements.  Later
+   * `await`/`rejects` assertions still observe the real outcome.
+   */
+  const tracked = <T>(p: Promise<T>): Promise<T> => {
+    p.catch(() => {});
+    return p;
+  };
+
+  afterEach(() => {
+    // Drain anything a failed assertion may have left behind.  Entries
+    // created via `tracked()` are already handled, so this is quiet.
+    for (const id of pendingSigningIds()) {
+      cancelLobstrCallback(id);
+    }
+    expect(pendingSigningIds()).toEqual([]);
+  });
+
+  it('embeds a correlation id in the callback URL when one is supplied', () => {
+    const uri = buildSep7TxUri(XDR, KEY, { correlationId: 'auth-42' });
+    const decoded = decodeURIComponent(uri);
+    expect(decoded).toContain('ecotask://lobstr/callback?id=auth-42');
+  });
+
+  it('two concurrent requests each settle with their OWN signed XDR', async () => {
+    const p1 = tracked(
+      openLobstrForSigning('XDR-ONE', KEY, { correlationId: 'req-1' }),
+    );
+    const p2 = tracked(
+      openLobstrForSigning('XDR-TWO', KEY, { correlationId: 'req-2' }),
+    );
+
+    // Callbacks arrive out of order, as deep links.
+    resolveLobstrCallback('ecotask://lobstr/callback?id=req-2&xdr=SIGNED-TWO');
+    resolveLobstrCallback('ecotask://lobstr/callback?id=req-1&xdr=SIGNED-ONE');
+
+    await expect(p1).resolves.toBe('SIGNED-ONE');
+    await expect(p2).resolves.toBe('SIGNED-TWO');
+  });
+
+  it('a second openLobstrForSigning no longer cancels the first', async () => {
+    const p1 = tracked(
+      openLobstrForSigning('XDR-ONE', KEY, { correlationId: 'req-1' }),
+    );
+    const p2 = tracked(
+      openLobstrForSigning('XDR-TWO', KEY, { correlationId: 'req-2' }),
+    );
+
+    resolveLobstrCallback('ecotask://lobstr/callback?id=req-1&xdr=SIGNED-ONE');
+
+    await expect(p1).resolves.toBe('SIGNED-ONE');
+    // p2 still pending, unharmed.
+    const remedy = p2.catch(e => e); // no unhandled-rejection leak
+    expect(pendingSigningIds()).toContain('req-2');
+    cancelLobstrCallback('req-2');
+    expect(await remedy).toBeInstanceOf(Error);
+  });
+
+  it('legacy id-less callback routes to the sole pending request', async () => {
+    const p = tracked(
+      openLobstrForSigning('XDR', KEY, { correlationId: 'only-1' }),
+    );
+    resolveLobstrCallback('ecotask://lobstr/callback?xdr=SIGNED-LEGACY');
+    await expect(p).resolves.toBe('SIGNED-LEGACY');
+  });
+
+  it('legacy id-less callback with MULTIPLE pending requests is ignored', async () => {
+    const p1 = tracked(
+      openLobstrForSigning('XDR-ONE', KEY, { correlationId: 'm-1' }),
+    );
+    const p2 = tracked(
+      openLobstrForSigning('XDR-TWO', KEY, { correlationId: 'm-2' }),
+    );
+    resolveLobstrCallback('ecotask://lobstr/callback?xdr=SIGNED-UNKNOWN');
+    // Neither settled with the wrong XDR; both stay pending.
+    expect(pendingSigningIds().sort()).toEqual(['m-1', 'm-2']);
+    cancelLobstrCallback('m-1');
+    cancelLobstrCallback('m-2');
+    expect(await p1.catch(e => e.message)).toBe('Lobstr signing was cancelled');
+    expect(await p2.catch(e => e.message)).toBe('Lobstr signing was cancelled');
+  });
+
+  it('malformed callback URL rejects every pending request', async () => {
+    const p1 = tracked(
+      openLobstrForSigning('XDR-ONE', KEY, { correlationId: 'bad-1' }),
+    );
+    const p2 = tracked(
+      openLobstrForSigning('XDR-TWO', KEY, { correlationId: 'bad-2' }),
+    );
+    resolveLobstrCallback('ecotask://lobstr/callback'); // no query at all
+    await expect(p1).rejects.toThrow('missing query parameters');
+    await expect(p2).rejects.toThrow('missing query parameters');
+  });
+
+  it('timeoutMs rejects only the timed-out request', async () => {
+    jest.useFakeTimers();
+    const p1 = tracked(
+      openLobstrForSigning('XDR-ONE', KEY, {
+        correlationId: 't-1',
+        timeoutMs: 1000,
+      }),
+    );
+    const p2 = tracked(
+      openLobstrForSigning('XDR-TWO', KEY, { correlationId: 't-2' }),
+    );
+    jest.advanceTimersByTime(1500);
+    await expect(p1).rejects.toThrow('timed out after 1000ms');
+    expect(pendingSigningIds()).toEqual(['t-2']);
+    resolveLobstrCallback('ecotask://lobstr/callback?id=t-2&xdr=SIGNED-TWO');
+    await expect(p2).resolves.toBe('SIGNED-TWO');
+    jest.useRealTimers();
+  });
+
+  it('callback for an unknown/already-settled id is a no-op', async () => {
+    const p = tracked(
+      openLobstrForSigning('XDR', KEY, { correlationId: 'u-1' }),
+    );
+    resolveLobstrCallback('ecotask://lobstr/callback?id=ghost&xdr=SIGNED-NOPE');
+    expect(pendingSigningIds()).toEqual(['u-1']); // untouched
+    resolveLobstrCallback('ecotask://lobstr/callback?id=u-1&xdr=SIGNED-REAL');
+    resolveLobstrCallback('ecotask://lobstr/callback?id=u-1&xdr=SIGNED-DOUBLE');
+    await expect(p).resolves.toBe('SIGNED-REAL'); // settled exactly once
   });
 });

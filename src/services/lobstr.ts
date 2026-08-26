@@ -28,43 +28,145 @@ export const LOBSTR_CALLBACK_PATH = '/lobstr/callback';
 export const LOBSTR_CALLBACK_URI = `${ECOTASK_SCHEME}://${LOBSTR_CALLBACK_PATH.slice(1)}`;
 
 // ---------------------------------------------------------------------------
-// Pending callback management
+// Pending callback registry (issue #130)
 // ---------------------------------------------------------------------------
 
 type CallbackResolve = (signedXDR: string) => void;
 type CallbackReject = (reason: Error) => void;
 
-let _pendingResolve: CallbackResolve | null = null;
-let _pendingReject: CallbackReject | null = null;
-
-/**
- * Called by RootNavigator when an incoming deep link matches the Lobstr
- * callback path.  Resolves or rejects the promise that was created in
- * `openLobstrForSigning`.
- */
-export function resolveLobstrCallback(url: string): void {
-  if (!_pendingResolve || !_pendingReject) {
-    return;
-  }
-  try {
-    const signedXDR = parseLobstrCallbackUrl(url);
-    _pendingResolve(signedXDR);
-  } catch (err) {
-    _pendingReject(err instanceof Error ? err : new Error(String(err)));
-  } finally {
-    _pendingResolve = null;
-    _pendingReject = null;
-  }
+interface PendingEntry {
+  resolve: CallbackResolve;
+  reject: CallbackReject;
+  timer?: ReturnType<typeof setTimeout>;
 }
 
 /**
- * Cancel any pending Lobstr signing promise (e.g., user navigated away).
+ * Keyed registry of in-flight signing requests.  A module-level singleton
+ * pair (the previous design) let a second `openLobstrForSigning` call
+ * silently clobber the first: the first caller never settled and, when the
+ * callback eventually arrived, could be resolved with someone else's XDR.
+ * Each call now gets a unique correlation id that is embedded in the SEP-7
+ * callback URL and echoed back by Lobstr, so callbacks route to the right
+ * caller even when auth + wallet-connect + payment sign concurrently.
  */
-export function cancelLobstrCallback(): void {
-  if (_pendingReject) {
-    _pendingReject(new Error('Lobstr signing was cancelled'));
-    _pendingResolve = null;
-    _pendingReject = null;
+const _pending = new Map<string, PendingEntry>();
+
+let _correlationCounter = 0;
+
+function makeCorrelationId(): string {
+  _correlationCounter += 1;
+  return `lobstr-${Date.now().toString(36)}-${_correlationCounter}`;
+}
+
+/** IDs of currently pending signing requests (observability / tests). */
+export function pendingSigningIds(): string[] {
+  return [..._pending.keys()];
+}
+
+function settleEntry(
+  id: string,
+  outcome: 'resolve' | 'reject',
+  value?: unknown,
+): void {
+  const entry = _pending.get(id);
+  if (!entry) {
+    return;
+  }
+  _pending.delete(id);
+  if (entry.timer) {
+    clearTimeout(entry.timer);
+  }
+  if (outcome === 'resolve') {
+    entry.resolve(value as string);
+  } else {
+    entry.reject(
+      value instanceof Error ? value : new Error(String(value ?? 'cancelled')),
+    );
+  }
+}
+
+function extractCallbackQuery(url: string): URLSearchParams {
+  const queryIndex = url.indexOf('?');
+  if (queryIndex === -1) {
+    throw new Error('Lobstr callback URL is missing query parameters');
+  }
+  return new URLSearchParams(url.slice(queryIndex + 1));
+}
+
+/**
+ * Called by RootNavigator when an incoming deep link matches the Lobstr
+ * callback path.  Routes the signed XDR to the pending request identified
+ * by the `id` correlation parameter embedded in the callback URL.
+ *
+ * Backward compatibility: a callback with no `id` (e.g. an in-flight link
+ * created before this registry existed) is routed to the sole pending
+ * request when exactly one exists; with several pending requests an
+ * id-less callback cannot be attributed and is ignored — each request
+ * still has its own timeout.  A malformed URL rejects every pending
+ * request rather than leaving any of them hanging.
+ */
+export function resolveLobstrCallback(url: string): void {
+  let params: URLSearchParams;
+  try {
+    params = extractCallbackQuery(url);
+  } catch (err) {
+    for (const id of [..._pending.keys()]) {
+      settleEntry(
+        id,
+        'reject',
+        err instanceof Error ? err : new Error(String(err)),
+      );
+    }
+    return;
+  }
+
+  const signedXDR = params.get('xdr');
+  const id = params.get('id');
+
+  if (id != null) {
+    const entry = _pending.get(id);
+    if (!entry) {
+      return; // unknown or already-settled correlation id: nothing to do
+    }
+    if (!signedXDR) {
+      settleEntry(
+        id,
+        'reject',
+        new Error('Lobstr callback URL is missing the signed XDR'),
+      );
+      return;
+    }
+    settleEntry(id, 'resolve', signedXDR);
+    return;
+  }
+
+  // Legacy id-less callback.
+  if (_pending.size === 1) {
+    const [soleId] = [..._pending.keys()];
+    if (soleId === undefined) {
+      return; // unreachable given size === 1; satisfies the type checker
+    }
+    if (!signedXDR) {
+      settleEntry(
+        soleId,
+        'reject',
+        new Error('Lobstr callback URL is missing the signed XDR'),
+      );
+      return;
+    }
+    settleEntry(soleId, 'resolve', signedXDR);
+  }
+  // size 0 → nothing pending; size > 1 → ambiguous, intentionally ignored.
+}
+
+/**
+ * Cancel pending Lobstr signing promise(s) (e.g., user navigated away).
+ * With an id, cancels exactly that request; without, cancels all.
+ */
+export function cancelLobstrCallback(id?: string): void {
+  const ids = id != null ? [id] : [..._pending.keys()];
+  for (const entryId of ids) {
+    settleEntry(entryId, 'reject', new Error('Lobstr signing was cancelled'));
   }
 }
 
@@ -79,12 +181,23 @@ export function cancelLobstrCallback(): void {
  * @param publicKey Sender public key (populates `pubkey` field).
  * @returns        A `web+stellar:tx?…` URI string.
  */
-export function buildSep7TxUri(xdr: string, publicKey: string): string {
+export function buildSep7TxUri(
+  xdr: string,
+  publicKey: string,
+  options?: { correlationId?: string },
+): string {
+  // The correlation id rides as an extra query param on the callback URL;
+  // Lobstr echoes the whole callback back unchanged, so the returning deep
+  // link carries the id that identifies which request is being settled.
+  const id = options?.correlationId ?? '';
+  const callbackBase = id
+    ? `${LOBSTR_CALLBACK_URI}?id=${encodeURIComponent(id)}`
+    : LOBSTR_CALLBACK_URI;
   const params = new URLSearchParams({
     xdr,
     pubkey: publicKey,
     // `url:` prefix tells Lobstr the callback is a URL deep link.
-    callback: `url:${LOBSTR_CALLBACK_URI}`,
+    callback: `url:${callbackBase}`,
     network_passphrase: 'Test SDF Network ; September 2015',
   });
   return `web+stellar:tx?${params.toString()}`;
@@ -171,41 +284,60 @@ export async function isLobstrInstalled(): Promise<boolean> {
  * @param xdr       Unsigned transaction XDR.
  * @param publicKey Sender public key.
  */
+export interface OpenLobstrForSigningOptions {
+  /** Explicit correlation id (defaults to a generated one). */
+  correlationId?: string;
+  /**
+   * Reject the request automatically after this many milliseconds if no
+   * callback arrives.  Recommended wherever the caller cannot guarantee
+   * a one-in-flight-at-a-time flow.
+   */
+  timeoutMs?: number;
+}
+
 export function openLobstrForSigning(
   xdr: string,
   publicKey: string,
+  options?: OpenLobstrForSigningOptions,
 ): Promise<string> {
-  // Cancel any previous pending callback before registering a new one.
-  cancelLobstrCallback();
+  const id = options?.correlationId ?? makeCorrelationId();
 
-  // Register the resolve/reject slots synchronously so that any call to
-  // resolveLobstrCallback() or cancelLobstrCallback() — even one microtask
-  // after this function is called — will find them populated.
   return new Promise<string>((resolve, reject) => {
-    _pendingResolve = resolve;
-    _pendingReject = reject;
+    // Register synchronously: a callback for this id must find its entry
+    // even if it arrives one microtask after this call.  Pre-existing
+    // requests are NOT cancelled — each request owns its lifecycle.
+    const entry: PendingEntry = { resolve, reject };
+    if (options?.timeoutMs != null && options.timeoutMs > 0) {
+      entry.timer = setTimeout(() => {
+        settleEntry(
+          id,
+          'reject',
+          new Error(`Lobstr signing timed out after ${options.timeoutMs}ms`),
+        );
+      }, options.timeoutMs);
+    }
+    _pending.set(id, entry);
 
-    // Kick off async work; on any failure, reject through the registered slot.
+    // Kick off async work; on failure, reject only THIS entry.
     isLobstrInstalled()
       .then(installed => {
         if (!installed) {
           throw new LobstrNotInstalledError();
         }
-        return Linking.openURL(buildSep7TxUri(xdr, publicKey));
+        return Linking.openURL(
+          buildSep7TxUri(xdr, publicKey, { correlationId: id }),
+        );
       })
       .catch(err => {
-        // Only reject if the slot hasn't been consumed by a callback already.
-        if (_pendingReject) {
-          _pendingResolve = null;
-          _pendingReject = null;
-          reject(
-            err instanceof LobstrNotInstalledError
-              ? err
-              : new Error(
-                  `Could not open Lobstr for signing: ${err?.message ?? err}`,
-                ),
-          );
-        }
+        settleEntry(
+          id,
+          'reject',
+          err instanceof LobstrNotInstalledError
+            ? err
+            : new Error(
+                `Could not open Lobstr for signing: ${err?.message ?? err}`,
+              ),
+        );
       });
   });
 }
