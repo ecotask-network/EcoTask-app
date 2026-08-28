@@ -23,6 +23,7 @@ import {
   openLobstrForPayment,
   LobstrNotInstalledError,
 } from '../services/lobstr';
+import { truncatePublicKey } from '../utils/validation';
 import { useRootNavigation } from '../navigation/useAppNavigation';
 
 type AssetChoice = 'native' | 'eco' | 'usdc';
@@ -39,21 +40,12 @@ export default function SendTokensScreen() {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSend = useCallback(async () => {
-    setError(null);
+  // Performs the actual signing/submission. Only called after the user
+  // confirms the payment in the confirmation dialog.
+  const confirmSend = useCallback(async () => {
     if (!publicKey) {
       return;
     }
-    if (!isValidPublicKey(destination.trim())) {
-      setError('Enter a valid Stellar public key (G...)');
-      return;
-    }
-    if (!isValidAmount(amount)) {
-      setError('Enter an amount greater than 0');
-      return;
-    }
-
-    setIsSending(true);
     try {
       let assetParam: { code: string; issuer: string } | undefined;
       if (asset === 'eco') {
@@ -147,6 +139,49 @@ export default function SendTokensScreen() {
     refreshEcoBalance,
     refreshUsdcBalance,
   ]);
+
+  // Validates inputs, then shows an explicit confirmation dialog before any
+  // irreversible signing/submission happens. A single tap must not send funds.
+  const handleSend = useCallback(() => {
+    setError(null);
+    if (!publicKey) {
+      return;
+    }
+    if (!isValidPublicKey(destination.trim())) {
+      setError('Enter a valid Stellar public key (G...)');
+      return;
+    }
+    if (!isValidAmount(amount)) {
+      setError('Enter an amount greater than 0');
+      return;
+    }
+
+    const assetName = asset === 'native' ? 'XLM' : asset.toUpperCase();
+    const truncatedDest = truncatePublicKey(destination.trim());
+
+    // Block the send button while the confirmation dialog is open so a second
+    // tap cannot queue another payment.
+    setIsSending(true);
+    Alert.alert(
+      'Confirm Payment',
+      `Send ${amount.trim()} ${assetName} to ${truncatedDest}?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => setIsSending(false),
+        },
+        {
+          text: 'Confirm',
+          style: 'default',
+          onPress: () => {
+            void confirmSend();
+          },
+        },
+      ],
+      { cancelable: false },
+    );
+  }, [publicKey, destination, amount, asset, confirmSend]);
 
   const isLobstr = walletType === 'lobstr';
 
