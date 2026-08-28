@@ -5,9 +5,14 @@ import { useTaskFeed } from '../hooks/useTaskFeed';
 import { useTaskStore } from '../store/taskStore';
 import { TaskSortMode } from '../utils/sortTasks';
 import { Task } from '../types';
+import { TASK_FEED_STALE_MS } from '../config/taskFeedCache';
 
 jest.mock('../services/api', () => ({
   fetchTasks: jest.fn(),
+}));
+
+jest.mock('../config/taskFeedCache', () => ({
+  TASK_FEED_STALE_MS: 5 * 60 * 1000,
 }));
 
 import { fetchTasks } from '../services/api';
@@ -194,5 +199,60 @@ describe('useTaskFeed', () => {
     const tasks = useTaskStore.getState().tasks;
     expect(tasks).toHaveLength(2);
     expect(tasks.filter(t => t.id === '1')).toHaveLength(1);
+  });
+
+  it('does not fetch on mount when warm cache is within TTL', async () => {
+    useTaskStore.setState({
+      tasks: [makeTask('cached-1'), makeTask('cached-2')],
+      tasksLastFetchedAt: new Date().toISOString(),
+    });
+
+    renderFeed({});
+    await flush();
+
+    expect(mockFetchTasks).not.toHaveBeenCalled();
+    expect(useTaskStore.getState().tasks).toHaveLength(2);
+  });
+
+  it('silently revalidates on mount when warm cache is past TTL', async () => {
+    useTaskStore.setState({
+      tasks: [makeTask('cached-1'), makeTask('cached-2')],
+      tasksLastFetchedAt: new Date(
+        Date.now() - (TASK_FEED_STALE_MS + 1000),
+      ).toISOString(),
+    });
+
+    renderFeed({});
+    await flush();
+
+    expect(mockFetchTasks).toHaveBeenCalledTimes(1);
+    // Silent revalidation must not show a loading skeleton.
+    expect(useTaskStore.getState().isLoading).toBe(false);
+    // Fresh data should have replaced the stale cache.
+    expect(useTaskStore.getState().tasks).toHaveLength(2);
+    expect(
+      useTaskStore.getState().tasks.every(t => t.id === '1' || t.id === '2'),
+    ).toBe(true);
+  });
+
+  it('preserves selectedTask during silent revalidation', async () => {
+    const selected = makeTask('selected');
+    selected.title = 'Selected Task';
+    useTaskStore.setState({
+      tasks: [makeTask('cached-1'), selected],
+      selectedTask: selected,
+      tasksLastFetchedAt: new Date(
+        Date.now() - (TASK_FEED_STALE_MS + 1000),
+      ).toISOString(),
+    });
+
+    renderFeed({});
+    await flush();
+
+    expect(mockFetchTasks).toHaveBeenCalledTimes(1);
+    const after = useTaskStore.getState().selectedTask;
+    expect(after).not.toBeNull();
+    expect(after?.id).toBe('selected');
+    expect(after?.title).toBe('Selected Task');
   });
 });

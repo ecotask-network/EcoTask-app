@@ -8,6 +8,10 @@ jest.mock('../services/api', () => ({
   fetchTasks: jest.fn(),
 }));
 
+jest.mock('../config/taskFeedCache', () => ({
+  TASK_FEED_STALE_MS: 5 * 60 * 1000,
+}));
+
 import './__mocks__/setup';
 
 import React from 'react';
@@ -69,10 +73,11 @@ describe('useTaskFeed', () => {
     (api.fetchTasks as jest.Mock).mockResolvedValue(EMPTY_PAGE);
   });
 
-  test('does NOT re-fetch on mount when tasks are already in the store', async () => {
+  test('does NOT re-fetch on mount when warm cache is within TTL', async () => {
     // Simulate a previous session that already populated the store.
     useTaskStore.setState({
       tasks: [makeTask('existing-1'), makeTask('existing-2')],
+      tasksLastFetchedAt: new Date().toISOString(),
     });
 
     let ref!: UseTaskFeedResult;
@@ -87,6 +92,52 @@ describe('useTaskFeed', () => {
 
     expect(api.fetchTasks).not.toHaveBeenCalled();
     expect(ref.tasks.length).toBe(2);
+  });
+
+  test('silently re-fetches on mount when warm cache is past TTL', async () => {
+    useTaskStore.setState({
+      tasks: [makeTask('existing-1'), makeTask('existing-2')],
+      tasksLastFetchedAt: new Date(
+        Date.now() - (5 * 60 * 1000 + 1000),
+      ).toISOString(),
+    });
+
+    let ref!: UseTaskFeedResult;
+    await act(async () => {
+      instance = renderer.create(<HookHarness onRef={r => (ref = r)} />);
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(api.fetchTasks).toHaveBeenCalledTimes(1);
+    // No loading skeleton during silent revalidation.
+    expect(ref.isLoading).toBe(false);
+    expect(ref.tasks.length).toBe(0);
+  });
+
+  test('preserves selectedTask during silent revalidation', async () => {
+    const selected = makeTask('pinned');
+    useTaskStore.setState({
+      tasks: [makeTask('existing-1'), selected],
+      selectedTask: selected,
+      tasksLastFetchedAt: new Date(
+        Date.now() - (5 * 60 * 1000 + 1000),
+      ).toISOString(),
+    });
+
+    await act(async () => {
+      instance = renderer.create(<HookHarness onRef={() => undefined} />);
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(api.fetchTasks).toHaveBeenCalledTimes(1);
+    expect(useTaskStore.getState().selectedTask).not.toBeNull();
+    expect(useTaskStore.getState().selectedTask?.id).toBe('pinned');
   });
 
   test('re-fetches exactly once when the filter changes', async () => {

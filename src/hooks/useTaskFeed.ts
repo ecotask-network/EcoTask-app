@@ -5,6 +5,7 @@ import { Task } from '../types';
 import { TaskSortMode } from '../utils/sortTasks';
 import { enrichTasksWithDistance } from '../utils/geoUtils';
 import { normalizeTaskStatus } from '../utils/sortTasks';
+import { TASK_FEED_STALE_MS } from '../config/taskFeedCache';
 
 const LOCATION_DEBOUNCE_MS = 5000;
 
@@ -25,6 +26,7 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
     error,
     page,
     hasMore,
+    tasksLastFetchedAt,
     setTasks,
     appendTasks,
     setLoading,
@@ -38,6 +40,11 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
   const tasksRef = useRef(tasks);
   tasksRef.current = tasks;
 
+  // Keep a ref to the last-fetched timestamp so the mount effect can decide
+  // whether a warm cache needs silent revalidation without re-running.
+  const tasksLastFetchedAtRef = useRef(tasksLastFetchedAt);
+  tasksLastFetchedAtRef.current = tasksLastFetchedAt;
+
   const serverParams = useMemo(() => ({ type, radius }), [type, radius]);
 
   const hasLocation = lat !== undefined && lng !== undefined;
@@ -48,8 +55,10 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
   );
 
   const loadTasks = useCallback(
-    async (pageNum = 1) => {
-      setLoading(true);
+    async (pageNum = 1, silent = false) => {
+      if (!silent) {
+        setLoading(true);
+      }
       setError(null);
       try {
         const params: Record<string, string | number> = {
@@ -98,7 +107,9 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load tasks');
       } finally {
-        setLoading(false);
+        if (!silent) {
+          setLoading(false);
+        }
       }
     },
     [
@@ -119,16 +130,27 @@ export function useTaskFeed(options: UseTaskFeedOptions = {}) {
     }
   }, [isLoading, hasMore, page, loadTasks]);
 
-  // Initial load: runs exactly once on mount. Only fetch when the persisted
-  // store has no tasks yet (tasks survive across sessions via MMKV), so we
-  // don't burn a network request re-fetching data we already hold.
+  // Initial load: runs exactly once on mount. We fetch when the persisted
+  // store has no tasks yet (tasks survive across sessions via MMKV), OR when
+  // the warm cache is stale and should be silently revalidated. A stale cache
+  // triggers a background fetch that does NOT show a loading skeleton, so the
+  // user keeps seeing the cached feed until fresh data lands.
   useEffect(() => {
+    const lastFetched = tasksLastFetchedAtRef.current;
+    const isStale =
+      !lastFetched ||
+      Date.now() - new Date(lastFetched).getTime() > TASK_FEED_STALE_MS;
+
     if (tasksRef.current.length === 0) {
       void loadTasks(1);
+    } else if (isStale) {
+      // Silent background revalidation — keep selectedTask intact and avoid
+      // the loading skeleton.
+      void loadTasks(1, true);
     } else if (hasLocation) {
-      // Tasks already present: record the current location as "already
-      // fetched" so the debounced location effect doesn't immediately
-      // re-fetch on mount.
+      // Tasks already present and fresh: record the current location as
+      // "already fetched" so the debounced location effect doesn't
+      // immediately re-fetch on mount.
       lastFetchLocationRef.current = { lat: lat as number, lng: lng as number };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
