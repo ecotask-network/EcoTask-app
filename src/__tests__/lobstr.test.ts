@@ -7,7 +7,7 @@
  *  - Callback URL parsing
  *  - `LobstrNotInstalledError` when Linking.canOpenURL returns false
  *  - `openLobstrForSigning` resolves when resolveLobstrCallback is called
- *  - `cancelLobstrCallback` rejects the pending promise
+ *  - Concurrent signing callbacks, cancellation, and timeouts stay isolated
  */
 
 // Mock react-native's Linking module before any imports.
@@ -46,6 +46,32 @@ import {
 const mockCanOpenURL = Linking.canOpenURL as jest.Mock;
 const mockOpenURL = Linking.openURL as jest.Mock;
 
+async function flushLobstrOpen(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+function getOpenedCallbackUrl(callIndex = 0): string {
+  const sep7Uri = mockOpenURL.mock.calls[callIndex]?.[0] as string | undefined;
+  if (!sep7Uri) {
+    throw new Error(`Missing Lobstr openURL call at index ${callIndex}`);
+  }
+  const query = sep7Uri.slice(sep7Uri.indexOf('?') + 1);
+  const callback = new URLSearchParams(query).get('callback');
+  if (!callback?.startsWith('url:')) {
+    throw new Error('Missing SEP-7 URL callback');
+  }
+  return callback.slice('url:'.length);
+}
+
+function getCallbackId(callIndex = 0): string {
+  const id = new URL(getOpenedCallbackUrl(callIndex)).searchParams.get('id');
+  if (!id) {
+    throw new Error('Missing Lobstr callback correlation ID');
+  }
+  return id;
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   // Default: Lobstr is installed.
@@ -77,33 +103,35 @@ describe('LOBSTR_CALLBACK_URI', () => {
 describe('buildSep7TxUri', () => {
   const XDR = 'AAAAAQAAAA==';
   const PUBLIC_KEY = 'GBILLBOARDPUBLICKEY';
+  const CORRELATION_ID = 'signing-call-1';
 
   it('starts with the web+stellar:tx prefix', () => {
-    const uri = buildSep7TxUri(XDR, PUBLIC_KEY);
+    const uri = buildSep7TxUri(XDR, PUBLIC_KEY, CORRELATION_ID);
     expect(uri).toMatch(/^web\+stellar:tx\?/);
   });
 
   it('includes the encoded xdr parameter', () => {
-    const uri = buildSep7TxUri(XDR, PUBLIC_KEY);
+    const uri = buildSep7TxUri(XDR, PUBLIC_KEY, CORRELATION_ID);
     expect(uri).toContain('xdr=');
     // The raw XDR value must appear URL-encoded in the URI.
     expect(decodeURIComponent(uri)).toContain(XDR);
   });
 
   it('includes the pubkey parameter', () => {
-    const uri = buildSep7TxUri(XDR, PUBLIC_KEY);
+    const uri = buildSep7TxUri(XDR, PUBLIC_KEY, CORRELATION_ID);
     expect(uri).toContain(`pubkey=${PUBLIC_KEY}`);
   });
 
-  it('includes a callback parameter pointing at the ecotask scheme', () => {
-    const uri = buildSep7TxUri(XDR, PUBLIC_KEY);
-    // callback value is URL-encoded; decode to inspect
-    const decoded = decodeURIComponent(uri);
-    expect(decoded).toContain('ecotask://');
+  it('includes the correlation ID in the encoded callback URL', () => {
+    const uri = buildSep7TxUri(XDR, PUBLIC_KEY, CORRELATION_ID);
+    const query = uri.slice(uri.indexOf('?') + 1);
+    const callback = new URLSearchParams(query).get('callback');
+
+    expect(callback).toBe(`url:${LOBSTR_CALLBACK_URI}?id=${CORRELATION_ID}`);
   });
 
   it('includes the testnet network passphrase', () => {
-    const uri = buildSep7TxUri(XDR, PUBLIC_KEY);
+    const uri = buildSep7TxUri(XDR, PUBLIC_KEY, CORRELATION_ID);
     // URLSearchParams encodes spaces as '+'; decode both forms.
     const decoded = decodeURIComponent(uri).replace(/\+/g, ' ');
     expect(decoded).toContain('Test SDF Network');
@@ -119,7 +147,7 @@ describe('buildSep7TxUri', () => {
     }));
     const { buildSep7TxUri: buildMainnet } =
       jest.requireActual('../services/lobstr');
-    const uri = buildMainnet(XDR, PUBLIC_KEY);
+    const uri = buildMainnet(XDR, PUBLIC_KEY, CORRELATION_ID);
     const decoded = decodeURIComponent(uri).replace(/\+/g, ' ');
     expect(decoded).toContain('Public Global Stellar Network ; September 2015');
     expect(decoded).not.toContain('Test SDF Network');
@@ -171,10 +199,13 @@ describe('buildSep7PayUri', () => {
 // ---------------------------------------------------------------------------
 
 describe('parseLobstrCallbackUrl', () => {
-  it('extracts the signed XDR from a valid callback URL', () => {
+  it('extracts the signed XDR and ID from a valid callback URL', () => {
     const signedXDR = 'SIGNEDXDR==';
-    const url = `ecotask://lobstr/callback?xdr=${encodeURIComponent(signedXDR)}`;
-    expect(parseLobstrCallbackUrl(url)).toBe(signedXDR);
+    const id = 'signing-call-1';
+    const url = `ecotask://lobstr/callback?xdr=${encodeURIComponent(
+      signedXDR,
+    )}&id=${id}`;
+    expect(parseLobstrCallbackUrl(url)).toEqual({ xdr: signedXDR, id });
   });
 
   it('throws when the URL has no query string', () => {
@@ -185,14 +216,23 @@ describe('parseLobstrCallbackUrl', () => {
 
   it('throws when the xdr parameter is absent', () => {
     expect(() =>
-      parseLobstrCallbackUrl('ecotask://lobstr/callback?other=value'),
+      parseLobstrCallbackUrl('ecotask://lobstr/callback?id=signing-call-1'),
     ).toThrow('missing the signed XDR');
+  });
+
+  it('throws when the correlation ID is absent', () => {
+    expect(() =>
+      parseLobstrCallbackUrl('ecotask://lobstr/callback?xdr=SIGNED_XDR'),
+    ).toThrow('missing the correlation ID');
   });
 
   it('handles XDR values containing "+" characters', () => {
     const signedXDR = 'ABC+DEF==';
-    const url = `ecotask://lobstr/callback?xdr=${encodeURIComponent(signedXDR)}`;
-    expect(parseLobstrCallbackUrl(url)).toBe(signedXDR);
+    const id = 'signing-call-2';
+    const url = `ecotask://lobstr/callback?xdr=${encodeURIComponent(
+      signedXDR,
+    )}&id=${id}`;
+    expect(parseLobstrCallbackUrl(url)).toEqual({ xdr: signedXDR, id });
   });
 });
 
@@ -243,11 +283,11 @@ describe('openLobstrForSigning — callback flow', () => {
   it('opens a web+stellar:tx URI', async () => {
     const signedXDR = 'SIGNED_XDR_VALUE==';
     const promise = openLobstrForSigning('ORIGINAL_XDR==', 'GPUBLICKEY');
+    await flushLobstrOpen();
+    const id = getCallbackId();
 
-    // _pendingResolve is set synchronously in the Promise constructor, so
-    // resolveLobstrCallback can be called immediately without any flush.
     resolveLobstrCallback(
-      `ecotask://lobstr/callback?xdr=${encodeURIComponent(signedXDR)}`,
+      `ecotask://lobstr/callback?xdr=${encodeURIComponent(signedXDR)}&id=${id}`,
     );
 
     await expect(promise).resolves.toBe(signedXDR);
@@ -257,10 +297,40 @@ describe('openLobstrForSigning — callback flow', () => {
 
   it('rejects when the callback URL is malformed', async () => {
     const promise = openLobstrForSigning('XDR==', 'GPUBLICKEY');
+    await flushLobstrOpen();
+    const id = getCallbackId();
 
-    resolveLobstrCallback('ecotask://lobstr/callback'); // no xdr param
+    resolveLobstrCallback(`ecotask://lobstr/callback?id=${id}`);
 
-    await expect(promise).rejects.toThrow('missing query parameters');
+    await expect(promise).rejects.toThrow('missing the signed XDR');
+  });
+
+  it('routes two concurrent callbacks to their matching promises', async () => {
+    const firstPromise = openLobstrForSigning('FIRST_XDR==', 'GFIRST');
+    const secondPromise = openLobstrForSigning('SECOND_XDR==', 'GSECOND');
+    await flushLobstrOpen();
+
+    const firstId = getCallbackId(0);
+    const secondId = getCallbackId(1);
+    expect(firstId).not.toBe(secondId);
+
+    const firstSettled = jest.fn();
+    firstPromise.then(firstSettled, firstSettled);
+
+    resolveLobstrCallback(
+      `ecotask://lobstr/callback?xdr=${encodeURIComponent(
+        'SIGNED_SECOND_XDR==',
+      )}&id=${secondId}`,
+    );
+    await expect(secondPromise).resolves.toBe('SIGNED_SECOND_XDR==');
+    expect(firstSettled).not.toHaveBeenCalled();
+
+    resolveLobstrCallback(
+      `ecotask://lobstr/callback?xdr=${encodeURIComponent(
+        'SIGNED_FIRST_XDR==',
+      )}&id=${firstId}`,
+    );
+    await expect(firstPromise).resolves.toBe('SIGNED_FIRST_XDR==');
   });
 });
 
@@ -269,12 +339,33 @@ describe('openLobstrForSigning — callback flow', () => {
 // ---------------------------------------------------------------------------
 
 describe('cancelLobstrCallback', () => {
-  it('rejects the pending signing promise', async () => {
-    const promise = openLobstrForSigning('XDR==', 'GPUBLICKEY');
+  it('rejects all pending signing promises when called without an ID', async () => {
+    const firstPromise = openLobstrForSigning('FIRST_XDR==', 'GFIRST');
+    const secondPromise = openLobstrForSigning('SECOND_XDR==', 'GSECOND');
 
-    // _pendingReject is set synchronously, no flush needed.
     cancelLobstrCallback();
-    await expect(promise).rejects.toThrow('cancelled');
+    await expect(firstPromise).rejects.toThrow('cancelled');
+    await expect(secondPromise).rejects.toThrow('cancelled');
+  });
+
+  it('rejects only the pending call matching the given ID', async () => {
+    const firstPromise = openLobstrForSigning('FIRST_XDR==', 'GFIRST');
+    const secondPromise = openLobstrForSigning('SECOND_XDR==', 'GSECOND');
+    await flushLobstrOpen();
+    const firstId = getCallbackId(0);
+    const secondId = getCallbackId(1);
+    const secondSettled = jest.fn();
+    secondPromise.then(secondSettled, secondSettled);
+
+    cancelLobstrCallback(firstId);
+
+    await expect(firstPromise).rejects.toThrow('cancelled');
+    expect(secondSettled).not.toHaveBeenCalled();
+
+    resolveLobstrCallback(
+      `ecotask://lobstr/callback?xdr=SIGNED_SECOND_XDR&id=${secondId}`,
+    );
+    await expect(secondPromise).resolves.toBe('SIGNED_SECOND_XDR');
   });
 
   it('is a no-op when there is no pending promise', () => {
@@ -317,19 +408,49 @@ describe('openLobstrForSigning — timeout', () => {
     await Promise.resolve();
 
     expect(settled).not.toHaveBeenCalled();
+
+    cancelLobstrCallback();
+    await expect(promise).rejects.toThrow('cancelled');
   });
 
   it('clears the timeout when the callback resolves successfully', async () => {
     const promise = openLobstrForSigning('ORIGINAL_XDR==', 'GPUBLICKEY');
+    await flushLobstrOpen();
+    const id = getCallbackId();
 
     resolveLobstrCallback(
-      `ecotask://lobstr/callback?xdr=${encodeURIComponent('SIGNED_XDR==')}`,
+      `ecotask://lobstr/callback?xdr=${encodeURIComponent(
+        'SIGNED_XDR==',
+      )}&id=${id}`,
     );
     await expect(promise).resolves.toBe('SIGNED_XDR==');
 
     // Even after advancing fully past the timeout, no error surfaces.
     jest.advanceTimersByTime(LOBSTR_SIGNING_TIMEOUT_MS);
     await Promise.resolve();
+  });
+
+  it('times out and cleans up only the matching pending call', async () => {
+    const firstPromise = openLobstrForSigning('FIRST_XDR==', 'GFIRST');
+    await flushLobstrOpen();
+
+    jest.advanceTimersByTime(LOBSTR_SIGNING_TIMEOUT_MS / 2);
+
+    const secondPromise = openLobstrForSigning('SECOND_XDR==', 'GSECOND');
+    await flushLobstrOpen();
+    const secondId = getCallbackId(1);
+    const secondSettled = jest.fn();
+    secondPromise.then(secondSettled, secondSettled);
+
+    jest.advanceTimersByTime(LOBSTR_SIGNING_TIMEOUT_MS / 2);
+
+    await expect(firstPromise).rejects.toThrow('Lobstr signing timed out');
+    expect(secondSettled).not.toHaveBeenCalled();
+
+    resolveLobstrCallback(
+      `ecotask://lobstr/callback?xdr=SIGNED_SECOND_XDR&id=${secondId}`,
+    );
+    await expect(secondPromise).resolves.toBe('SIGNED_SECOND_XDR');
   });
 
   it('clears the timeout when cancelLobstrCallback is called', async () => {

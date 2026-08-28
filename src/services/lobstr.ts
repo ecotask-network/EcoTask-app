@@ -6,7 +6,8 @@
  * Auth flow (tx URI type):
  *   1. Build a `web+stellar:tx?xdr=<XDR>&callback=<callbackURI>&pubkey=<pubkey>`
  *      URI and open it — Lobstr takes the user through a signing UI.
- *   2. Lobstr redirects to `ecotask://lobstr/callback?xdr=<signedXDR>`
+ *   2. Lobstr redirects to
+ *      `ecotask://lobstr/callback?xdr=<signedXDR>&id=<correlationId>`
  *      (when the `callback` param is a `url:ecotask://…` value).
  *   3. RootNavigator receives the deep link; the pending promise is resolved
  *      with the signed XDR so the caller can continue.
@@ -42,24 +43,43 @@ export const LOBSTR_SIGNING_TIMEOUT_MS = 5 * 60 * 1000;
 type CallbackResolve = (signedXDR: string) => void;
 type CallbackReject = (reason: Error) => void;
 
-let _pendingResolve: CallbackResolve | null = null;
-let _pendingReject: CallbackReject | null = null;
-let _pendingTimeout: ReturnType<typeof setTimeout> | null = null;
+interface PendingCall {
+  resolve: CallbackResolve;
+  reject: CallbackReject;
+  timer: ReturnType<typeof setTimeout>;
+}
+
+const pendingCalls = new Map<string, PendingCall>();
+let nextCorrelationId = 0;
 
 /**
- * Clear the pending resolve/reject slots and any in-flight timeout.
- *
- * Must be called whenever the pending promise is settled (success, error,
- * cancellation, or timeout) so a stray timer never rejects a promise that
- * has already been consumed.
+ * Generate an ID that is unique for every signing call in this module
+ * instance. The sequence suffix also keeps calls unique when they start in
+ * the same millisecond.
  */
-function clearPendingLobstr(): void {
-  _pendingResolve = null;
-  _pendingReject = null;
-  if (_pendingTimeout !== null) {
-    clearTimeout(_pendingTimeout);
-    _pendingTimeout = null;
+function createCorrelationId(): string {
+  nextCorrelationId += 1;
+  return `${Date.now().toString(36)}-${nextCorrelationId.toString(36)}`;
+}
+
+/** Remove one pending call and clear only its timeout. */
+function takePendingCall(id: string): PendingCall | undefined {
+  const pending = pendingCalls.get(id);
+  if (pending) {
+    pendingCalls.delete(id);
+    clearTimeout(pending.timer);
   }
+  return pending;
+}
+
+function getCallbackParams(url: string): URLSearchParams {
+  // URLSearchParams requires a query string; extract it manually to avoid
+  // cross-platform URL parsing quirks in React Native's JS engine.
+  const queryIndex = url.indexOf('?');
+  if (queryIndex === -1) {
+    throw new Error('Lobstr callback URL is missing query parameters');
+  }
+  return new URLSearchParams(url.slice(queryIndex + 1));
 }
 
 /**
@@ -68,27 +88,44 @@ function clearPendingLobstr(): void {
  * `openLobstrForSigning`.
  */
 export function resolveLobstrCallback(url: string): void {
-  if (!_pendingResolve || !_pendingReject) {
+  let id: string | null = null;
+  try {
+    id = getCallbackParams(url).get('id');
+  } catch {
+    // Without an ID, the callback cannot safely be associated with a call.
+  }
+
+  if (!id || !pendingCalls.has(id)) {
     return;
   }
+
   try {
-    const signedXDR = parseLobstrCallbackUrl(url);
-    _pendingResolve(signedXDR);
+    const callback = parseLobstrCallbackUrl(url);
+    takePendingCall(callback.id)?.resolve(callback.xdr);
   } catch (err) {
-    _pendingReject(err instanceof Error ? err : new Error(String(err)));
-  } finally {
-    clearPendingLobstr();
+    takePendingCall(id)?.reject(
+      err instanceof Error ? err : new Error(String(err)),
+    );
   }
 }
 
 /**
- * Cancel any pending Lobstr signing promise (e.g., user navigated away).
+ * Cancel one pending Lobstr signing promise, or all calls when no ID is given.
  */
-export function cancelLobstrCallback(): void {
-  if (_pendingReject) {
-    _pendingReject(new Error('Lobstr signing was cancelled'));
+export function cancelLobstrCallback(id?: string): void {
+  const cancellationError = new Error('Lobstr signing was cancelled');
+
+  if (id !== undefined) {
+    takePendingCall(id)?.reject(cancellationError);
+    return;
   }
-  clearPendingLobstr();
+
+  const calls = Array.from(pendingCalls.values());
+  pendingCalls.clear();
+  calls.forEach(call => {
+    clearTimeout(call.timer);
+    call.reject(cancellationError);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -98,16 +135,23 @@ export function cancelLobstrCallback(): void {
 /**
  * Build a SEP-7 `tx` URI for transaction signing.
  *
- * @param xdr      Base64-encoded unsigned transaction XDR.
- * @param publicKey Sender public key (populates `pubkey` field).
- * @returns        A `web+stellar:tx?…` URI string.
+ * @param xdr           Base64-encoded unsigned transaction XDR.
+ * @param publicKey     Sender public key (populates `pubkey` field).
+ * @param correlationId ID used to route the signed-XDR callback.
+ * @returns             A `web+stellar:tx?…` URI string.
  */
-export function buildSep7TxUri(xdr: string, publicKey: string): string {
+export function buildSep7TxUri(
+  xdr: string,
+  publicKey: string,
+  correlationId: string,
+): string {
+  const callbackParams = new URLSearchParams({ id: correlationId });
+  const callbackUrl = `${LOBSTR_CALLBACK_URI}?${callbackParams.toString()}`;
   const params = new URLSearchParams({
     xdr,
     pubkey: publicKey,
     // `url:` prefix tells Lobstr the callback is a URL deep link.
-    callback: `url:${LOBSTR_CALLBACK_URI}`,
+    callback: `url:${callbackUrl}`,
     network_passphrase: STELLAR_NETWORK_PASSPHRASE,
   });
   return `web+stellar:tx?${params.toString()}`;
@@ -145,27 +189,28 @@ export function buildSep7PayUri(
 // ---------------------------------------------------------------------------
 
 /**
- * Parse a Lobstr deep-link callback URL and extract the signed XDR.
+ * Parse a Lobstr deep-link callback URL and extract its signed XDR and
+ * correlation ID.
  *
  * Expected format:
- *   `ecotask://lobstr/callback?xdr=<signedXDR>`
+ *   `ecotask://lobstr/callback?xdr=<signedXDR>&id=<correlationId>`
  *
- * @throws Error when the URL is malformed or the `xdr` param is absent.
+ * @throws Error when the URL is malformed or a required param is absent.
  */
-export function parseLobstrCallbackUrl(url: string): string {
-  // URLSearchParams requires a query string; extract it manually to avoid
-  // cross-platform URL parsing quirks in React Native's JS engine.
-  const queryIndex = url.indexOf('?');
-  if (queryIndex === -1) {
-    throw new Error('Lobstr callback URL is missing query parameters');
-  }
-  const query = url.slice(queryIndex + 1);
-  const params = new URLSearchParams(query);
+export function parseLobstrCallbackUrl(url: string): {
+  xdr: string;
+  id: string;
+} {
+  const params = getCallbackParams(url);
   const xdr = params.get('xdr');
   if (!xdr) {
     throw new Error('Lobstr callback URL is missing the signed XDR');
   }
-  return xdr;
+  const id = params.get('id');
+  if (!id) {
+    throw new Error('Lobstr callback URL is missing the correlation ID');
+  }
+  return { xdr, id };
 }
 
 // ---------------------------------------------------------------------------
@@ -198,25 +243,20 @@ export function openLobstrForSigning(
   xdr: string,
   publicKey: string,
 ): Promise<string> {
-  // Cancel any previous pending callback before registering a new one.
-  cancelLobstrCallback();
+  const correlationId = createCorrelationId();
 
-  // Register the resolve/reject slots synchronously so that any call to
+  // Register the pending call synchronously so that any call to
   // resolveLobstrCallback() or cancelLobstrCallback() — even one microtask
-  // after this function is called — will find them populated.
+  // after this function is called — will find it populated.
   return new Promise<string>((resolve, reject) => {
-    _pendingResolve = resolve;
-    _pendingReject = reject;
-
     // Reject if the user never signs (e.g. they dismiss Lobstr). Without
     // this the promise hangs forever and the caller is stuck loading.
-    _pendingTimeout = setTimeout(() => {
-      if (_pendingReject) {
-        const timedOut = _pendingReject;
-        clearPendingLobstr();
-        timedOut(new Error('Lobstr signing timed out'));
-      }
+    const timer = setTimeout(() => {
+      takePendingCall(correlationId)?.reject(
+        new Error('Lobstr signing timed out'),
+      );
     }, LOBSTR_SIGNING_TIMEOUT_MS);
+    pendingCalls.set(correlationId, { resolve, reject, timer });
 
     // Kick off async work; on any failure, reject through the registered slot.
     isLobstrInstalled()
@@ -224,14 +264,13 @@ export function openLobstrForSigning(
         if (!installed) {
           throw new LobstrNotInstalledError();
         }
-        return Linking.openURL(buildSep7TxUri(xdr, publicKey));
+        return Linking.openURL(buildSep7TxUri(xdr, publicKey, correlationId));
       })
       .catch(err => {
-        // Only reject if the slot hasn't been consumed by a callback already.
-        if (_pendingReject) {
-          const failed = _pendingReject;
-          clearPendingLobstr();
-          failed(
+        // Only reject if this call hasn't been consumed by a callback already.
+        const failed = takePendingCall(correlationId);
+        if (failed) {
+          failed.reject(
             err instanceof LobstrNotInstalledError
               ? err
               : new Error(
