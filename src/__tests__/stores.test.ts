@@ -301,6 +301,7 @@ describe('taskStore', () => {
       selectedAt: '2026-01-01T12:00:00.000Z',
       page: 2,
       hasMore: false,
+      tasksLastFetchedAt: null,
     });
     expect(partial).toEqual({
       tasks: [task],
@@ -308,6 +309,7 @@ describe('taskStore', () => {
       selectedAt: '2026-01-01T12:00:00.000Z',
       page: 2,
       hasMore: false,
+      tasksLastFetchedAt: null,
     });
     expect(partial).not.toHaveProperty('isLoading');
     expect(partial).not.toHaveProperty('error');
@@ -383,6 +385,7 @@ describe('taskStore', () => {
       selectedAt: null,
       page: 1,
       hasMore: true,
+      tasksLastFetchedAt: null,
     });
   });
 
@@ -397,6 +400,7 @@ describe('taskStore', () => {
       selectedAt: '2026-01-01T12:00:00.000Z',
       page: 1,
       hasMore: false,
+      tasksLastFetchedAt: null,
     });
     expect(partial).not.toHaveProperty('isLoading');
     expect(partial).not.toHaveProperty('error');

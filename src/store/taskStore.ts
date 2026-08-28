@@ -19,6 +19,8 @@ export interface PersistedTaskSlice {
   selectedAt: string | null;
   page: number;
   hasMore: boolean;
+  /** ISO timestamp of the last successful page-1 fetch, used to gate revalidation. */
+  tasksLastFetchedAt: string | null;
 }
 
 interface TaskState {
@@ -30,6 +32,8 @@ interface TaskState {
   error: string | null;
   page: number;
   hasMore: boolean;
+  /** ISO timestamp of the last successful page-1 fetch, used to gate revalidation. */
+  tasksLastFetchedAt: string | null;
   setTasks: (tasks: Task[]) => void;
   appendTasks: (tasks: Task[]) => void;
   /**
@@ -51,7 +55,12 @@ interface TaskState {
 export function partializeTaskState(
   state: Pick<
     TaskState,
-    'tasks' | 'selectedTask' | 'selectedAt' | 'page' | 'hasMore'
+    | 'tasks'
+    | 'selectedTask'
+    | 'selectedAt'
+    | 'page'
+    | 'hasMore'
+    | 'tasksLastFetchedAt'
   >,
 ): PersistedTaskSlice {
   return {
@@ -60,6 +69,7 @@ export function partializeTaskState(
     selectedAt: state.selectedAt,
     page: state.page,
     hasMore: state.hasMore,
+    tasksLastFetchedAt: state.tasksLastFetchedAt,
   };
 }
 
@@ -77,6 +87,11 @@ export function sanitizePersistedTaskState(
       : {};
 
   const tasks = Array.isArray(p.tasks) ? p.tasks : [];
+
+  const tasksLastFetchedAt =
+    typeof p.tasksLastFetchedAt === 'string' && p.tasksLastFetchedAt.length > 0
+      ? p.tasksLastFetchedAt
+      : null;
 
   let selectedTask: Task | null = null;
   let selectedAt: string | null = null;
@@ -98,6 +113,7 @@ export function sanitizePersistedTaskState(
       selectedAt: null,
       page: 1,
       hasMore: true,
+      tasksLastFetchedAt: null,
     };
   }
 
@@ -114,7 +130,7 @@ export function sanitizePersistedTaskState(
     hasMore = false;
   }
 
-  return { tasks, selectedTask, selectedAt, page, hasMore };
+  return { tasks, selectedTask, selectedAt, page, hasMore, tasksLastFetchedAt };
 }
 
 export const useTaskStore = create<TaskState>()(
@@ -127,7 +143,9 @@ export const useTaskStore = create<TaskState>()(
       error: null,
       page: 1,
       hasMore: true,
-      setTasks: tasks => set({ tasks }),
+      tasksLastFetchedAt: null,
+      setTasks: tasks =>
+        set({ tasks, tasksLastFetchedAt: new Date().toISOString() }),
       appendTasks: tasks =>
         set(s => ({
           tasks: [
@@ -161,7 +179,14 @@ export const useTaskStore = create<TaskState>()(
       setError: error => set({ error }),
       setPage: page => set({ page }),
       setHasMore: hasMore => set({ hasMore }),
-      reset: () => set({ tasks: [], page: 1, hasMore: true, error: null }),
+      reset: () =>
+        set({
+          tasks: [],
+          page: 1,
+          hasMore: true,
+          error: null,
+          tasksLastFetchedAt: null,
+        }),
     }),
     {
       name: 'task-storage',
