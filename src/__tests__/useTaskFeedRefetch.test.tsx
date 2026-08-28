@@ -127,9 +127,8 @@ describe('useTaskFeed', () => {
       ).toISOString(),
     });
 
-    let ref!: UseTaskFeedResult;
     await act(async () => {
-      instance = renderer.create(<HookHarness onRef={r => (ref = r)} />);
+      instance = renderer.create(<HookHarness onRef={() => undefined} />);
     });
 
     await act(async () => {
