@@ -73,3 +73,31 @@ jest.mock(
   },
   { virtual: true },
 );
+
+jest.mock('@notifee/react-native', () => ({
+  __esModule: true,
+  default: {
+    displayNotification: jest.fn().mockResolvedValue('notifee-id-1'),
+    cancelNotification: jest.fn().mockResolvedValue(undefined),
+  },
+  displayNotification: jest.fn().mockResolvedValue('notifee-id-1'),
+  cancelNotification: jest.fn().mockResolvedValue(undefined),
+}));
+
+(() => {
+  const g = globalThis as typeof globalThis & {
+    crypto?: { getRandomValues?: (array: Uint8Array) => void };
+  };
+
+  if (
+    typeof g.crypto === 'undefined' ||
+    typeof g.crypto.getRandomValues !== 'function'
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { webcrypto } = require('crypto');
+    g.crypto = webcrypto;
+  }
+})();
+
+
+
