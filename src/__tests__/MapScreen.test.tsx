@@ -262,4 +262,57 @@ describe('MapScreen — with location and tasks', () => {
       taskId: 'task-1',
     });
   });
+
+  it('does NOT navigate when a multi-task cluster callout is pressed', () => {
+    // 11 tasks in the same coarse grid bucket → one cluster with count > 1.
+    const clustered = Array.from({ length: 11 }, (_, i) =>
+      makeTask(`c${i}`, 51.5 + i * 0.0001, -0.1 + i * 0.0001),
+    );
+    defaultFeed(clustered);
+    let tree: renderer.ReactTestRenderer;
+    void act(() => {
+      tree = renderer.create(<MapScreen />);
+    });
+
+    const clusterNodes = tree!.root.findAll(
+      n =>
+        typeof n.props.testID === 'string' &&
+        n.props.testID.startsWith('cluster-'),
+    );
+    expect(clusterNodes.length).toBeGreaterThan(0);
+
+    void act(() => {
+      clusterNodes[0]!.props.onCalloutPress?.();
+    });
+
+    // The guard `if (!isCluster && firstTask)` must prevent navigation for a
+    // multi-task cluster (no zoom/expand available in Jest).
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('navigates when a count:null promoted cluster (single task) callout is pressed', () => {
+    // 10 tasks collapse into one multi-task cluster; a lone task in a different
+    // grid bucket is promoted to a single marker with count === null.
+    const lone = makeTask('lone', 52.5, 0.5);
+    const clustered = Array.from({ length: 10 }, (_, i) =>
+      makeTask(`c${i}`, 51.5 + i * 0.0001, -0.1 + i * 0.0001),
+    );
+    defaultFeed([lone, ...clustered]);
+
+    let tree: renderer.ReactTestRenderer;
+    void act(() => {
+      tree = renderer.create(<MapScreen />);
+    });
+
+    const loneNode = tree!.root.findAll(n => n.props.testID === 'marker-lone');
+    expect(loneNode.length).toBeGreaterThan(0);
+
+    void act(() => {
+      loneNode[0]!.props.onCalloutPress?.();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('TaskDetail', {
+      taskId: 'lone',
+    });
+  });
 });
