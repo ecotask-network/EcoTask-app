@@ -37,8 +37,9 @@ export default function PendingProofsBanner({
         alignItems: 'center',
         marginTop: spacing.md,
       }}
+      accessibilityLiveRegion="polite"
     >
-      <Text style={{ fontSize: 20, marginRight: spacing.sm }}>📤</Text>
+      <Text style={{ fontSize: 20, marginRight: spacing.sm }} accessible={true} accessibilityLabel="Outbox">📤</Text>
       <View style={{ flex: 1 }}>
         <Text style={{ color: '#000', fontWeight: '600', fontSize: 13 }}>
           {count} proof{count === 1 ? '' : 's'} waiting to sync
@@ -48,6 +49,8 @@ export default function PendingProofsBanner({
       <TouchableOpacity
         onPress={onRetry}
         disabled={!canRetry}
+        accessibilityRole="button"
+        accessibilityLabel="Retry syncing proofs"
         style={{
           paddingHorizontal: spacing.md,
           paddingVertical: spacing.sm,

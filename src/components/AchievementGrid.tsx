@@ -86,7 +86,7 @@ function AchievementTile({ achievement }: { achievement: Achievement }) {
         opacity,
       }}
     >
-      <Text style={{ fontSize: 24 }}>{achievement.icon}</Text>
+      <Text accessible={true} accessibilityRole="image" accessibilityLabel={`${achievement.title} icon`} style={{ fontSize: 24 }}>{achievement.icon}</Text>
       <Text
         style={{
           color: colors.text,

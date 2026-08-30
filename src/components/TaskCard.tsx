@@ -41,6 +41,9 @@ export default function TaskCard({
   return (
     <TouchableOpacity
       onPress={() => onPress(id)}
+      accessibilityRole="button"
+      accessibilityLabel={`Task: ${title}`}
+      accessibilityHint="Navigates to task details"
       style={{
         backgroundColor: colors.surface,
         borderRadius: 12,
@@ -52,7 +55,7 @@ export default function TaskCard({
         borderColor: colors.border,
       }}
     >
-      <Text style={{ fontSize: 32, marginRight: spacing.md }}>
+      <Text style={{ fontSize: 32, marginRight: spacing.md }} accessible={true} accessibilityLabel="Task icon">
         {TASK_TYPE_CONFIG[type]?.icon || '📍'}
       </Text>
       <View style={{ flex: 1 }}>

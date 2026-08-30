@@ -200,22 +200,8 @@ export default function SubmitProofScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ padding: spacing.lg, paddingTop: spacing.xl }}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          style={{
-            alignSelf: 'flex-start',
-            paddingVertical: spacing.sm,
-            paddingHorizontal: spacing.md,
-            marginLeft: -spacing.md,
-            minHeight: 44,
-            justifyContent: 'center',
-          }}
-        >
-          <Text style={{ color: colors.primary, fontSize: 16 }}>
-            {'\u2190'} Back
-          </Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back">
+          <Text style={{ color: colors.primary, fontSize: 16 }}>Back</Text>
         </TouchableOpacity>
         <Text
           style={{
@@ -256,7 +242,7 @@ export default function SubmitProofScreen() {
           />
         ) : (
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 64 }}>📷</Text>
+            <Text accessible={true} accessibilityLabel="Camera" style={{ fontSize: 64 }}>📷</Text>
             <Text
               style={{ color: colors.textSecondary, marginTop: spacing.md }}
             >
@@ -266,15 +252,10 @@ export default function SubmitProofScreen() {
             </Text>
             {hasPermission === false && (
               <TouchableOpacity
-                onPress={() => void requestPermission()}
+                onPress={requestPermission}
                 accessibilityRole="button"
-                style={{
-                  marginTop: spacing.md,
-                  paddingVertical: spacing.sm,
-                  paddingHorizontal: spacing.md,
-                  minHeight: 44,
-                  justifyContent: 'center',
-                }}
+                accessibilityLabel="Grant Permission"
+                style={{ marginTop: spacing.md, padding: spacing.sm }}
               >
                 <Text style={{ color: colors.primary }}>Grant Permission</Text>
               </TouchableOpacity>
@@ -307,6 +288,7 @@ export default function SubmitProofScreen() {
 
       {progress !== 'idle' && (
         <Text
+          accessibilityLiveRegion="polite"
           style={{
             color:
               progress === 'confirmed'
@@ -324,6 +306,7 @@ export default function SubmitProofScreen() {
 
       {error && (
         <Text
+          accessibilityLiveRegion="polite"
           style={{
             color: colors.error,
             textAlign: 'center',
@@ -343,6 +326,9 @@ export default function SubmitProofScreen() {
           <TouchableOpacity
             onPress={() => void handleCapture()}
             disabled={isSubmitting}
+            accessibilityRole="button"
+            accessibilityLabel="Take Photo"
+            accessibilityState={{ disabled: isSubmitting }}
             style={{
               flex: 1,
               padding: spacing.md,
@@ -368,6 +354,9 @@ export default function SubmitProofScreen() {
                 setActivityId(null);
               }}
               disabled={isSubmitting}
+              accessibilityRole="button"
+              accessibilityLabel="Retake Photo"
+              accessibilityState={{ disabled: isSubmitting }}
               style={{
                 flex: 1,
                 padding: spacing.md,
@@ -383,6 +372,9 @@ export default function SubmitProofScreen() {
             <TouchableOpacity
               onPress={() => void handleSubmit()}
               disabled={isSubmitting}
+              accessibilityRole="button"
+              accessibilityLabel="Submit Proof"
+              accessibilityState={{ disabled: isSubmitting }}
               style={{
                 flex: 1,
                 padding: spacing.md,
