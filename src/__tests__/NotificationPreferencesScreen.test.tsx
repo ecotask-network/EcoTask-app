@@ -28,15 +28,15 @@ import { isNowInQuietHours, parseTimeToMinutes } from '../utils/quietHours';
 const mockUseRootNavigation = useRootNavigation as jest.Mock;
 
 function textValues(tree: renderer.ReactTestRenderer): string[] {
-  return tree.root
-    .findAllByType(Text)
-    .flatMap(node => {
-      const children = node.props.children;
-      const arr = Array.isArray(children) ? children : [children];
-      return arr
-        .map((c: unknown) => (typeof c === 'string' || typeof c === 'number' ? String(c) : ''))
-        .filter(Boolean);
-    });
+  return tree.root.findAllByType(Text).flatMap(node => {
+    const children = node.props.children;
+    const arr = Array.isArray(children) ? children : [children];
+    return arr
+      .map((c: unknown) =>
+        typeof c === 'string' || typeof c === 'number' ? String(c) : '',
+      )
+      .filter(Boolean);
+  });
 }
 
 function findSwitches(tree: renderer.ReactTestRenderer) {
@@ -51,10 +51,9 @@ function resetPrefsStore() {
   // Reset to known defaults
   usePrefsStore.setState({
     allEnabled: true,
-    notificationPrefs: Object.values(NOTIFICATION_TYPES).reduce<Record<string, boolean>>(
-      (acc, t) => ({ ...acc, [t]: true }),
-      {},
-    ),
+    notificationPrefs: Object.values(NOTIFICATION_TYPES).reduce<
+      Record<string, boolean>
+    >((acc, t) => ({ ...acc, [t]: true }), {}),
     quietHours: { from: '22:00', to: '07:00' },
     scheduledNotificationIds: {},
   });
@@ -120,11 +119,6 @@ describe('NotificationPreferencesScreen', () => {
         master.props.onValueChange(false);
       });
 
-      expect(usePrefsStore.getState().allEnabled).toBe(false);
-      // re-render to see prop updated
-      const updatedSwitches = findSwitches(tree);
-      // Switch is controlled; after store update component re-renders, but renderer instance
-      // needs to be recreated to reflect new props in this simple setup. Verify store is source of truth.
       expect(usePrefsStore.getState().allEnabled).toBe(false);
     });
 
@@ -209,8 +203,12 @@ describe('NotificationPreferencesScreen', () => {
 
       // seed scheduled ids so toggleType has something to cancel
       act(() => {
-        usePrefsStore.getState().addScheduledId(NOTIFICATION_TYPES.STREAK_REMINDER, 'id-1');
-        usePrefsStore.getState().addScheduledId(NOTIFICATION_TYPES.STREAK_REMINDER, 'id-2');
+        usePrefsStore
+          .getState()
+          .addScheduledId(NOTIFICATION_TYPES.STREAK_REMINDER, 'id-1');
+        usePrefsStore
+          .getState()
+          .addScheduledId(NOTIFICATION_TYPES.STREAK_REMINDER, 'id-2');
       });
 
       const tree = render();
@@ -228,7 +226,9 @@ describe('NotificationPreferencesScreen', () => {
       // cancel should be attempted for each scheduled id, or at least not throw
       // we check that store cleared ids even if notifee is mocked
       await act(async () => {
-        await new Promise(res => setTimeout(res, 0));
+        await new Promise<void>(resolve => {
+          setTimeout(() => resolve(), 0);
+        });
       });
 
       const ids = usePrefsStore.getState().scheduledNotificationIds[type];
@@ -298,9 +298,15 @@ describe('NotificationPreferencesScreen', () => {
       expect(isValidHHMM('07:00')).toBe(true);
 
       // verify isNowInQuietHours handles crossover correctly (23:00 and 06:00 inside, 12:00 outside)
-      expect(isNowInQuietHours('22:00', '07:00', new Date(2020, 0, 1, 23, 0, 0))).toBe(true);
-      expect(isNowInQuietHours('22:00', '07:00', new Date(2020, 0, 1, 6, 0, 0))).toBe(true);
-      expect(isNowInQuietHours('22:00', '07:00', new Date(2020, 0, 1, 12, 0, 0))).toBe(false);
+      expect(
+        isNowInQuietHours('22:00', '07:00', new Date(2020, 0, 1, 23, 0, 0)),
+      ).toBe(true);
+      expect(
+        isNowInQuietHours('22:00', '07:00', new Date(2020, 0, 1, 6, 0, 0)),
+      ).toBe(true);
+      expect(
+        isNowInQuietHours('22:00', '07:00', new Date(2020, 0, 1, 12, 0, 0)),
+      ).toBe(false);
     });
 
     it('identical from/to is treated as empty quiet hours (no suppression)', () => {
@@ -311,8 +317,12 @@ describe('NotificationPreferencesScreen', () => {
       expect(usePrefsStore.getState().quietHours.from).toBe('09:00');
       expect(usePrefsStore.getState().quietHours.to).toBe('09:00');
       // per utils, identical => false (no quiet hours)
-      expect(isNowInQuietHours('09:00', '09:00', new Date(2020, 0, 1, 9, 0, 0))).toBe(false);
-      expect(isNowInQuietHours('09:00', '09:00', new Date(2020, 0, 1, 12, 0, 0))).toBe(false);
+      expect(
+        isNowInQuietHours('09:00', '09:00', new Date(2020, 0, 1, 9, 0, 0)),
+      ).toBe(false);
+      expect(
+        isNowInQuietHours('09:00', '09:00', new Date(2020, 0, 1, 12, 0, 0)),
+      ).toBe(false);
     });
 
     it('quiet-hours update keeps valid HH:MM format after multiple increments', () => {
@@ -374,7 +384,9 @@ describe('NotificationPreferencesScreen', () => {
       const validInputs = ['22:00', '07:00', '00:00', '12:30'];
       validInputs.forEach(input => {
         expect(isValidHHMM(input)).toBe(true);
-        const errorMessage = !isValidHHMM(input) ? 'Invalid time format. Use HH:MM' : null;
+        const errorMessage = !isValidHHMM(input)
+          ? 'Invalid time format. Use HH:MM'
+          : null;
         expect(errorMessage).toBeNull();
       });
     });
@@ -382,7 +394,9 @@ describe('NotificationPreferencesScreen', () => {
     it('handles invalid current quietHours gracefully without crashing on press', () => {
       act(() => {
         // Simulate store having an invalid time (e.g., from corrupted persistence)
-        usePrefsStore.setState({ quietHours: { from: 'invalid', to: '07:00' } });
+        usePrefsStore.setState({
+          quietHours: { from: 'invalid', to: '07:00' },
+        });
       });
       const tree = render();
       const fromBtn = findTouchableOpacities(tree)[0]!;
