@@ -33,6 +33,7 @@ export default function SendTokensScreen() {
   const { publicKey, walletType } = useWalletStore();
   const { refreshBalance, refreshEcoBalance, refreshUsdcBalance } =
     useStellarWallet();
+  const { refreshPayments } = useWalletStore();
 
   const [destination, setDestination] = useState('');
   const [amount, setAmount] = useState('');
@@ -80,6 +81,7 @@ export default function SendTokensScreen() {
           void refreshBalance();
           void refreshEcoBalance();
           void refreshUsdcBalance();
+          void refreshPayments();
         }, 3000);
         Alert.alert(
           'Payment opened in Lobstr',
@@ -110,6 +112,7 @@ export default function SendTokensScreen() {
       void refreshBalance();
       void refreshEcoBalance();
       void refreshUsdcBalance();
+      void refreshPayments();
       Alert.alert(
         'Payment sent',
         `Transaction ${result.hash.slice(0, 12)}… submitted to the network.`,
@@ -138,6 +141,7 @@ export default function SendTokensScreen() {
     refreshBalance,
     refreshEcoBalance,
     refreshUsdcBalance,
+    refreshPayments,
   ]);
 
   // Validates inputs, then shows an explicit confirmation dialog before any
