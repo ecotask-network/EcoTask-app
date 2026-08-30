@@ -12,6 +12,7 @@ export default function OfflineBanner() {
 
   return (
     <View
+      accessibilityLiveRegion="polite"
       style={{
         backgroundColor: colors.warning,
         padding: 8,

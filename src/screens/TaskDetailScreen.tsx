@@ -105,18 +105,8 @@ export default function TaskDetailScreen() {
           alignItems: 'center',
         }}
       >
-        <Text style={{ color: colors.error }}>{error || 'Task not found'}</Text>
-        <TouchableOpacity
-          onPress={() => void loadTask()}
-          accessibilityRole="button"
-          style={{
-            marginTop: spacing.md,
-            paddingVertical: spacing.sm,
-            paddingHorizontal: spacing.md,
-            minHeight: 44,
-            justifyContent: 'center',
-          }}
-        >
+        <Text accessibilityLiveRegion="polite" style={{ color: colors.error }}>{error || 'Task not found'}</Text>
+        <TouchableOpacity onPress={loadTask} accessibilityRole="button" accessibilityLabel="Try Again" style={{ marginTop: spacing.md }}>
           <Text style={{ color: colors.primary }}>Try Again</Text>
         </TouchableOpacity>
       </View>
@@ -134,24 +124,15 @@ export default function TaskDetailScreen() {
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
-          accessibilityLabel="Back"
-          style={{
-            alignSelf: 'flex-start',
-            paddingVertical: spacing.sm,
-            paddingHorizontal: spacing.md,
-            marginLeft: -spacing.md,
-            marginTop: spacing.xl,
-            marginBottom: spacing.md,
-            minHeight: 44,
-            justifyContent: 'center',
-          }}
+          accessibilityLabel="Go back"
+          style={{ marginBottom: spacing.md, marginTop: spacing.xl }}
         >
           <Text style={{ color: colors.primary, fontSize: 16 }}>
             {'\u2190'} Back
           </Text>
         </TouchableOpacity>
 
-        <Text style={{ fontSize: 48, marginBottom: spacing.sm }}>
+        <Text accessible={true} accessibilityLabel="Task icon" style={{ fontSize: 48, marginBottom: spacing.sm }}>
           {TASK_TYPE_CONFIG[task.type]?.icon || '📍'}
         </Text>
         <Text style={{ color: colors.text, fontSize: 24, fontWeight: 'bold' }}>
@@ -256,6 +237,9 @@ export default function TaskDetailScreen() {
 
         <TouchableOpacity
           disabled={isClosed}
+          accessibilityRole="button"
+          accessibilityLabel={isClosed ? 'Task Closed' : 'Start Task'}
+          accessibilityState={{ disabled: isClosed }}
           onPress={() => {
             selectTask({ ...task, id: task.id || taskId });
             navigation.navigate('SubmitProof', {

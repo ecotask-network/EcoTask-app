@@ -25,6 +25,7 @@ import {
   NOTIFICATION_TYPES,
 } from '../services/notifications';
 import { getMessaging } from '../services/firebaseMessaging';
+import PendingProofsPollManager from '../components/PendingProofsPollManager';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -157,45 +158,48 @@ export default function RootNavigator() {
       onReady={handleNavigatorReady}
       linking={linking}
     >
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {isConnected ? (
-          <>
-            <Stack.Screen name="Main" component={MainTabNavigator} />
-            <Stack.Screen
-              name="Profile"
-              component={ProfileScreen}
-              options={{ presentation: 'card' }}
-            />
-            <Stack.Screen
-              name="EditProfile"
-              component={EditProfileScreen}
-              options={{ presentation: 'card' }}
-            />
-            <Stack.Screen
-              name="NotificationPreferences"
-              component={NotificationPreferencesScreen}
-              options={{ presentation: 'card' }}
-            />
-            <Stack.Screen
-              name="TaskDetail"
-              component={TaskDetailScreen}
-              options={{ presentation: 'card' }}
-            />
-            <Stack.Screen
-              name="SubmitProof"
-              component={SubmitProofScreen}
-              options={{ presentation: 'card' }}
-            />
-            <Stack.Screen
-              name="SendTokens"
-              component={SendTokensScreen}
-              options={{ presentation: 'card' }}
-            />
-          </>
-        ) : (
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-        )}
-      </Stack.Navigator>
+      <>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {isConnected ? (
+            <>
+              <Stack.Screen name="Main" component={MainTabNavigator} />
+              <Stack.Screen
+                name="Profile"
+                component={ProfileScreen}
+                options={{ presentation: 'card' }}
+              />
+              <Stack.Screen
+                name="EditProfile"
+                component={EditProfileScreen}
+                options={{ presentation: 'card' }}
+              />
+              <Stack.Screen
+                name="NotificationPreferences"
+                component={NotificationPreferencesScreen}
+                options={{ presentation: 'card' }}
+              />
+              <Stack.Screen
+                name="TaskDetail"
+                component={TaskDetailScreen}
+                options={{ presentation: 'card' }}
+              />
+              <Stack.Screen
+                name="SubmitProof"
+                component={SubmitProofScreen}
+                options={{ presentation: 'card' }}
+              />
+              <Stack.Screen
+                name="SendTokens"
+                component={SendTokensScreen}
+                options={{ presentation: 'card' }}
+              />
+            </>
+          ) : (
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+          )}
+        </Stack.Navigator>
+        <PendingProofsPollManager />
+      </>
     </NavigationContainer>
   );
 }
