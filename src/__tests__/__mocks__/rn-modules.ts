@@ -73,3 +73,15 @@ jest.mock(
   },
   { virtual: true },
 );
+
+jest.mock('@notifee/react-native', () => ({
+  __esModule: true,
+  default: {
+    displayNotification: jest.fn().mockResolvedValue('notifee-id-1'),
+    cancelNotification: jest.fn().mockResolvedValue(undefined),
+    cancelAllNotifications: jest.fn().mockResolvedValue(undefined),
+    getTriggerNotifications: jest.fn().mockResolvedValue([]),
+  },
+  displayNotification: jest.fn().mockResolvedValue('notifee-id-1'),
+  cancelNotification: jest.fn().mockResolvedValue(undefined),
+}));
