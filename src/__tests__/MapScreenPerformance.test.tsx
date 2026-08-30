@@ -86,7 +86,7 @@ jest.mock('../hooks/useTaskFeed', () => ({
 }));
 
 import { Task } from '../types';
-import MapScreen from '../screens/MapScreen';
+import MapScreen, { ClusterIndex } from '../screens/MapScreen';
 
 function makeTask(id: string, lat = 0, lng = 0): Task {
   return {
@@ -199,5 +199,26 @@ describe('MapScreen Performance - Clustering and Region Throttling', () => {
     jsonStr = JSON.stringify(tree!.toJSON());
     expect(jsonStr).not.toContain('cluster-cluster_');
     expect(jsonStr).toContain('marker-0');
+  });
+
+  it('completes clustering at precision 0, 1, and 2 in < 10 ms for 500 tasks', () => {
+    // Generate 500 random tasks around a central point
+    const largeTaskSet = Array.from({ length: 500 }, (_, i) =>
+      makeTask(
+        String(i),
+        userLat + (Math.random() - 0.5) * 2,
+        userLng + (Math.random() - 0.5) * 2
+      )
+    );
+
+    const clusterIndex = new ClusterIndex(largeTaskSet);
+
+    for (const precision of [0, 1, 2]) {
+      const start = performance.now();
+      clusterIndex.getClusters(precision);
+      const end = performance.now();
+
+      expect(end - start).toBeLessThan(10);
+    }
   });
 });
