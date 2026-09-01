@@ -54,50 +54,65 @@ interface ClusterOrMarker {
 }
 
 /**
- * Very lightweight grid-based clustering:
+ * Very lightweight grid-based clustering with Map-based caching per precision:
  *  – bin tasks by rounded lat/lng at the chosen precision
  *  – groups within ~10 km at city zoom collapse into one pin
  *  – activated only when visible task count exceeds CLUSTER_THRESHOLD
  */
-function clusterTasks(tasks: Task[], precision: number): ClusterOrMarker[] {
-  if (tasks.length <= CLUSTER_THRESHOLD) {
-    return tasks.map(t => ({
-      id: t.id,
-      lat: t.lat,
-      lng: t.lng,
-      count: null,
-      tasks: [t],
-    }));
-  }
+export class ClusterIndex {
+  private cache = new Map<number, ClusterOrMarker[]>();
 
-  const factor = Math.pow(10, precision);
+  constructor(private tasks: Task[]) {}
 
-  const buckets = new Map<string, Task[]>();
-  for (const task of tasks) {
-    const key = `${Math.round(task.lat * factor)}_${Math.round(task.lng * factor)}`;
-    const bucket = buckets.get(key);
-    if (bucket) {
-      bucket.push(task);
-    } else {
-      buckets.set(key, [task]);
+  getClusters(precision: number): ClusterOrMarker[] {
+    if (this.cache.has(precision)) {
+      return this.cache.get(precision)!;
     }
-  }
 
-  return Array.from(buckets.values()).map(group => {
-    const centroidLat = group.reduce((s, t) => s + t.lat, 0) / group.length;
-    const centroidLng = group.reduce((s, t) => s + t.lng, 0) / group.length;
-    const representative = group[0]!;
-    return {
-      id:
-        group.length === 1
-          ? representative.id
-          : `cluster_${centroidLat}_${centroidLng}`,
-      lat: centroidLat,
-      lng: centroidLng,
-      count: group.length > 1 ? group.length : null,
-      tasks: group,
-    };
-  });
+    if (this.tasks.length <= CLUSTER_THRESHOLD) {
+      const result = this.tasks.map(t => ({
+        id: t.id,
+        lat: t.lat,
+        lng: t.lng,
+        count: null,
+        tasks: [t],
+      }));
+      this.cache.set(precision, result);
+      return result;
+    }
+
+    const factor = Math.pow(10, precision);
+    const buckets = new Map<string, Task[]>();
+
+    for (const task of this.tasks) {
+      const key = `${Math.round(task.lat * factor)}_${Math.round(task.lng * factor)}`;
+      const bucket = buckets.get(key);
+      if (bucket) {
+        bucket.push(task);
+      } else {
+        buckets.set(key, [task]);
+      }
+    }
+
+    const result = Array.from(buckets.values()).map(group => {
+      const centroidLat = group.reduce((s, t) => s + t.lat, 0) / group.length;
+      const centroidLng = group.reduce((s, t) => s + t.lng, 0) / group.length;
+      const representative = group[0]!;
+      return {
+        id:
+          group.length === 1
+            ? representative.id
+            : `cluster_${centroidLat}_${centroidLng}`,
+        lat: centroidLat,
+        lng: centroidLng,
+        count: group.length > 1 ? group.length : null,
+        tasks: group,
+      };
+    });
+
+    this.cache.set(precision, result);
+    return result;
+  }
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -169,9 +184,10 @@ export default function MapScreen() {
     return delta > 10 ? 0 : delta > 1 ? 1 : 2;
   }, [region?.latitudeDelta]);
 
+  const clusterIndex = useMemo(() => new ClusterIndex(tasks), [tasks]);
   const clustered = useMemo(
-    () => clusterTasks(tasks, precision),
-    [tasks, precision],
+    () => clusterIndex.getClusters(precision),
+    [clusterIndex, precision],
   );
 
   const handleCalloutPress = useCallback(
