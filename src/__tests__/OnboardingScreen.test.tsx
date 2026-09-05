@@ -304,6 +304,44 @@ describe('OnboardingScreen', () => {
     expect(authenticate).not.toHaveBeenCalled();
   });
 
+  it('does not authenticate when the wallet is disconnected but a public key exists', async () => {
+    walletStoreState = { isConnected: false, publicKey: 'GNOTCONNECTED' };
+
+    tree = await renderScreen();
+
+    expect(authenticate).not.toHaveBeenCalled();
+  });
+
+  it('does not re-authenticate an unchanged connected wallet on re-render', async () => {
+    walletStoreState = { isConnected: true, publicKey: 'GSAME' };
+
+    tree = await renderScreen();
+
+    expect(authenticate).toHaveBeenCalledWith('GSAME');
+
+    walletStoreState = { isConnected: true, publicKey: 'GSAME' };
+    await act(async () => {
+      tree!.update(<OnboardingScreen />);
+    });
+
+    expect(authenticate).toHaveBeenCalledTimes(1);
+  });
+
+  it('authenticates again when the connected public key changes', async () => {
+    walletStoreState = { isConnected: true, publicKey: 'GOLD' };
+
+    tree = await renderScreen();
+
+    expect(authenticate).toHaveBeenCalledWith('GOLD');
+
+    walletStoreState = { isConnected: true, publicKey: 'GNEW' };
+    await act(async () => {
+      tree!.update(<OnboardingScreen />);
+    });
+
+    expect(authenticate).toHaveBeenCalledWith('GNEW');
+  });
+
   it('displays wallet connection errors', async () => {
     walletHookState.error = 'Freighter extension not detected';
 
