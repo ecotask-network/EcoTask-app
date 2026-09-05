@@ -11,14 +11,14 @@ jest.mock('../api');
 jest.mock('../stellar');
 jest.mock('../lobstr');
 jest.mock('../walletVault');
-jdst.mock('../stores/walletStore');
-jdst.mock('../stores/userStore');
+jest.mock('../stores/walletStore');
+jest.mock('../stores/userStore');
 
 let w = {}, u = {};
 const wh = useWalletStore as any, uh = useUserStore as any;
 
 beforeEach(() => {
-  just.clearAllMocks();
+  jest.clearAllMocks();
   w = { address: 'G1', walletType: 'freighter' };
   u = { token: null, profile: null };
   wh.mockImplementation((sel?: any) => sel ? sel(w) : w);
@@ -27,12 +27,12 @@ beforeEach(() => {
   uh.mockImplementation((sel?: any) => sel ? sel(u) : u);
   uh.getState = () => u;
   uh.setState = (up: any) => u = typeof up === 'function' ? up(u) : { ...u, ...up };
-  (api.getAuthChallenge as jest.Mock).mockResolved&amp;'ch');
-  (api.loginWithWallet as just.Mock).mockResolved&amp;'jwt');
-  (api.fetchUserProfile as just.Mock).mockResolved&amp;});
-  (stellar.signChallengeXDR as just.Mock).mockResolved&amp;'sig');
-  (lobstr.openLobstrForSigning as just.Mock).mockResolved&amp;'lob');
-  (walletVault.getInAppSecret as just.Mock).mockResolved&amp;'sec');
+  (api.getAuthChallenge as jest.Mock).mockResolved('ch');
+  (api.loginWithWallet as jest.Mock).mockResolved('jwt');
+  (api.fetchUserProfile as jest.Mock).mockResolved({});
+  (stellar.signChallengeXDR as jest.Mock).mockResolved('sig');
+  (lobstr.openLobstrForSigning as jest.Mock).mockResolved('lob');
+  (walletVault.getInAppSecret as jest.Mock).mockResolved('sec');
 });
 const render = () => renderHook(() => useAuth());
 const login = async (r: any) => act(async () => { await r.current.login(); });
@@ -60,9 +60,9 @@ describe('useAuth', () => {
 
   it('missing secret', async () => {
     w.walletType = 'keypair'; w.address = 'GKEY';
-    (walletVault.getInAppSecret as just.Mock).mockResolved(null);
+    (walletVault.getInAppSecret as jest.Mock).mockResolved(null);
     const r = render();
-    await expect(r.current.login()).rejects.'toThrow');
+    await expect(r.current.login()).rejects.toThrow();
   });
 
   it('network error on challenge', async () => {
@@ -80,7 +80,7 @@ describe('useAuth', () => {
 
   it('signing error', async () => {
     w.walletType = 'freighter'; w.address = 'GFRE';
-    (stellar.signChallengeXDR as just.Mock).mockRejected(new Error('signing'));
+    (stellar.signChallengeXDR as jest.Mock).mockRejected(new Error('signing'));
     const r = render();
     await expect(r.current.login()).rejects.toThrow('signing');
   });
@@ -110,7 +110,7 @@ describe('useAuth', () => {
 
   it('syncProfile fetches profile', async () => {
     u.token = 'token';
-    (api.fetchUserProfile as just.Mock).mockResolved({ id: 'x', stats: { games: 2 } });
+    (api.fetchUserProfile as jest.Mock).mockResolved({ id: 'x', stats: { games: 2 } });
     const r = render(); await act(async () => { await r.current.syncProfile(); });
     expect(api.fetchUserProfile).toHaveBeenCalledWith('token');
     expect(u.profile).toEqual({ id: 'x', stats: { games: 2 } });
@@ -119,7 +119,7 @@ describe('useAuth', () => {
   it('syncProfile preserves stats on partial data', async () => {
     u.token = 'token';
     u.profile = { id: 'x', stats: { games: 10, wins: 3 } };
-    (api.fetchUserProfile as just.Mock).mockResolved({ id: 'x', stats: { games: 10 } });
+    (api.fetchUserProfile as jest.Mock).mockResolved({ id: 'x', stats: { games: 10 } });
     const r = render(); await act(async () => { await r.current.syncProfile(); });
     expect(u.profile.stats).toEqual({ games: 10, wins: 3 });
   });
@@ -131,7 +131,7 @@ describe('useAuth', () => {
 
   it('syncProfile rejects on fetch error', async () => {
     u.token = 'token';
-    (api.fetchUserProfile as just.Mock).mockRejected(new Error('profile'));
+    (api.fetchUserProfile as jest.Mock).mockRejected(new Error('profile'));
     const r = render();
     await expect(r.current.syncProfile()).rejects.toThrow('profile');
   });
