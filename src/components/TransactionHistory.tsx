@@ -60,7 +60,7 @@ export default function TransactionHistory({
 
   if (loading) {
     return (
-      <View style={{ marginTop: spacing.xl }}>
+      <View style={{ marginTop: spacing.xl }} accessibilityLiveRegion="polite">
         <Skeleton
           height={18}
           width="40%"
@@ -80,20 +80,18 @@ export default function TransactionHistory({
 
   if (error) {
     return (
-      <View style={{ marginTop: spacing.xl, alignItems: 'center' }}>
+      <View style={{ marginTop: spacing.xl, alignItems: 'center' }} accessibilityLiveRegion="polite">
         <Text style={{ color: colors.error, fontSize: 13 }}>{error}</Text>
-        <TouchableOpacity
-          onPress={() => void loadPayments()}
-          accessibilityRole="button"
-          style={{
-            marginTop: spacing.xs,
-            paddingVertical: spacing.sm,
-            paddingHorizontal: spacing.md,
-            minHeight: 44,
-            justifyContent: 'center',
-          }}
-        >
-          <Text style={{ color: colors.primary, fontSize: 13 }}>Retry</Text>
+        <TouchableOpacity onPress={loadPayments} accessibilityRole="button" accessibilityLabel="Retry loading transaction history">
+          <Text
+            style={{
+              color: colors.primary,
+              fontSize: 13,
+              marginTop: spacing.xs,
+            }}
+          >
+            Retry
+          </Text>
         </TouchableOpacity>
       </View>
     );
@@ -131,7 +129,7 @@ export default function TransactionHistory({
               borderColor: colors.border,
             }}
           >
-            <Text style={{ fontSize: 20, marginRight: spacing.md }}>
+            <Text style={{ fontSize: 20, marginRight: spacing.md }} accessible={true} accessibilityLabel={isSent ? 'Sent' : 'Received'}>
               {isSent ? '↗️' : '↙️'}
             </Text>
             <View style={{ flex: 1 }}>

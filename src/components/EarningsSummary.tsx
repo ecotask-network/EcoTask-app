@@ -83,7 +83,7 @@ export default function EarningsSummary({ activities }: EarningsSummaryProps) {
                 marginBottom: spacing.xs,
               }}
             >
-              <Text style={{ fontSize: 14, width: 24 }}>{item.icon}</Text>
+              <Text accessible={true} accessibilityRole="image" accessibilityLabel={`${item.label} icon`} style={{ fontSize: 14, width: 24 }}>{item.icon}</Text>
               <Text
                 style={{
                   color: colors.text,

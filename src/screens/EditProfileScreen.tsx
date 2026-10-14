@@ -72,17 +72,9 @@ export default function EditProfileScreen() {
         >
           <TouchableOpacity
             onPress={() => navigation.goBack()}
+            style={{ marginBottom: spacing.md }}
+            accessibilityLabel="Cancel editing profile"
             accessibilityRole="button"
-            accessibilityLabel="Cancel"
-            style={{
-              alignSelf: 'flex-start',
-              paddingVertical: spacing.sm,
-              paddingHorizontal: spacing.md,
-              marginLeft: -spacing.md,
-              marginBottom: spacing.md,
-              minHeight: 44,
-              justifyContent: 'center',
-            }}
           >
             <Text style={{ color: colors.primary, fontSize: 16 }}>Cancel</Text>
           </TouchableOpacity>
@@ -112,6 +104,7 @@ export default function EditProfileScreen() {
             onChangeText={setName}
             placeholder="Your name"
             placeholderTextColor={colors.textSecondary}
+            accessibilityLabel="Display Name input"
             style={{
               backgroundColor: colors.surface,
               borderRadius: 12,
@@ -138,6 +131,7 @@ export default function EditProfileScreen() {
             onChangeText={setBio}
             placeholder="Tell others about yourself"
             placeholderTextColor={colors.textSecondary}
+            accessibilityLabel="Bio input"
             multiline
             numberOfLines={4}
             textAlignVertical="top"
@@ -157,6 +151,8 @@ export default function EditProfileScreen() {
           <TouchableOpacity
             onPress={() => void handleSave()}
             disabled={isSaving}
+            accessibilityLabel="Save Changes"
+            accessibilityRole="button"
             style={{
               padding: spacing.md,
               backgroundColor: colors.primary,
@@ -165,7 +161,10 @@ export default function EditProfileScreen() {
               opacity: isSaving ? 0.5 : 1,
             }}
           >
-            <Text style={{ color: '#FFF', fontWeight: '600', fontSize: 16 }}>
+            <Text 
+              style={{ color: '#FFF', fontWeight: '600', fontSize: 16 }}
+              accessibilityLiveRegion="polite"
+            >
               {isSaving ? 'Saving...' : 'Save Changes'}
             </Text>
           </TouchableOpacity>
