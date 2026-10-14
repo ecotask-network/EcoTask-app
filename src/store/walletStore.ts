@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { MMKV } from 'react-native-mmkv';
+import { getPayments, StellarPayment } from '../services/stellar';
 
 const storage = new MMKV();
 const zustandMMKVStorage = {
@@ -8,6 +9,8 @@ const zustandMMKVStorage = {
   setItem: (name: string, value: string) => storage.set(name, value),
   removeItem: (name: string) => storage.delete(name),
 };
+
+export const PAYMENTS_CACHE_TTL_MS = 60_000;
 
 export type WalletType = 'freighter' | 'inapp' | 'lobstr';
 
@@ -40,6 +43,8 @@ interface WalletState {
   ecoBalance: string | null;
   usdcBalance: string | null;
   walletType: WalletType | null;
+  payments: StellarPayment[] | null;
+  paymentsLastFetchedAt: number | null;
   /** Enter the intermediate 'connecting' state. Does NOT flip isConnected. */
   beginConnect: () => void;
   /**
@@ -61,6 +66,8 @@ interface WalletState {
   setBalance: (balance: string) => void;
   setEcoBalance: (ecoBalance: string) => void;
   setUsdcBalance: (usdcBalance: string) => void;
+  setPayments: (payments: StellarPayment[]) => void;
+  refreshPayments: () => Promise<StellarPayment[] | null>;
 }
 
 const clearedWalletFields = {
@@ -69,9 +76,17 @@ const clearedWalletFields = {
   ecoBalance: null,
   usdcBalance: null,
   walletType: null,
+  payments: null,
+  paymentsLastFetchedAt: null,
 } satisfies Pick<
   WalletState,
-  'publicKey' | 'balance' | 'ecoBalance' | 'usdcBalance' | 'walletType'
+  | 'publicKey'
+  | 'balance'
+  | 'ecoBalance'
+  | 'usdcBalance'
+  | 'walletType'
+  | 'payments'
+  | 'paymentsLastFetchedAt'
 >;
 
 /**
@@ -103,6 +118,8 @@ export const useWalletStore = create<WalletState>()(
       ecoBalance: null,
       usdcBalance: null,
       walletType: null,
+      payments: null,
+      paymentsLastFetchedAt: null,
       beginConnect: () =>
         set({ status: 'connecting', isConnected: false, connectError: null }),
       connect: (publicKey, walletType = 'inapp', initialBalances) =>
@@ -134,6 +151,37 @@ export const useWalletStore = create<WalletState>()(
       setBalance: balance => set({ balance }),
       setEcoBalance: ecoBalance => set({ ecoBalance }),
       setUsdcBalance: usdcBalance => set({ usdcBalance }),
+      setPayments: payments =>
+        set({ payments, paymentsLastFetchedAt: Date.now() }),
+      refreshPayments: async () => {
+        const { publicKey, payments, paymentsLastFetchedAt } =
+          useWalletStore.getState();
+        if (!publicKey) {
+          return payments;
+        }
+
+        const now = Date.now();
+        const isCacheStale =
+          paymentsLastFetchedAt === null ||
+          now - paymentsLastFetchedAt >= PAYMENTS_CACHE_TTL_MS;
+
+        if (!isCacheStale) {
+          return payments;
+        }
+
+        try {
+          const freshPayments = await getPayments(publicKey);
+          useWalletStore.setState({
+            payments: freshPayments,
+            paymentsLastFetchedAt: now,
+          });
+          return freshPayments;
+        } catch {
+          // Preserve the existing cache on network failure so the UI can
+          // still show stale data rather than a blank screen.
+          return payments;
+        }
+      },
     }),
     {
       name: 'wallet-storage',

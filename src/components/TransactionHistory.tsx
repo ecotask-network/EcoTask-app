@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { colors, spacing } from '../utils/theme';
 import Skeleton from './LoadingSkeleton';
-import { getPayments, StellarPayment } from '../services/stellar';
+import { useWalletStore, PAYMENTS_CACHE_TTL_MS } from '../store/walletStore';
 
 interface TransactionHistoryProps {
   publicKey: string;
@@ -35,55 +35,62 @@ function truncateAddress(addr: string): string {
 export default function TransactionHistory({
   publicKey,
 }: TransactionHistoryProps) {
-  const [payments, setPayments] = useState<StellarPayment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const payments = useWalletStore(state => state.payments);
+  const refreshPayments = useWalletStore(state => state.refreshPayments);
+
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadPayments = useCallback(async () => {
+    if (!publicKey) {
+      return;
+    }
+
+    const cached = useWalletStore.getState();
+    const isCacheStale =
+      cached.paymentsLastFetchedAt === null ||
+      Date.now() - cached.paymentsLastFetchedAt >= PAYMENTS_CACHE_TTL_MS;
+
+    if (!isCacheStale) {
+      return;
+    }
+
+    setIsRefreshing(true);
+    setError(null);
     try {
-      setLoading(true);
-      // getPayments already resolves the correct Horizon network via
-      // Config.STELLAR_NETWORK, so no URL/network handling is needed here.
-      const records = await getPayments(publicKey, 10);
-      setPayments(records);
-      setError(null);
+      await refreshPayments();
     } catch {
       setError('Failed to load transaction history');
     } finally {
-      setLoading(false);
+      setIsRefreshing(false);
     }
-  }, [publicKey]);
+  }, [publicKey, refreshPayments]);
 
   useEffect(() => {
     void loadPayments();
   }, [loadPayments]);
 
-  if (loading) {
-    return (
-      <View style={{ marginTop: spacing.xl }}>
-        <Skeleton
-          height={18}
-          width="40%"
-          style={{ marginBottom: spacing.md }}
-        />
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton
-            key={i}
-            height={56}
-            borderRadius={12}
-            style={{ marginBottom: spacing.sm }}
-          />
-        ))}
-      </View>
-    );
-  }
+  const handleRefresh = useCallback(async () => {
+    if (!publicKey) {
+      return;
+    }
+    setIsRefreshing(true);
+    setError(null);
+    try {
+      await refreshPayments();
+    } catch {
+      setError('Failed to load transaction history');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [publicKey, refreshPayments]);
 
-  if (error) {
+  if (error && (!payments || payments.length === 0)) {
     return (
       <View style={{ marginTop: spacing.xl, alignItems: 'center' }}>
         <Text style={{ color: colors.error, fontSize: 13 }}>{error}</Text>
         <TouchableOpacity
-          onPress={() => void loadPayments()}
+          onPress={() => void handleRefresh()}
           accessibilityRole="button"
           style={{
             marginTop: spacing.xs,
@@ -99,22 +106,71 @@ export default function TransactionHistory({
     );
   }
 
-  if (payments.length === 0) {
+  if (!payments || payments.length === 0) {
+    if (isRefreshing) {
+      return (
+        <View style={{ marginTop: spacing.xl }}>
+          <Skeleton
+            height={18}
+            width="40%"
+            style={{ marginBottom: spacing.md }}
+          />
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton
+              key={i}
+              height={56}
+              borderRadius={12}
+              style={{ marginBottom: spacing.sm }}
+            />
+          ))}
+        </View>
+      );
+    }
     return null;
   }
 
   return (
     <View style={{ marginTop: spacing.xl }}>
-      <Text
+      <View
         style={{
-          color: colors.text,
-          fontSize: 18,
-          fontWeight: 'bold',
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
           marginBottom: spacing.md,
         }}
       >
-        Recent Transactions
-      </Text>
+        <Text
+          style={{
+            color: colors.text,
+            fontSize: 18,
+            fontWeight: 'bold',
+          }}
+        >
+          Recent Transactions
+        </Text>
+        <TouchableOpacity
+          onPress={() => void handleRefresh()}
+          accessibilityRole="button"
+          accessibilityLabel="Refresh transactions"
+          style={{
+            paddingVertical: spacing.xs,
+            paddingHorizontal: spacing.sm,
+            minHeight: 32,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <Text
+            style={{
+              color: colors.primary,
+              fontSize: 13,
+              fontWeight: '600',
+            }}
+          >
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </Text>
+        </TouchableOpacity>
+      </View>
       {payments.map(payment => {
         const isSent = payment.from === publicKey;
         return (
