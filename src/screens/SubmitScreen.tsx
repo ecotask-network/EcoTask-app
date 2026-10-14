@@ -45,7 +45,7 @@ export default function SubmitScreen() {
         Submit Proof
       </Text>
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ fontSize: 64 }}>📸</Text>
+        <Text accessible={true} accessibilityLabel="Camera" style={{ fontSize: 64 }}>📸</Text>
         <Text
           style={{
             color: colors.text,
@@ -69,6 +69,8 @@ export default function SubmitScreen() {
         </Text>
         <TouchableOpacity
           onPress={() => navigation.navigate('Tasks')}
+          accessibilityRole="button"
+          accessibilityLabel="Browse Tasks"
           style={{
             marginTop: spacing.lg,
             paddingVertical: spacing.md,

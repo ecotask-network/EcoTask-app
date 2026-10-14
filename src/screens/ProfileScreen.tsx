@@ -48,7 +48,12 @@ export default function ProfileScreen() {
             borderColor: colors.primary,
           }}
         >
-          <Text style={{ fontSize: 36 }}>
+          <Text 
+            style={{ fontSize: 36 }}
+            accessible={true}
+            accessibilityLabel={profile?.avatarUrl ? "User avatar" : "Seedling avatar"}
+            accessibilityRole="image"
+          >
             {profile?.avatarUrl ? '👤' : '🌱'}
           </Text>
         </View>
@@ -155,6 +160,8 @@ export default function ProfileScreen() {
             disconnectWallet();
             logout();
           }}
+          accessibilityLabel="Disconnect and Sign Out"
+          accessibilityRole="button"
           style={{
             marginTop: spacing.lg,
             padding: spacing.md,
@@ -184,6 +191,8 @@ function SettingsRow({
   return (
     <TouchableOpacity
       onPress={onPress}
+      accessibilityLabel={label}
+      accessibilityRole="button"
       style={{
         flexDirection: 'row',
         justifyContent: 'space-between',

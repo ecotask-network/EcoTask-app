@@ -32,6 +32,7 @@ import * as notifications from '../services/notifications';
 import { useProofStatus } from '../hooks/useProofStatus';
 import { useActivityStore } from '../store/activityStore';
 import { NOTIFICATION_TYPES } from '../constants/notificationTypes';
+import PendingProofsPollManager from '../components/PendingProofsPollManager';
 
 // ─── constants mirrored from the hook ────────────────────────────────────────
 const INITIAL_INTERVAL_MS = 5_000;
@@ -299,5 +300,99 @@ describe('useProofStatus', () => {
     });
 
     expect(api.fetchProofStatus).not.toHaveBeenCalled();
+  });
+});
+
+describe('PendingProofsPollManager', () => {
+  it('resumes polling for pending activities with a proofId', async () => {
+    (api.fetchProofStatus as jest.Mock).mockResolvedValue({
+      proofId: 'proof-1',
+      status: 'confirmed',
+      rewardAmount: 10,
+    });
+
+    // makeActivity() in beforeEach already added a pending activity with proof-1
+    let tree: renderer.ReactTestRenderer;
+    await act(async () => {
+      tree = renderer.create(<PendingProofsPollManager />);
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(INITIAL_INTERVAL_MS + 100);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(api.fetchProofStatus).toHaveBeenCalledWith('proof-1');
+    const activity = useActivityStore.getState().activities.find(a => a.id === 'act-1');
+    expect(activity?.status).toBe('confirmed');
+
+    await act(async () => {
+      tree.unmount();
+    });
+  });
+
+  it('does not poll activities without a proofId', async () => {
+    // Add a pending activity without proofId
+    useActivityStore.getState().addActivity({
+      id: 'act-no-proof',
+      taskId: 'task-2',
+      taskTitle: 'Offline Task',
+      taskType: 'OTHER',
+      rewardAmount: 0,
+      rewardToken: 'ECO',
+      completedAt: new Date().toISOString(),
+      status: 'pending',
+    });
+
+    let tree: renderer.ReactTestRenderer;
+    await act(async () => {
+      tree = renderer.create(<PendingProofsPollManager />);
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(INITIAL_INTERVAL_MS + 100);
+      await Promise.resolve();
+    });
+
+    // It should still poll proof-1 (from beforeEach), but NOT task-2
+    expect(api.fetchProofStatus).not.toHaveBeenCalledWith(undefined);
+    expect(api.fetchProofStatus).not.toHaveBeenCalledWith(null);
+
+    await act(async () => {
+      tree.unmount();
+    });
+  });
+
+  it('does not poll terminal activities (confirmed/failed)', async () => {
+    useActivityStore.getState().clearActivities();
+    
+    useActivityStore.getState().addActivity({
+      id: 'act-confirmed',
+      taskId: 'task-3',
+      taskTitle: 'Done',
+      taskType: 'OTHER',
+      rewardAmount: 5,
+      rewardToken: 'ECO',
+      completedAt: new Date().toISOString(),
+      status: 'confirmed',
+      proofId: 'proof-3',
+    });
+
+    let tree: renderer.ReactTestRenderer;
+    await act(async () => {
+      tree = renderer.create(<PendingProofsPollManager />);
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(INITIAL_INTERVAL_MS * 2);
+      await Promise.resolve();
+    });
+
+    expect(api.fetchProofStatus).not.toHaveBeenCalled();
+
+    await act(async () => {
+      tree.unmount();
+    });
   });
 });

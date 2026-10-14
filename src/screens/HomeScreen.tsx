@@ -64,7 +64,11 @@ export default function HomeScreen() {
           paddingBottom: spacing.lg,
         }}
       >
-        <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+        <TouchableOpacity 
+          onPress={() => navigation.navigate('Profile')}
+          accessibilityLabel={`Go to Profile. ${getGreeting()}, ${profile?.name || 'Eco Warrior'}`}
+          accessibilityRole="button"
+        >
           <Text style={{ color: colors.textSecondary, fontSize: 16 }}>
             {getGreeting()},
           </Text>
@@ -178,6 +182,8 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             onPress={() => navigation.navigate('Tasks')}
+            accessibilityLabel="Browse Tasks"
+            accessibilityRole="button"
             style={{
               padding: spacing.lg,
               backgroundColor: colors.primary,
@@ -190,7 +196,14 @@ export default function HomeScreen() {
             <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 18 }}>
               Browse Tasks
             </Text>
-            <Text style={{ marginLeft: spacing.sm, fontSize: 20 }}>🌿</Text>
+            <Text 
+              style={{ marginLeft: spacing.sm, fontSize: 20 }}
+              accessible={true}
+              accessibilityLabel="Leaves"
+              accessibilityRole="image"
+            >
+              🌿
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -262,7 +275,12 @@ export default function HomeScreen() {
                       a.status === 'pending' ? colors.warning : colors.border,
                   }}
                 >
-                  <Text style={{ fontSize: 24, marginRight: spacing.md }}>
+                  <Text 
+                    style={{ fontSize: 24, marginRight: spacing.md }}
+                    accessible={true}
+                    accessibilityLabel="Task Icon"
+                    accessibilityRole="image"
+                  >
                     {TASK_TYPE_CONFIG[a.taskType as TaskType]?.icon || '📍'}
                   </Text>
                   <View style={{ flex: 1 }}>

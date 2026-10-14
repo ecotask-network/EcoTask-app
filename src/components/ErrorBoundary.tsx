@@ -30,6 +30,7 @@ export default class ErrorBoundary extends Component<Props, State> {
       }
       return (
         <View
+          accessibilityLiveRegion="polite"
           style={{
             flex: 1,
             backgroundColor: colors.background,
@@ -38,7 +39,7 @@ export default class ErrorBoundary extends Component<Props, State> {
             padding: spacing.lg,
           }}
         >
-          <Text style={{ fontSize: 48 }}>⚠️</Text>
+          <Text accessible={true} accessibilityRole="image" accessibilityLabel="Warning icon" style={{ fontSize: 48 }}>⚠️</Text>
           <Text
             style={{
               color: colors.text,
@@ -59,6 +60,8 @@ export default class ErrorBoundary extends Component<Props, State> {
             {this.state.error?.message || 'An unexpected error occurred'}
           </Text>
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Try Again"
             onPress={this.handleRetry}
             style={{
               marginTop: spacing.lg,
