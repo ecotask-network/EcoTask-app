@@ -23,6 +23,13 @@ interface ProofUploadError extends Error {
   ipfsPending?: boolean;
 }
 
+/**
+ * Type guard to check if an error is a ProofUploadError with attached CIDs
+ */
+function isProofUploadError(err: unknown): err is ProofUploadError {
+  return err instanceof Error && 'photoCid' in err && 'metadataCid' in err;
+}
+
 export type ProofSubmitResult =
   | {
       status: 'success';
@@ -136,6 +143,29 @@ async function pinProofAssets(
   return { photoCid, metadataCid, ipfsPending };
 }
 
+/**
+ * React Native FormData file type
+ * Matches the structure React Native expects for FormData.append with a file
+ */
+interface ReactNativeFile {
+  uri: string;
+  type: string;
+  name: string;
+}
+
+/**
+ * Type guard to check if an object is a React Native file
+ */
+function isReactNativeFile(value: unknown): value is ReactNativeFile {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'uri' in value &&
+    'type' in value &&
+    'name' in value
+  );
+}
+
 export function useProofSubmit() {
   const { isInitialised } = useNetworkStatus();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -176,16 +206,17 @@ export function useProofSubmit() {
         formData.append('lng', String(opts.lng));
       }
 
-      interface ReactNativeFilePart {
-        uri: string;
-        type: string;
-        name: string;
-      }
-      formData.append('photos', {
+      // Properly typed React Native file for FormData
+      const photoFile: ReactNativeFile = {
         uri: photoUri,
         type: 'image/jpeg',
         name: 'proof.jpg',
-      } as ReactNativeFilePart as unknown as Blob);
+      };
+      
+      // FormData.append expects a Blob/File in browser, but in React Native it accepts { uri, type, name }
+      // We pass it as any because React Native's FormData type is not fully typed for this use case
+      // The runtime behavior is correct - this is a known limitation of React Native's FormData types
+      formData.append('photos', photoFile as unknown as Blob);
 
       if (photoCid) {
         formData.append('ipfsPhotoCid', photoCid);
@@ -198,11 +229,17 @@ export function useProofSubmit() {
         const result = await submitProof(formData);
         return { result, ipfsPending };
       } catch (err) {
-        // attach the generated cids so callers can persist them
-        const uploadError = err as ProofUploadError;
+        // Attach the generated CIDs to the error for persistence
+        // Use a type-safe approach: create a new error with the additional properties
+        const error = err instanceof Error ? err : new Error(String(err));
+        const uploadError = new Error(error.message) as ProofUploadError;
         uploadError.photoCid = photoCid;
         uploadError.metadataCid = metadataCid;
         uploadError.ipfsPending = ipfsPending;
+        // Preserve the original stack if available
+        if (error.stack) {
+          uploadError.stack = error.stack;
+        }
         throw uploadError;
       }
     },
@@ -253,7 +290,9 @@ export function useProofSubmit() {
           ...(attemptIpfsPending ? { ipfsPending: true } : {}),
         };
       } catch (err) {
-        const uploadError = err as ProofUploadError;
+        const uploadError = err instanceof Error 
+          ? err as ProofUploadError 
+          : new Error(String(err)) as ProofUploadError;
         const message = uploadError.message || 'Upload failed';
         const ipfsPending = uploadError.ipfsPending || false;
         try {
@@ -336,7 +375,9 @@ export function useProofSubmit() {
             },
           );
         } catch (err) {
-          const uploadError = err as ProofUploadError;
+          const uploadError = err instanceof Error 
+            ? err as ProofUploadError 
+            : new Error(String(err)) as ProofUploadError;
           remaining.push({
             ...proof,
             photoCid: uploadError.photoCid || proof.photoCid,
