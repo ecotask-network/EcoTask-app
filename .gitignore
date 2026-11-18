@@ -10,9 +10,6 @@ ios/build/
 *.tsbuildinfo
 
 # Environment
-.env
-.env.local
-.env.production
 
 # Firebase native config (contains API keys — never commit)
 android/app/google-services.json
@@ -20,7 +17,6 @@ ios/*/GoogleService-Info.plist
 
 # IDE
 .idea/
-.vscode/
 *.swp
 *.swo
 *~
@@ -40,3 +36,4 @@ npm-debug.log*
 # Metro
 metro-cache/
 coverage/
+config.bat
