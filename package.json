@@ -5,7 +5,7 @@
   "scripts": {
     "android": "react-native run-android",
     "ios": "react-native run-ios",
-    "start": "node init && react-native start",
+    "start": "react-native start",
     "postinstall": "node scripts/apply-type-patches.js",
     "typecheck": "tsc --noEmit",
     "test": "jest --testPathIgnorePatterns='integration' --testPathIgnorePatterns='__mocks__'",
